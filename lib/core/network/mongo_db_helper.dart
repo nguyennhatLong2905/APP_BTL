@@ -28,7 +28,7 @@ class MongoDbHelper {
   }
 }
 
-/// Extension tiện ích mở rộng cho Map<String, dynamic>
+/// Extension tiện ích mở rộng cho `Map<String, dynamic>`
 extension MongoJsonExtension on Map<String, dynamic> {
   /// Tự động mapper `_id` sang `id`
   Map<String, dynamic> toMongoNormalized() {

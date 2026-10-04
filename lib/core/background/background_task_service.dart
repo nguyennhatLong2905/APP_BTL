@@ -71,7 +71,7 @@ class BackgroundTaskService {
       uniqueName,
       taskName,
       frequency: frequency,
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+      existingWorkPolicy: ExistingWorkPolicy.replace,
     );
   }
 

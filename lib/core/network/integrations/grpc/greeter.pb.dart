@@ -67,7 +67,7 @@ class HelloRequest extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   $core.bool hasName() => $_has(0);
   @$pb.TagNumber(1)
-  void clearName() => $_clearField(1);
+  void clearName() => clearField(1);
 }
 
 class HelloReply extends $pb.GeneratedMessage {
@@ -120,7 +120,7 @@ class HelloReply extends $pb.GeneratedMessage {
   @$pb.TagNumber(1)
   $core.bool hasMessage() => $_has(0);
   @$pb.TagNumber(1)
-  void clearMessage() => $_clearField(1);
+  void clearMessage() => clearField(1);
 }
 
 const $core.bool _omitFieldNames =

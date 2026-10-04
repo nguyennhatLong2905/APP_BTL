@@ -31,6 +31,21 @@ class AppConstants {
   // Hive box names
   static const String settingsBox = 'settings';
   static const String cacheBox = 'cache';
+  static const String offlineSyncBox = 'offline_sync';
+  static const String notificationsStorageKey = 'notifications_key';
+
+  // Accessibility & UX constants
+  static const double accessibilityTouchTargetMinSize = 48.0;
+  static const Duration accessibilityTooltipDuration = Duration(seconds: 3);
+
+  // App Review & Update constants
+  static const String iOSAppId = 'id1234567890';
+  static const int minSessionsBeforeReview = 3;
+  static const int minDaysBeforeReview = 7;
+  static const int minActionsBeforeReview = 10;
+
+  // Extra Routes
+  static const String localizationAssetsDemoRoute = '/settings/localization-demo';
 
   // Animation durations
   static const Duration defaultAnimationDuration = Duration(milliseconds: 300);

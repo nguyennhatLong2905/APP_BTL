@@ -39,6 +39,11 @@ dependencies:
   form_builder_validators: ^11.2.0
   crypto: ^3.0.6
   path_provider: ^2.1.5
+  flutter_tts: ^4.2.1
+  workmanager: ^0.5.2
+  grpc: ^4.0.1
+  protobuf: ^3.1.0
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   flutter_test:
