@@ -1,234 +1,116 @@
-# Flutter Riverpod Clean Architecture Template
+# 📊 EXPENSE TRACKER APP — QUẢN LÝ CHI TIÊU CÁ NHÂN
 
-[![Flutter CI/CD](https://github.com/ssoad/flutter_riverpod_clean_architecture/actions/workflows/flutter_ci_cd.yml/badge.svg)](https://github.com/ssoad/flutter_riverpod_clean_architecture/actions/workflows/flutter_ci_cd.yml)
-![Flutter](https://img.shields.io/badge/Flutter-3.35+-02569B?style=flat&logo=flutter)
-![Riverpod](https://img.shields.io/badge/Riverpod-3.x-0175C2?style=flat)
-![Architecture](https://img.shields.io/badge/Architecture-Clean-success)
-![License](https://img.shields.io/badge/License-MIT-purple)
-
-A production-ready, highly scalable Flutter template designed for modern application development. It implements strictly typed **Clean Architecture** with **Riverpod** for state management and dependency injection, and ships with a working example of nearly every integration pattern a real app eventually needs — REST, WebSocket, webhooks, GraphQL, gRPC, background tasks, biometrics, offline sync, and more — so you can start from "already solved" instead of "figure it out."
+> **Dự án Môn học / Đồ án Phát triển Ứng dụng Di động**  
+> **Frontend:** Flutter (Dart) | **State Management:** Riverpod 3.x | **Network:** Dio | **Router:** GoRouter  
+> **Backend Integration:** NestJS (TypeScript) + MongoDB (NoSQL)  
+> **Kiến trúc:** Clean Architecture (Feature-First)
 
 ---
 
-## 🚀 Key Features
+## 📌 1. GIỚI THIỆU DỰ ÁN (PROJECT OVERVIEW)
 
-### Core Architecture
-- **Strict Clean Architecture**: clear separation of Domain, Data, and Presentation layers, generated consistently for every feature.
-- **Functional Error Handling**: uses `fpdart` for type-safe error handling (`Either<Failure, T>`) instead of throwing.
-- **Riverpod 3.x**: modern provider patterns with `Notifier`, `AsyncNotifier`, and code-generated (`riverpod_generator`) providers.
-- **Framework Independence**: Domain and Data layers are testable without any Flutter dependency.
+**Expense Tracker App** là ứng dụng di động hỗ trợ quản lý tài chính cá nhân toàn diện, giúp người dùng theo dõi các khoản thu/chi, phân loại danh mục chi tiêu, quản lý ví tài khoản và xem báo cáo phân tích trực quan.
 
-### Developer Experience
-- **Feature Generator**: create a complete feature — domain, data, presentation, tests — in seconds (`./generate_feature.sh`).
-- **Strict Linting**: an opinionated `analysis_options.yaml` plus `riverpod_lint`/`custom_lint`, kept at zero issues.
-- **CI/CD Ready**: GitHub Actions run `dart format`, `flutter analyze`, and `flutter test` on every push and PR.
-- **Type Safety**: full null-safety and strict typing throughout, `freezed`/`json_serializable` for models.
-
-### Advanced Capabilities
-- **Auth, Tasks, Posts, Notifications, Survey, Chat**: complete, working features built on the architecture, not just docs describing it.
-- **Offline First**: local storage and sync strategies with Hive/SharedPreferences/`flutter_secure_storage`.
-- **Biometric Auth**: Face ID / fingerprint gating both app access and sensitive actions.
-- **Localization**: multi-language support (`intl` + custom ARB tooling) with a runtime language switcher.
-- **A full integration example gallery** — see below.
+Dự án được xây dựng trên nền tảng **Flutter** chuẩn **Clean Architecture**, tách biệt rõ ràng các tầng nghiệp vụ (`Domain`, `Data`, `Presentation`), đảm bảo khả năng mở rộng (Scalability), dễ kiểm thử (Testability) và thuận tiện cho công tác làm việc nhóm (Team Collaboration).
 
 ---
 
-## 🧭 Examples Hub — start here for any requirement
+## 👥 2. ĐỘI NGŨ PHÁT TRIỂN & PHÂN CÔNG CÔNG VIỆC (TEAM & ROLES)
 
-This template ships small, copyable examples of the integration and platform patterns most apps need sooner or later, so you can pick the one your requirement matches and adapt it instead of researching it from scratch. Run the app, sign in, and tap **Examples** (home screen tile, or the compass icon in the bottom nav) to browse all of them — or jump straight to the source under `lib/examples/examples_hub_screen.dart`.
-
-| Pattern | Where | Notes |
-|---|---|---|
-| REST | `features/posts/` (uses `core/network/api_client.dart`) | Repository pattern over Dio, with offline cache fallback |
-| WebSocket | `core/network/integrations/websocket_client.dart` | Connect/send/receive/reconnect; demoed against a public echo server |
-| Webhook (send) | `core/network/integrations/webhook_sender.dart` + `webhook_signature.dart` | HMAC-SHA256 signed outbound POST |
-| Webhook (receive) | `core/network/integrations/local_webhook_receiver.dart` | Local-only `dart:io` `HttpServer` for dev/testing; not available on web |
-| GraphQL | `core/network/integrations/graphql_client.dart` | Thin Dio wrapper — a query and a mutation, no extra state-management framework |
-| gRPC | `core/network/integrations/grpc/` | Real `protoc`-generated client for a unary + a server-streaming call; not available on web. Run `dart run tool/grpc_demo_server.dart` locally to exercise the streaming call end-to-end |
-| Background tasks | `core/background/background_task_service.dart` | `workmanager`: one-off and periodic scheduled work, survives the app being closed |
-| Biometric auth | `core/auth/local_biometric_service.dart` + `examples/biometrics_demo.dart` | Fingerprint/Face ID gating app access and sensitive transactions |
-| File upload/download | `core/network/integrations/file_transfer_service.dart` | Multipart upload and download, both with progress callbacks; not available on web |
-| Feature flags, analytics, notifications, images, logging, accessibility, app updates, offline sync, app reviews | `examples/advanced_features_showcase.dart` | One screen touring the rest of `core/` |
-
-A few of these (the local webhook receiver, gRPC, and file transfer to disk) need a real filesystem or raw TCP socket and are intentionally unavailable on Flutter Web — each says so in its own screen and doc comment rather than failing silently.
+| Vai trò | Thành viên | Nhiệm vụ chính (Sprint 1) | Branch phụ trách |
+| :--- | :--- | :--- | :--- |
+| **Tech Lead / Architect** | `nguyennhatLong2905` | Thiết lập Clean Architecture Base, Dio Network, Helper MongoDB, UI Kit dùng chung | `main` |
+| **Frontend Developer 1** | FE 1 (`Ducdao` / `Linhleve` / `Tuan Hai`) | Module `Auth` (Đăng nhập, Đăng ký), Secure Storage JWT Token, Router Guard | `feature/auth-and-storage` |
+| **Frontend Developer 2** | FE 2 (`Ducdao` / `Linhleve` / `Tuan Hai`) | Dashboard tổng quan, Form Thêm Thu/Chi, Currency Formatting, Transaction Model | `feature/transaction-and-dashboard` |
 
 ---
 
-## 📚 Documentation
+## 🏗️ 3. KIẾN TRÚC & CÔNG NGHỆ (ARCHITECTURE & TECH STACK)
 
-The full guide set lives in [`docs/`](docs/) and is published as a static site at **[ssoad.github.io/flutter_riverpod_clean_architecture](https://ssoad.github.io/flutter_riverpod_clean_architecture/)** (rebuilt automatically on every push to `docs/`). The most useful starting points:
+### 🛠️ Tech Stack Chi Tiết
+- **Framework:** Flutter (Dart SDK >= 3.10)
+- **State Management:** Flutter Riverpod 3.x (`riverpod_annotation`, `NotifierProvider`)
+- **Navigation:** GoRouter (Hỗ trợ Router Redirect Guard khi chưa Đăng nhập)
+- **Network Client:** Dio 5.x + Interceptors (Auth Token Interceptor, Error Interceptor, Log Interceptor)
+- **Secure Storage:** `flutter_secure_storage` (Lưu vết JWT Token an toàn)
+- **Backend Interop:** NestJS REST API + MongoDB Mongoose (`MongoDbHelper` tự động mapper `_id` -> `id` & parse thời gian ISO 8601)
 
-| Guide | What it covers |
-|---|---|
-| [Getting Started](docs/GETTING_STARTED.md) | The fastest path from clone to running app |
-| [Architecture Guide](docs/ARCHITECTURE_GUIDE.md) | The Clean Architecture layering this template enforces |
-| [Coding Standards](docs/CODING_STANDARDS.md) | Naming, structure, and lint conventions used throughout |
-| [CLI Tools](docs/TOOLS.md) | The generator/rename/icon scripts, in more depth than below |
-| [Features](docs/FEATURES.md) | What each built-in feature does |
-| [Examples](docs/EXAMPLES.md) | Deeper walkthroughs of specific patterns |
-| [CI/CD Guide](docs/CICD_GUIDE.md) | How the GitHub Actions workflows are wired up |
-| [Contributing](docs/CONTRIBUTING.md) | How to propose changes to this template |
-
-Plus focused guides for individual subsystems: [Localization](docs/LOCALIZATION_GUIDE.md), [Biometric Auth](docs/BIOMETRIC_AUTH_GUIDE.md), [Offline Architecture](docs/OFFLINE_ARCHITECTURE_GUIDE.md), [Feature Flags](docs/FEATURE_FLAGS_GUIDE.md), [Analytics](docs/ANALYTICS_GUIDE.md), [Accessibility](docs/ACCESSIBILITY_GUIDE.md), and [Image Handling](docs/IMAGE_HANDLING_GUIDE.md).
-
----
-
-## 🛠️ Quick Start
-
-### 1. Prerequisites
-- Flutter SDK, latest stable channel (developed and CI-tested against 3.35+)
-- Dart SDK 3.10+ (bundled with the Flutter SDK above)
-
-### 2. Installation
-```bash
-# Clone the repository
-git clone https://github.com/ssoad/flutter_riverpod_clean_architecture.git
-cd flutter_riverpod_clean_architecture
-
-# Install dependencies
-flutter pub get
-
-# Generate code (Freezed, Riverpod, JSON serialization)
-dart run build_runner build --delete-conflicting-outputs
-```
-
-### 3. Running the App
-```bash
-# Development
-flutter run
-
-# Production build
-flutter build apk --release
-```
-
----
-
-## ⚡ CLI Tools
-
-Five scripts automate the parts of starting a new project that are otherwise tedious and error-prone. All are executable (`chmod +x` already set) and safe to run from the repo root; see [`docs/TOOLS.md`](docs/TOOLS.md) for full detail on each.
-
-### Generate a new feature
-```bash
-./generate_feature.sh --name my_awesome_feature
-```
-Scaffolds a complete feature module — `domain/{entities,repositories,usecases}`, `data/{models,datasources,repositories}`, `presentation/{providers,screens,widgets}`, a `providers/` DI file, and unit tests for every layer — following the same structure as every existing feature.
-
-### Rename the app
-```bash
-./rename_app.sh --app-name "My Super App" --package-name com.company.superapp
-```
-Updates the display name and package/bundle identifier across Android, iOS, macOS, Windows, Linux and Web, moves the Kotlin package directory, and rewrites internal `package:...` Dart imports. Cross-platform (works with both BSD/macOS and GNU/Linux `sed`).
-
-### Generate app icons
-```bash
-# 1. Place a 1024x1024 source icon at assets/icon/app_icon.png
-# 2. Run:
-./generate_icons.sh
-```
-Generates native icons for Android `mipmap`, iOS `Assets.xcassets`, Web `manifest.json`, and Windows/macOS/Linux via `flutter_launcher_icons`.
-
-### Manage localization
-```bash
-./generate_language.sh generate       # regenerate the localization delegate from the ARB files
-./generate_language.sh list           # list supported languages
-./generate_language.sh add <code>     # scaffold a new language, e.g. `add fr`
-```
-Also checks every non-English ARB file against `intl_en.arb` and reports any missing translation keys.
-
-### Run tests with coverage
-```bash
-./test_generator.sh                   # run all tests and generate an HTML coverage report
-./test_generator.sh --no-coverage     # skip coverage collection
-./test_generator.sh --target test/features/auth  # scope to a directory
-```
-
----
-
-## 🏗️ Project Structure
-
+### 📂 Cấu Trúc Thư Mục (Feature-First Clean Architecture)
 ```
 lib/
-├── core/                       # Shared kernel: network, storage, auth, error handling, DI
-│   ├── network/
-│   │   └── integrations/       # WebSocket, webhook, GraphQL, gRPC, file transfer clients
-│   ├── background/             # WorkManager background task service
-│   └── ...                     # accessibility, analytics, logging, theming, localization, ...
-├── examples/                   # Copyable pattern examples, browsable via the in-app Examples Hub
-│   └── integrations/           # Demo screens for each core/network/integrations/* client
-├── features/                   # Feature modules (see structure below)
-│   ├── auth/                   # Login, registration, profile
-│   ├── chat/                   # WebSocket chat feature
-│   ├── tasks/                  # Local CRUD to-do list
-│   ├── posts/                  # Paginated feed with offline cache
-│   ├── notifications/          # In-app notification center
-│   ├── survey/                 # Complex form handling
-│   └── ...
-├── l10n/                       # Localization delegate and helpers
-├── main.dart                   # Entry point
+├── core/                       # Thành phần dùng chung (Shared Kernel)
+│   ├── network/                # EnvConfig, AuthInterceptor, ErrorInterceptor, MongoDbHelper
+│   ├── storage/                # LocalStorageService, SecureStorageService
+│   ├── theme/                  # AppTheme (Color Palette chuyên dụng Thu/Chi)
+│   ├── widgets/                # Bộ UI Kit (CurrencyTextField, PrimaryButton, LoadingDialog, AppSnackBar)
+│   └── router/                 # GoRouter Config & Locale Awareness
+├── features/                   # Các Module tính năng (Feature-First)
+│   ├── auth/                   # [FE 1] Đăng nhập, Đăng ký, Quản lý tài khoản
+│   ├── transaction/            # [FE 2] Quản lý Thu/Chi, Hóa đơn
+│   ├── wallet/                 # Quản lý Ví & Tài khoản ngân hàng
+│   └── report/                 # Báo cáo thống kê & Biểu đồ
+├── main.dart                   # Entry Point ứng dụng
 └── ...
-
-tool/
-└── grpc_demo_server.dart       # Local reference gRPC server for the streaming example
-
-test/                           # Mirrors lib/, unit + widget + golden tests
-```
-
-### Feature structure ("Screaming Architecture")
-Each feature is a self-contained module:
-
-```
-feature_name/
-├── domain/                     # 1. Innermost layer (pure Dart)
-│   ├── entities/                #    Business objects (Equatable)
-│   ├── repositories/            #    Abstract interfaces
-│   └── usecases/                #    Business logic units
-├── data/                       # 2. Outer layer (implementation)
-│   ├── datasources/              #    API/DB clients
-│   ├── models/                   #    JSON parsing & adapters
-│   └── repositories/             #    Repository implementations
-├── presentation/                # 3. UI layer (Flutter)
-│   ├── providers/                 #    UI state management (Notifiers)
-│   ├── screens/                   #    Widget pages
-│   └── widgets/                   #    Reusable components
-└── providers/                   # 4. DI layer (Riverpod)
-    └── feature_providers.dart     #    Data layer dependency injection
 ```
 
 ---
 
-## 🧪 Testing
+## ⚡ 4. HƯỚNG DẪN KHỞI CHẠY DỰ ÁN (GETTING STARTED)
+
+### Yêu cầu môi trường (Prerequisites)
+- Flutter SDK: `>= 3.10.0`
+- Dart SDK: `>= 3.0.0`
+- Android Studio / VS Code (đã cài Flutter & Dart Extensions)
+
+### Các bước cài đặt & chạy ứng dụng
 
 ```bash
-# Run all tests
-flutter test
+# 1. Clone repository về máy
+git clone https://github.com/nguyennhatLong2905/APP_BTL.git
 
-# Update golden files after an intentional UI change
-flutter test --update-goldens
+# 2. Di chuyển vào thư mục dự án
+cd APP_BTL
 
-# Run with coverage and an HTML report
-./test_generator.sh
+# 3. Tải các package dependencies
+flutter pub get
+
+# 4. Khởi chạy ứng dụng (trên Android Emulator / iOS Simulator / Device)
+flutter run
 ```
 
-- **Unit tests** for use cases, repositories, and data sources (`mocktail` for mocking).
-- **Widget tests** for reusable UI components.
-- **Golden tests** for visual regression, with a small pixel-difference tolerance for cross-platform font rendering.
+---
 
-CI (`.github/workflows/flutter_ci_cd.yml`) runs `dart format --set-exit-if-changed`, `flutter analyze`, and `flutter test` on every push and pull request against `main`/`develop`.
+## 🔄 5. QUY TRÌNH LÀM VIỆC VỚI GIT (GIT WORKFLOW FOR TEAM)
+
+Để đảm bảo nguồn code trên branch `main` luôn hoạt động ổn định và không xảy ra xung đột (Conflict):
+
+1. **Tuyệt đối không push trực tiếp lên branch `main`**.
+2. **Tạo branch riêng cho từng tính năng:**
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/<ten-tinh-nang>
+   ```
+3. **Commit code theo chuẩn Conventional Commits:**
+   - `feat:` Thêm tính năng mới (Ví dụ: `feat: implement login screen`)
+   - `fix:` Sửa lỗi (Ví dụ: `fix: currency input textfield format`)
+   - `style:` Cập nhật UI / Theme
+   - `docs:` Cập nhật tài liệu
+4. **Tạo Pull Request (PR):**
+   - Khi hoàn thành tính năng, push branch lên GitHub và gửi **Pull Request (PR)** vào branch `main`.
+   - Tech Lead review code trước khi phê duyệt gộp code (Merge).
 
 ---
 
-## 🤝 Contributing
+## 🧪 6. KIỂM THỬ (TESTING)
 
-See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the full guide. In short:
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a pull request
+```bash
+# Chạy toàn bộ Unit Tests & Widget Tests
+flutter test
+```
 
 ---
 
-## 📄 License
+## 📄 7. GIẤY PHÉP (LICENSE)
 
-Distributed under the MIT License. See [`LICENSE`](LICENSE) for the full text.
+Dự án được phát triển dưới giấy phép [MIT License](LICENSE).
