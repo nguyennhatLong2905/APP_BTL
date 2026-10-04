@@ -17,14 +17,21 @@
 
 ## 🚀 2. HƯỚNG DẪN CHO BẠN DŨNG BẮT ĐẦU DỰ ÁN (CHỈ LÀM 1 LẦN ĐẦU)
 
-Mở **Terminal** (PowerShell hoặc Git Bash) trong Android Studio / VS Code trên máy tính cá nhân của Dũng và chạy lần lượt các câu lệnh sau:
-
 ### Step 1: Clone dự án về máy
+Mở **Terminal / PowerShell** trên máy tính và chạy:
 ```bash
+# Clone dự án về máy (Git sẽ tự động tạo thư mục tên APP_BTL)
 git clone https://github.com/nguyennhatLong2905/APP_BTL.git
+
+# Di chuyển vào thư mục dự án
 cd APP_BTL
+
+# Tải các thư viện của Flutter
 flutter pub get
 ```
+
+> 💡 **Lưu ý:** Sau khi làm xong Step 1, Dũng hãy mở thư mục `APP_BTL` bằng **Android Studio** hoặc **VS Code**. 
+> Nếu sau đó Dũng mở Terminal **ngay bên trong Android Studio / VS Code**, Terminal đã ở sẵn trong thư mục `APP_BTL` rồi, Dũng **không cần** gõ `cd APP_BTL` nữa nhé!
 
 ### Step 2: Cấu hình danh tính Git (nếu máy chưa cấu hình)
 ```bash
