@@ -15,17 +15,7 @@ Dự án được xây dựng trên nền tảng **Flutter** chuẩn **Clean Arc
 
 ---
 
-## 👥 2. ĐỘI NGŨ PHÁT TRIỂN & PHÂN CÔNG CÔNG VIỆC (TEAM & ROLES)
-
-| Vai trò | Thành viên | Nhiệm vụ chính (Sprint 1) | Branch phụ trách |
-| :--- | :--- | :--- | :--- |
-| **Tech Lead / Architect** | `nguyennhatLong2905` | Thiết lập Clean Architecture Base, Dio Network, Helper MongoDB, UI Kit dùng chung | `main` |
-| **Frontend Developer 1** | FE 1 (`Ducdao` / `Linhleve` / `Tuan Hai`) | Module `Auth` (Đăng nhập, Đăng ký), Secure Storage JWT Token, Router Guard | `feature/auth-and-storage` |
-| **Frontend Developer 2** | FE 2 (`Ducdao` / `Linhleve` / `Tuan Hai`) | Dashboard tổng quan, Form Thêm Thu/Chi, Currency Formatting, Transaction Model | `feature/transaction-and-dashboard` |
-
----
-
-## 🏗️ 3. KIẾN TRÚC & CÔNG NGHỆ (ARCHITECTURE & TECH STACK)
+## 🏗️ 2. KIẾN TRÚC & CÔNG NGHỆ (ARCHITECTURE & TECH STACK)
 
 ### 🛠️ Tech Stack Chi Tiết
 - **Framework:** Flutter (Dart SDK >= 3.10)
@@ -55,7 +45,7 @@ lib/
 
 ---
 
-## ⚡ 4. HƯỚNG DẪN KHỞI CHẠY DỰ ÁN (GETTING STARTED)
+## ⚡ 3. HƯỚNG DẪN KHỞI CHẠY DỰ ÁN (GETTING STARTED)
 
 ### Yêu cầu môi trường (Prerequisites)
 - Flutter SDK: `>= 3.10.0`
@@ -80,7 +70,7 @@ flutter run
 
 ---
 
-## 🔄 5. QUY TRÌNH LÀM VIỆC VỚI GIT (GIT WORKFLOW FOR TEAM)
+## 🔄 4. QUY TRÌNH LÀM VIỆC VỚI GIT (GIT WORKFLOW FOR TEAM)
 
 Để đảm bảo nguồn code trên branch `main` luôn hoạt động ổn định và không xảy ra xung đột (Conflict):
 
@@ -102,7 +92,7 @@ flutter run
 
 ---
 
-## 🧪 6. KIỂM THỬ (TESTING)
+## 🧪 5. KIỂM THỬ (TESTING)
 
 ```bash
 # Chạy toàn bộ Unit Tests & Widget Tests
@@ -111,6 +101,6 @@ flutter test
 
 ---
 
-## 📄 7. GIẤY PHÉP (LICENSE)
+## 📄 6. GIẤY PHÉP (LICENSE)
 
 Dự án được phát triển dưới giấy phép [MIT License](LICENSE).
