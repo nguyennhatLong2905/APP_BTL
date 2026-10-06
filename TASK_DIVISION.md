@@ -16,40 +16,35 @@
 
 ---
 
-## 👨‍💻 Long - 4 Màn Hình (Độ phức tạp: Cao)
+## 👨‍💻 Long - 4 Màn Hình
 
-| # | Màn Hình | Feature Folder | Độ Phức Tạp | Ưu Tiên |
-|---|----------|----------------|-------------|---------|
-| 1 | **Splash Screen (Logo)** | `lib/features/auth/` | ⭐ Dễ | P0 |
-| 2 | **Tổng Quan (Dashboard)** | `lib/features/home/` | ⭐⭐⭐⭐ Rất khó | P0 |
-| 3 | **Thêm Giao Dịch** | `lib/features/transaction/` | ⭐⭐⭐ Khó | P1 |
-| 4 | **Lịch Sử Giao Dịch** | `lib/features/report/` | ⭐⭐⭐⭐ Rất khó | P2 |
+| # | Màn Hình | Feature Folder | Ưu Tiên |
+|---|----------|----------------|---------|
+| 1 | **Splash Screen (Logo)** | `lib/features/auth/` | P0 |
+| 2 | **Tổng Quan (Dashboard)** | `lib/features/home/` | P0 |
+| 3 | **Thêm Giao Dịch** | `lib/features/transaction/` | P1 |
+| 4 | **Lịch Sử Giao Dịch** | `lib/features/report/` | P2 |
 
-**Tổng điểm độ khó:** 13 ⭐
-
-### **Lý do phân chia:**
-- Dashboard là màn hình phức tạp nhất → Long đảm nhận
-- Lịch Sử Giao Dịch có chart/analytics phức tạp
-- Thêm Giao Dịch có form validation
-- Splash Screen đơn giản để warm-up
+### **Mô tả công việc:**
+- Dashboard hiển thị tổng quan tài chính với các widgets và biểu đồ
+- Lịch Sử Giao Dịch có phần báo cáo và thống kê
+- Thêm Giao Dịch xử lý form nhập liệu
+- Splash Screen làm màn hình khởi động
 
 ---
 
-## 👨‍💻 Dũng - 3 Màn Hình (Độ phức tạp: Trung bình)
+## 👨‍💻 Dũng - 3 Màn Hình
 
-| # | Màn Hình | Feature Folder | Độ Phức Tạp | Ưu Tiên |
-|---|----------|----------------|-------------|---------|
-| 1 | **Mua Hay Chờ** | `lib/features/wallet/` | ⭐⭐⭐ Khó | P1 |
-| 2 | **Kế Hoạch Chi Tiêu** | `lib/features/settings/` | ⭐⭐⭐⭐ Rất khó | P1 |
-| 3 | **Nhìn Lại Nhật Ký** | `lib/features/notifications/` | ⭐⭐⭐ Khó | P2 |
+| # | Màn Hình | Feature Folder | Ưu Tiên |
+|---|----------|----------------|---------|
+| 1 | **Mua Hay Chờ** | `lib/features/wallet/` | P1 |
+| 2 | **Kế Hoạch Chi Tiêu** | `lib/features/settings/` | P1 |
+| 3 | **Nhìn Lại Nhật Ký** | `lib/features/notifications/` | P2 |
 
-**Tổng điểm độ khó:** 10 ⭐
-
-### **Lý do phân chia:**
-- Kế Hoạch Chi Tiêu có budget planning phức tạp
-- Mua Hay Chờ có logic so sánh/recommendation
-- Nhìn Lại Nhật Ký là timeline view
-- 3 màn nhưng cân bằng về độ khó
+### **Mô tả công việc:**
+- Kế Hoạch Chi Tiêu xử lý quản lý ngân sách và budget
+- Mua Hay Chờ có logic phân tích và đề xuất
+- Nhìn Lại Nhật Ký hiển thị timeline giao dịch
 
 ---
 

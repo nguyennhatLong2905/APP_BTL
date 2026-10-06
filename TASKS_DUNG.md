@@ -8,7 +8,7 @@
 
 ## 📱 Danh Sách Màn Hình
 
-### ✅ 1. Mua Hay Chờ (Smart Spending) - `P1` ⭐⭐⭐
+### ✅ 1. Mua Hay Chờ (Smart Spending) - `P1`
 
 **Feature:** `lib/features/wallet/presentation/pages/smart_spending_page.dart`
 
@@ -76,7 +76,7 @@ class RecommendationService {
 
 ---
 
-### ✅ 2. Kế Hoạch Chi Tiêu (Budget Planning) - `P1` ⭐⭐⭐⭐
+### ✅ 2. Kế Hoạch Chi Tiêu (Budget Planning) - `P1`
 
 **Feature:** `lib/features/settings/presentation/pages/budget_planning_page.dart`
 
@@ -145,7 +145,7 @@ syncfusion_flutter_sliders: ^24.0.0  # Cho drag slider
 
 ---
 
-### ✅ 3. Nhìn Lại Nhật Ký (Transaction Timeline) - `P2` ⭐⭐⭐
+### ✅ 3. Nhìn Lại Nhật Ký (Transaction Timeline) - `P2`
 
 **Feature:** `lib/features/notifications/presentation/pages/timeline_page.dart`
 
@@ -213,12 +213,312 @@ sticky_headers: ^0.3.0  # Cho sticky date headers
 
 ---
 
+## � HƯỚNG DẪN CÀI ĐẶT THƯ VIỆN CHI TIẾT
+
+> **QUAN TRỌNG:** Đọc kỹ phần này trước khi bắt đầu code để tránh lỗi!
+
+### **Bước 1: Kiểm tra Flutter SDK**
+
+```bash
+# Kiểm tra phiên bản Flutter
+flutter --version
+
+# Nên dùng Flutter 3.x trở lên
+# Nếu cũ, update: flutter upgrade
+```
+
+### **Bước 2: Cài đặt dependencies**
+
+**Mở file `pubspec.yaml` và thêm:**
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management (ĐÃ CÓ SẴN)
+  flutter_riverpod: ^2.0.0
+  
+  # UI Components - CẦN THÊM
+  syncfusion_flutter_sliders: ^24.0.0    # Cho Kế Hoạch Chi Tiêu
+  table_calendar: ^3.0.9                  # Cho Nhìn Lại Nhật Ký
+  sticky_headers: ^0.3.0                  # Cho Nhìn Lại Nhật Ký
+  
+  # Utils (ĐÃ CÓ TỪ LONG)
+  intl: ^0.19.0                           # Format tiền VND
+```
+
+**Sau đó chạy:**
+
+```bash
+flutter pub get
+```
+
+### **Bước 3: Cài từng package riêng (Nếu Bước 2 lỗi)**
+
+**Nếu gặp lỗi khi `flutter pub get`, cài từng cái một:**
+
+```bash
+# 1. Cài Syncfusion Sliders
+flutter pub add syncfusion_flutter_sliders
+
+# 2. Cài Table Calendar
+flutter pub add table_calendar
+
+# 3. Cài Sticky Headers
+flutter pub add sticky_headers
+
+# 4. Kiểm tra lại
+flutter pub get
+```
+
+### **Bước 4: Import vào code**
+
+**Khi dùng trong code, import như sau:**
+
+```dart
+// Cho Kế Hoạch Chi Tiêu
+import 'package:syncfusion_flutter_sliders/sliders.dart';
+
+// Cho Nhìn Lại Nhật Ký
+import 'package:table_calendar/table_calendar.dart';
+import 'package:sticky_headers/sticky_headers.dart';
+
+// Utils
+import 'package:intl/intl.dart';
+```
+
+---
+
+## ⚠️ TROUBLESHOOTING - Xử Lý Lỗi Thường Gặp
+
+### **Lỗi 1: `Package not found`**
+
+**Triệu chứng:**
+```
+Error: Could not resolve package 'syncfusion_flutter_sliders'
+```
+
+**Giải pháp:**
+```bash
+# Xóa cache
+flutter clean
+
+# Cài lại
+flutter pub get
+
+# Nếu vẫn lỗi, check internet và retry
+```
+
+---
+
+### **Lỗi 2: `Version conflict`**
+
+**Triệu chứng:**
+```
+Because app depends on both package_a 1.0.0 and package_b which depends on package_a 2.0.0...
+```
+
+**Giải pháp:**
+```yaml
+# Trong pubspec.yaml, chỉ định version cụ thể
+dependency_overrides:
+  package_a: 1.0.0
+```
+
+Hoặc:
+```bash
+flutter pub upgrade
+```
+
+---
+
+### **Lỗi 3: `Build failed` sau khi add package**
+
+**Triệu chứng:**
+```
+BUILD FAILED in 5s
+```
+
+**Giải pháp:**
+```bash
+# Android
+cd android
+./gradlew clean
+cd ..
+
+# iOS (nếu dùng Mac)
+cd ios
+pod install
+cd ..
+
+# Sau đó
+flutter clean
+flutter pub get
+flutter run
+```
+
+---
+
+### **Lỗi 4: `Undefined class` khi import**
+
+**Triệu chứng:**
+```dart
+import 'package:table_calendar/table_calendar.dart';
+// Lỗi: Undefined class 'TableCalendar'
+```
+
+**Giải pháp:**
+```bash
+# Restart IDE (VS Code/Android Studio)
+# Hoặc restart Dart Analysis Server trong VS Code:
+# Ctrl+Shift+P → "Dart: Restart Analysis Server"
+```
+
+---
+
+### **Lỗi 5: Syncfusion License Warning**
+
+**Triệu chứng:**
+```
+Warning: Syncfusion license key is missing
+```
+
+**Giải pháp:**
+
+Syncfusion có cảnh báo license nhưng **KHÔNG ẢNH HƯỞNG** đến dev. Có thể:
+
+1. **Bỏ qua** (recommend cho học tập)
+2. Hoặc đăng ký free license tại: https://www.syncfusion.com/sales/communitylicense
+
+Thêm vào `main.dart`:
+```dart
+import 'package:syncfusion_flutter_core/core.dart';
+
+void main() {
+  SyncfusionLicense.registerLicense('YOUR_LICENSE_KEY');
+  runApp(MyApp());
+}
+```
+
+---
+
+### **Lỗi 6: `intl` format lỗi**
+
+**Triệu chứng:**
+```dart
+NumberFormat.currency(locale: 'vi_VN').format(1000000);
+// Lỗi: Locale data missing
+```
+
+**Giải pháp:**
+
+```dart
+// Dùng custom format thay vì locale
+final currencyFormat = NumberFormat('#,###', 'vi_VN');
+String formatted = '${currencyFormat.format(1000000)} ₫';
+// Output: "1.000.000 ₫"
+```
+
+---
+
+## 🧪 TESTING PACKAGES
+
+**Test từng package sau khi cài:**
+
+### **Test 1: Syncfusion Slider**
+
+```dart
+import 'package:syncfusion_flutter_sliders/sliders.dart';
+
+SfSlider(
+  min: 0.0,
+  max: 100.0,
+  value: 50.0,
+  onChanged: (value) {},
+);
+```
+
+Nếu không lỗi → ✅ OK
+
+---
+
+### **Test 2: Table Calendar**
+
+```dart
+import 'package:table_calendar/table_calendar.dart';
+
+TableCalendar(
+  firstDay: DateTime.utc(2020, 1, 1),
+  lastDay: DateTime.utc(2030, 12, 31),
+  focusedDay: DateTime.now(),
+);
+```
+
+Nếu hiện calendar → ✅ OK
+
+---
+
+### **Test 3: Sticky Headers**
+
+```dart
+import 'package:sticky_headers/sticky_headers.dart';
+
+StickyHeader(
+  header: Text('Header'),
+  content: Text('Content'),
+);
+```
+
+Nếu không lỗi → ✅ OK
+
+---
+
+## 📚 TÀI LIỆU THAM KHẢO
+
+### **1. Syncfusion Sliders:**
+- Docs: https://help.syncfusion.com/flutter/slider/overview
+- Examples: https://flutter.syncfusion.com/#/sliders/default-slider
+
+### **2. Table Calendar:**
+- GitHub: https://github.com/aleksanderwozniak/table_calendar
+- Examples: https://pub.dev/packages/table_calendar/example
+
+### **3. Sticky Headers:**
+- GitHub: https://github.com/slightfoot/flutter_sticky_headers
+- Pub.dev: https://pub.dev/packages/sticky_headers
+
+### **4. Intl (Format tiền VND):**
+- Docs: https://pub.dev/packages/intl
+- Number format: https://api.flutter.dev/flutter/intl/NumberFormat-class.html
+
+---
+
+## ✅ CHECKLIST TRƯỚC KHI CODE
+
+- [ ] Đã chạy `flutter pub get` thành công
+- [ ] Không có lỗi warning màu đỏ trong Terminal
+- [ ] Đã test `flutter run` và app khởi động được
+- [ ] Đã import thử các packages vào file test
+- [ ] Đã đọc docs của ít nhất 1 package sẽ dùng
+- [ ] Đã biết cách format tiền VND với `intl`
+
+---
+
+**Nếu vẫn gặp lỗi không giải quyết được:**
+1. Google: "flutter [tên lỗi]"
+2. Check GitHub Issues của package
+3. Ping Long hoặc hỏi Kiro
+4. Worst case: Dùng package thay thế
+
+---
+
 ## 📋 Checklist Trước Khi Bắt Đầu
 
 ### **Setup Environment:**
 - [ ] Clone repo về máy
-- [ ] Checkout branch `dung`: `git checkout -b dung`
-- [ ] Push branch lên: `git push -u origin dung`
+- [ ] Checkout branch `dung`: `git checkout dung`
+- [ ] Pull latest: `git pull origin dung`
 - [ ] Chạy `flutter pub get`
 - [ ] Test app trên emulator/device
 
@@ -297,31 +597,6 @@ git push origin dung
 - Avoid nested `setState()`
 - Use `ListView.builder` cho list dài
 - Debounce search input (delay 300ms)
-
----
-
-## 📦 Dependencies Cần Thêm
-
-Thêm vào `pubspec.yaml`:
-
-```yaml
-dependencies:
-  # State Management (đã có)
-  flutter_riverpod: ^2.0.0
-  
-  # UI Components
-  syncfusion_flutter_sliders: ^24.0.0  # Drag slider cho budget
-  table_calendar: ^3.0.9  # Calendar view
-  sticky_headers: ^0.3.0  # Sticky headers
-  
-  # Utils
-  intl: ^0.19.0  # Format tiền VND (đã có ở Long)
-```
-
-Run:
-```bash
-flutter pub add syncfusion_flutter_sliders table_calendar sticky_headers
-```
 
 ---
 
