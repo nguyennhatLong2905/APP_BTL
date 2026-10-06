@@ -196,11 +196,79 @@ syncfusion_flutter_charts: ^24.0.0  # Optional, nếu cần chart đẹp hơn
 ## 📋 Checklist Trước Khi Bắt Đầu
 
 ### **Setup Environment:**
-- [ ] Clone repo về máy
-- [ ] Checkout branch `long`: `git checkout -b long`
-- [ ] Push branch lên: `git push -u origin long`
+- [x] Clone repo về máy ✅
+- [x] Checkout branch `long` ✅
+- [x] Branch đã được push lên ✅
 - [ ] Chạy `flutter pub get`
 - [ ] Test app trên emulator/device
+
+### **Cấu Trúc Code - GHI CHÚ CHO MERGE:**
+
+**Tôi (Long) sẽ tạo các files sau:**
+
+```
+lib/features/auth/
+├── presentation/
+│   ├── pages/
+│   │   └── splash_screen.dart          ← MÀN SPLASH
+│   └── widgets/
+│       └── logo_widget.dart
+
+lib/features/home/
+├── domain/
+│   └── models/
+│       └── dashboard_data.dart
+├── data/
+│   └── mock_data.dart                  ← MOCK DATA
+└── presentation/
+    ├── pages/
+    │   └── home_page.dart              ← MÀN DASHBOARD
+    ├── widgets/
+    │   ├── balance_card.dart
+    │   ├── quick_action_buttons.dart
+    │   ├── recent_transactions.dart
+    │   ├── spending_chart.dart
+    │   └── bottom_nav_bar.dart
+    └── providers/
+        └── home_provider.dart
+
+lib/features/transaction/
+├── domain/
+│   └── models/
+│       ├── transaction.dart
+│       └── transaction_category.dart
+└── presentation/
+    ├── pages/
+    │   └── add_transaction_page.dart   ← MÀN THÊM GIAO DỊCH
+    ├── widgets/
+    │   ├── amount_input.dart
+    │   ├── category_grid.dart
+    │   ├── date_picker_field.dart
+    │   └── photo_picker.dart
+    └── providers/
+        └── transaction_provider.dart
+
+lib/features/report/
+├── domain/
+│   └── models/
+│       └── report_data.dart
+└── presentation/
+    ├── pages/
+    │   └── report_page.dart            ← MÀN LỊCH SỬ
+    ├── widgets/
+    │   ├── period_selector.dart
+    │   ├── summary_cards.dart
+    │   ├── pie_chart_widget.dart
+    │   ├── bar_chart_widget.dart
+    │   └── grouped_transaction_list.dart
+    └── providers/
+        └── report_provider.dart
+```
+
+**📝 Ghi chú để merge:**
+- Tất cả files **CHỈ TRONG** 4 folders: `auth/`, `home/`, `transaction/`, `report/`
+- Không sửa files nào khác
+- Không tạo shared code
 
 ### **Review Design:**
 - [ ] Đọc kỹ file `docs/design/FIGMA_SCREENS.md`
@@ -212,31 +280,51 @@ syncfusion_flutter_charts: ^24.0.0  # Optional, nếu cần chart đẹp hơn
 
 ## 🔄 Quy Trình Hàng Ngày
 
-### **Sáng (Trước khi code):**
-```bash
-# 1. Pull code mới từ frontend
-git checkout frontend
-git pull origin frontend
+> ⚠️ **QUAN TRỌNG:** Làm việc HOÀN TOÀN ĐỘC LẬP trên branch `long`
 
-# 2. Merge vào branch long
+### **Mỗi Ngày (Đơn giản):**
+```bash
+# 1. Bắt đầu code (KHÔNG cần pull gì cả)
 git checkout long
-git merge frontend
 
-# 3. Giải quyết conflict (nếu có)
-# 4. Bắt đầu code
-```
+# 2. Code...
 
-### **Tối (Sau khi code xong):**
-```bash
-# 1. Commit code
-git add lib/features/home/  # Chỉ add feature của mình
-git commit -m "feat(home): implement dashboard balance card"
+# 3. Commit THƯỜNG XUYÊN (mỗi task nhỏ)
+git add lib/features/home/presentation/widgets/balance_card.dart
+git commit -m "feat(home): add balance card widget"
 
-# 2. Push lên branch long
+# 4. Push lên branch long
 git push origin long
 
-# 3. Update checklist trong file này
-# 4. Tạo PR nếu đã xong 1 màn hình hoàn chỉnh
+# 5. Update checklist trong TASKS_LONG.md
+```
+
+### **QUY TẮC:**
+- ✅ **ĐƯỢC:** Commit & push bất cứ lúc nào
+- ❌ **KHÔNG:** Pull từ `frontend`
+- ❌ **KHÔNG:** Merge bất kỳ branch nào
+- ❌ **KHÔNG:** Sửa code ngoài 4 feature folders của mình
+
+### **Khi Hoàn Thành TẤT CẢ 4 Màn Hình:**
+```bash
+# 1. Đảm bảo đã commit & push hết
+git status  # Phải clean
+
+# 2. Tự merge vào frontend (BẠN là người merge)
+git checkout frontend
+git pull origin frontend
+git merge long --no-ff -m "feat: complete Long's 4 screens"
+
+# 3. Chờ Dũng báo xong
+# 4. Merge branch dung
+git merge dung --no-ff -m "feat: merge Dung's 3 screens"
+
+# 5. Giải quyết conflict (nếu có)
+# 6. Test app
+flutter run
+
+# 7. Push lên frontend
+git push origin frontend
 ```
 
 ---
