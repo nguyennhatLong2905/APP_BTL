@@ -516,11 +516,77 @@ Nếu không lỗi → ✅ OK
 ## 📋 Checklist Trước Khi Bắt Đầu
 
 ### **Setup Environment:**
-- [ ] Clone repo về máy
+- [ ] Clone repo về máy: `git clone https://github.com/nguyennhatLong2905/APP_BTL.git`
+- [ ] Vào folder: `cd APP/App`
 - [ ] Checkout branch `dung`: `git checkout dung`
 - [ ] Pull latest: `git pull origin dung`
 - [ ] Chạy `flutter pub get`
 - [ ] Test app trên emulator/device
+
+### **Cấu Trúc Code - GHI CHÚ CHO MERGE:**
+
+**Tôi (Dũng) sẽ tạo các files sau:**
+
+```
+lib/features/wallet/
+├── domain/
+│   ├── models/
+│   │   ├── spending_decision.dart
+│   │   └── wallet_balance.dart
+│   └── services/
+│       └── recommendation_service.dart
+└── presentation/
+    ├── pages/
+    │   └── smart_spending_page.dart    ← MÀN MUA HAY CHỜ
+    ├── widgets/
+    │   ├── balance_indicator.dart
+    │   ├── item_input_form.dart
+    │   ├── recommendation_card.dart
+    │   └── alternative_suggestions.dart
+    └── providers/
+        └── wallet_provider.dart
+
+lib/features/settings/
+├── domain/
+│   └── models/
+│       ├── budget.dart
+│       ├── category_budget.dart
+│       └── budget_template.dart
+└── presentation/
+    ├── pages/
+    │   └── budget_planning_page.dart   ← MÀN KẾ HOẠCH CHI TIÊU
+    ├── widgets/
+    │   ├── monthly_budget_input.dart
+    │   ├── category_budget_item.dart
+    │   ├── budget_progress_chart.dart
+    │   ├── template_selector.dart
+    │   └── budget_alert_card.dart
+    └── providers/
+        └── budget_provider.dart
+
+lib/features/notifications/
+├── domain/
+│   └── models/
+│       ├── timeline_item.dart
+│       └── transaction_group.dart
+└── presentation/
+    ├── pages/
+    │   └── timeline_page.dart          ← MÀN NHÌN LẠI NHẬT KÝ
+    ├── widgets/
+    │   ├── timeline_item_card.dart
+    │   ├── date_header.dart
+    │   ├── calendar_view.dart
+    │   ├── search_filter_bar.dart
+    │   └── statistics_summary_card.dart
+    └── providers/
+        └── timeline_provider.dart
+```
+
+**📝 Ghi chú để Long merge:**
+- Tất cả files **CHỈ TRONG** 3 folders: `wallet/`, `settings/`, `notifications/`
+- Không sửa files nào khác
+- Không tạo shared code
+- Đã test trên emulator trước khi báo Long
 
 ### **Review Design:**
 - [ ] Đọc kỹ file `docs/design/FIGMA_SCREENS.md`
@@ -532,31 +598,45 @@ Nếu không lỗi → ✅ OK
 
 ## 🔄 Quy Trình Hàng Ngày
 
-### **Sáng (Trước khi code):**
-```bash
-# 1. Pull code mới từ frontend
-git checkout frontend
-git pull origin frontend
+> ⚠️ **QUAN TRỌNG:** Làm việc HOÀN TOÀN ĐỘC LẬP trên branch `dung`
 
-# 2. Merge vào branch dung
+### **Mỗi Ngày (Đơn giản):**
+```bash
+# 1. Bắt đầu code (KHÔNG cần pull gì cả)
 git checkout dung
-git merge frontend
 
-# 3. Giải quyết conflict (nếu có)
-# 4. Bắt đầu code
-```
+# 2. Code...
 
-### **Tối (Sau khi code xong):**
-```bash
-# 1. Commit code
-git add lib/features/wallet/  # Chỉ add feature của mình
-git commit -m "feat(wallet): implement smart spending recommendation"
+# 3. Commit THƯỜNG XUYÊN (mỗi task nhỏ)
+git add lib/features/wallet/presentation/widgets/balance_indicator.dart
+git commit -m "feat(wallet): add balance indicator widget"
 
-# 2. Push lên branch dung
+# 4. Push lên branch dung
 git push origin dung
 
-# 3. Update checklist trong file này
-# 4. Tạo PR nếu đã xong 1 màn hình hoàn chỉnh
+# 5. Update checklist trong TASKS_DUNG.md
+```
+
+### **QUY TẮC:**
+- ✅ **ĐƯỢC:** Commit & push bất cứ lúc nào
+- ❌ **KHÔNG:** Pull từ `frontend`
+- ❌ **KHÔNG:** Merge bất kỳ branch nào
+- ❌ **KHÔNG:** Sửa code ngoài 3 feature folders của mình
+
+### **Khi Hoàn Thành TẤT CẢ 3 Màn Hình:**
+```bash
+# 1. Đảm bảo đã commit & push hết
+git status  # Phải clean
+git push origin dung
+
+# 2. Báo Long
+# "Anh Long ơi, em đã hoàn thành xong 3 màn hình rồi.
+#  Anh merge code giúp em nhé!"
+
+# 3. Chờ Long merge
+# Long sẽ merge branch dung vào frontend
+
+# 4. XONG! Không cần làm gì thêm
 ```
 
 ---

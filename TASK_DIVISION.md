@@ -50,38 +50,69 @@
 
 ## 🔄 Quy Trình Làm Việc
 
-### **Bước 1: Tạo Branch**
-```bash
-# Long
-git checkout -b long
-git push -u origin long
+### **QUAN TRỌNG: Quy trình merge đã thay đổi!**
 
-# Dũng
-git checkout -b dung
-git push -u origin dung
+> ⚠️ **CHỈ LONG mới được merge code vào `frontend`**  
+> Mục đích: Tránh conflict, Long sẽ là người chịu trách nhiệm tích hợp code
+
+### **Bước 1: Tạo Branch (Đã xong)**
+```bash
+# Long - Branch đã có
+git checkout long
+
+# Dũng - Branch đã có
+git checkout dung
 ```
 
-### **Bước 2: Làm Việc Hàng Ngày**
+### **Bước 2: Làm Việc Độc Lập**
+
+**Long & Dũng:**
 ```bash
-# Pull code mới nhất từ frontend
+# MỖI NGÀY chỉ làm trên branch của mình
+git checkout long  # hoặc dung
+
+# Code và commit THƯỜNG XUYÊN
+git add lib/features/home/  # Chỉ add feature của mình
+git commit -m "feat(home): implement dashboard balance card"
+git push origin long  # hoặc dung
+
+# KHÔNG pull từ frontend trong quá trình làm
+# KHÔNG merge bất kỳ branch nào khác
+```
+
+### **Bước 3: Hoàn Thành & Bàn Giao (Khi xong TẤT CẢ màn hình)**
+
+**Dũng:**
+```bash
+# Khi hoàn thành 3 màn hình
+git add lib/features/wallet/ lib/features/settings/ lib/features/notifications/
+git commit -m "feat: complete all 3 screens for dung branch"
+git push origin dung
+
+# Báo Long: "Anh ơi, em đã xong hết rồi, anh merge giúp em nhé!"
+```
+
+**Long (Người merge):**
+```bash
+# 1. Đảm bảo branch long đã xong
+git checkout long
+git push origin long
+
+# 2. Merge long vào frontend trước
 git checkout frontend
 git pull origin frontend
+git merge long --no-ff -m "feat: merge Long's work (4 screens)"
+git push origin frontend
 
-# Merge vào branch của mình
-git checkout long  # hoặc dung
-git merge frontend
+# 3. Merge dung vào frontend
+git merge dung --no-ff -m "feat: merge Dung's work (3 screens)"
 
-# Code và commit
-git add .
-git commit -m "feat(home): implement dashboard UI"
-git push origin long  # hoặc dung
-```
+# 4. Giải quyết conflict (nếu có)
+# 5. Test tổng thể
+flutter run
 
-### **Bước 3: Merge vào Frontend**
-```bash
-# Tạo Pull Request: long → frontend
-# Hoặc dung → frontend
-# Review code → Merge
+# 6. Push lên frontend
+git push origin frontend
 ```
 
 ---
@@ -93,18 +124,80 @@ git push origin long  # hoặc dung
 2. Tạo **widgets riêng** trong folder của mình
 3. Tạo **models/providers riêng** cho feature
 4. Update file `TASKS_LONG.md` hoặc `TASKS_DUNG.md` của mình
+5. Commit & push LÊN BRANCH CỦA MÌNH bất cứ lúc nào
 
-### ❌ **KHÔNG ĐƯỢC PHÉP:**
+### ❌ **TUYỆT ĐỐI KHÔNG:**
 1. ❌ Động vào feature folder của người khác
-2. ❌ Sửa file shared (main.dart, routes, theme) mà không báo
-3. ❌ Push trực tiếp lên `frontend` hoặc `main`
-4. ❌ Force push (`git push -f`)
+2. ❌ Sửa file shared (main.dart, routes, theme) **TRÁNH HOÀN TOÀN**
+3. ❌ Merge bất kỳ branch nào vào branch của mình
+4. ❌ Pull từ `frontend` trong quá trình làm
+5. ❌ Push trực tiếp lên `frontend` (CHỈ Long được làm)
+6. ❌ Force push (`git push -f`)
+
+### 📁 **CẤU TRÚC THƯ MỤC - PHẢI TUÂN THỦ:**
+
+**Long - CHỈ code trong các folder này:**
+```
+lib/features/auth/
+  └── presentation/
+      ├── pages/
+      │   └── splash_screen.dart
+      └── widgets/
+          └── logo_widget.dart
+
+lib/features/home/
+  ├── domain/models/
+  ├── data/mock_data.dart
+  └── presentation/
+      ├── pages/home_page.dart
+      ├── widgets/
+      └── providers/
+
+lib/features/transaction/
+  ├── domain/models/
+  └── presentation/
+      ├── pages/add_transaction_page.dart
+      ├── widgets/
+      └── providers/
+
+lib/features/report/
+  ├── domain/models/
+  └── presentation/
+      ├── pages/report_page.dart
+      ├── widgets/
+      └── providers/
+```
+
+**Dũng - CHỈ code trong các folder này:**
+```
+lib/features/wallet/
+  ├── domain/
+  │   ├── models/
+  │   └── services/
+  └── presentation/
+      ├── pages/smart_spending_page.dart
+      ├── widgets/
+      └── providers/
+
+lib/features/settings/
+  ├── domain/models/
+  └── presentation/
+      ├── pages/budget_planning_page.dart
+      ├── widgets/
+      └── providers/
+
+lib/features/notifications/
+  ├── domain/models/
+  └── presentation/
+      ├── pages/timeline_page.dart
+      ├── widgets/
+      └── providers/
+```
 
 ### 🚨 **NẾU CẦN SHARED CODE:**
-- Tạo trong `lib/core/shared/`
-- Báo nhau trên chat
-- Merge vào `frontend` trước
-- Người còn lại pull về
+- **TRÁNH tối đa!** Mock data thay vì dùng shared
+- Nếu thực sự cần: Ping Long để Long tạo sau khi merge
+- **ĐỪNG** tự tạo shared code trong quá trình làm
 
 ---
 
