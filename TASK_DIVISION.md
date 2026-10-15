@@ -50,12 +50,10 @@
 
 ## 🔄 Quy Trình Làm Việc
 
-### **QUAN TRỌNG: Quy trình merge đã thay đổi!**
-
 > ⚠️ **CHỈ LONG mới được merge code vào `frontend`**  
 > Mục đích: Tránh conflict, Long sẽ là người chịu trách nhiệm tích hợp code
 
-### **Bước 1: Tạo Branch (Đã xong)**
+### **Bước 1: Branches (Đã tạo sẵn)**
 ```bash
 # Long - Branch đã có
 git checkout long
@@ -64,7 +62,7 @@ git checkout long
 git checkout dung
 ```
 
-### **Bước 2: Làm Việc Độc Lập**
+### **Bước 2: Làm Việc Độc Lập Trên Nhánh Riêng**
 
 **Long & Dũng:**
 ```bash
@@ -76,8 +74,8 @@ git add lib/features/home/  # Chỉ add feature của mình
 git commit -m "feat(home): implement dashboard balance card"
 git push origin long  # hoặc dung
 
-# KHÔNG pull từ frontend trong quá trình làm
-# KHÔNG merge bất kỳ branch nào khác
+# ❌ KHÔNG pull từ frontend trong quá trình làm
+# ❌ KHÔNG merge bất kỳ branch nào khác
 ```
 
 ### **Bước 3: Hoàn Thành & Bàn Giao (Khi xong TẤT CẢ màn hình)**
@@ -85,7 +83,7 @@ git push origin long  # hoặc dung
 **Dũng:**
 ```bash
 # Khi hoàn thành 3 màn hình
-git add lib/features/wallet/ lib/features/settings/ lib/features/notifications/
+git add .
 git commit -m "feat: complete all 3 screens for dung branch"
 git push origin dung
 
@@ -128,71 +126,11 @@ git push origin frontend
 
 ### ❌ **TUYỆT ĐỐI KHÔNG:**
 1. ❌ Động vào feature folder của người khác
-2. ❌ Sửa file shared (main.dart, routes, theme) **TRÁNH HOÀN TOÀN**
+2. ❌ Sửa file shared (main.dart, routes, theme) - **TRÁNH HOÀN TOÀN**
 3. ❌ Merge bất kỳ branch nào vào branch của mình
 4. ❌ Pull từ `frontend` trong quá trình làm
-5. ❌ Push trực tiếp lên `frontend` (CHỈ Long được làm)
+5. ❌ Push trực tiếp lên `frontend` (CHỈ Long được làm khi merge cuối)
 6. ❌ Force push (`git push -f`)
-
-### 📁 **CẤU TRÚC THƯ MỤC - PHẢI TUÂN THỦ:**
-
-**Long - CHỈ code trong các folder này:**
-```
-lib/features/auth/
-  └── presentation/
-      ├── pages/
-      │   └── splash_screen.dart
-      └── widgets/
-          └── logo_widget.dart
-
-lib/features/home/
-  ├── domain/models/
-  ├── data/mock_data.dart
-  └── presentation/
-      ├── pages/home_page.dart
-      ├── widgets/
-      └── providers/
-
-lib/features/transaction/
-  ├── domain/models/
-  └── presentation/
-      ├── pages/add_transaction_page.dart
-      ├── widgets/
-      └── providers/
-
-lib/features/report/
-  ├── domain/models/
-  └── presentation/
-      ├── pages/report_page.dart
-      ├── widgets/
-      └── providers/
-```
-
-**Dũng - CHỈ code trong các folder này:**
-```
-lib/features/wallet/
-  ├── domain/
-  │   ├── models/
-  │   └── services/
-  └── presentation/
-      ├── pages/smart_spending_page.dart
-      ├── widgets/
-      └── providers/
-
-lib/features/settings/
-  ├── domain/models/
-  └── presentation/
-      ├── pages/budget_planning_page.dart
-      ├── widgets/
-      └── providers/
-
-lib/features/notifications/
-  ├── domain/models/
-  └── presentation/
-      ├── pages/timeline_page.dart
-      ├── widgets/
-      └── providers/
-```
 
 ### 🚨 **NẾU CẦN SHARED CODE:**
 - **TRÁNH tối đa!** Mock data thay vì dùng shared
@@ -208,14 +146,14 @@ lib/features/notifications/
 | Long  | 0/4 | - | 4 | 0% |
 | Dũng  | 0/3 | - | 3 | 0% |
 
-**Cập nhật:** Mỗi ngày update file này sau khi merge PR
+**Cập nhật:** Update khi hoàn thành mỗi màn hình
 
 ---
 
 ## 📞 Liên Hệ & Hỗ Trợ
 
-- **Conflict code?** → Ping nhau trước khi merge
-- **Cần shared component?** → Tạo issue/chat group
+- **Conflict code?** → Long sẽ xử lý khi merge
+- **Cần shared component?** → Tạm mock data, ping Long
 - **Block bởi dependency?** → Tạm mock data, làm UI trước
 
 ---
@@ -224,9 +162,9 @@ lib/features/notifications/
 
 - 📄 [Chi tiết công việc Long](./TASKS_LONG.md)
 - 📄 [Chi tiết công việc Dũng](./TASKS_DUNG.md)
-- 📄 [Quy trình Git chi tiết](./GIT_WORKFLOW.md)
+- 📄 [Quy trình làm việc chi tiết](./WORKFLOW_GUIDE.md)
 
 ---
 
 **Tạo ngày:** 2026-10-06  
-**Cập nhật lần cuối:** 2026-10-06
+**Cập nhật lần cuối:** 2026-10-15

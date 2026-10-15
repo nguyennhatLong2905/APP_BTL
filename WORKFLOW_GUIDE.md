@@ -13,6 +13,10 @@
 - **`long`**: Nhánh làm việc cá nhân của bạn Long.
 - **`dung`**: Nhánh làm việc cá nhân của bạn Dũng.
 
+> ⚠️ **QUAN TRỌNG:** Trong quá trình làm việc, Long và Dũng **CHỈ code trên nhánh riêng** của mình.  
+> **KHÔNG pull từ `frontend`**, **KHÔNG merge vào `frontend`** cho đến khi hoàn thành toàn bộ công việc.  
+> **CHỈ Long** mới được phép merge code vào nhánh `frontend`.
+
 ---
 
 ## 🚀 2. HƯỚNG DẪN CHO BẠN DŨNG BẮT ĐẦU DỰ ÁN (CHỈ LÀM 1 LẦN ĐẦU)
@@ -39,20 +43,14 @@ git config --global user.email "email-github-cua-dung@gmail.com"
 git config --global user.name "ten-github-cua-dung"
 ```
 
-### Step 3: Chuyển sang nhánh `frontend` và Tạo nhánh cá nhân `dung`
+### Step 3: Chuyển sang nhánh `dung`
 ```bash
 # Kéo tất cả các nhánh mới từ GitHub về
 git fetch origin
 
-# Chuyển sang nhánh frontend
-git checkout frontend
-git pull origin frontend
-
-# Tạo nhánh cá nhân dung từ nhánh frontend
-git checkout -b dung
-
-# Đẩy nhánh dung lên GitHub
-git push -u origin dung
+# Chuyển sang nhánh dung (đã được tạo sẵn)
+git checkout dung
+git pull origin dung
 ```
 
 > 🎉 **Chúc mừng Dũng!** Đến đây Dũng đã sẵn sàng bắt đầu code trên nhánh `dung` của mình.
@@ -61,16 +59,17 @@ git push -u origin dung
 
 ## 🔄 3. QUY TRÌNH LÀM VIỆC HÀNG NGÀY (DAILY WORKFLOW)
 
-Mỗi khi Dũng bắt đầu code một màn hình/tính năng mới hoặc muốn đồng bộ code với Long, Dũng hãy làm theo 4 bước chuẩn dưới đây:
+> ⚠️ **NGUYÊN TẮC VÀNG:** Mỗi người **LÀM VIỆC ĐỘC LẬP** trên nhánh riêng.  
+> **KHÔNG kéo code từ `frontend`** trong quá trình làm việc.  
+> **KHÔNG merge** vào bất kỳ nhánh nào khác.
 
-### 📥 Bước 1: Kéo code mới nhất từ nhánh `frontend` về nhánh `dung`
-Trước khi bắt đầu viết code mới, hãy lấy code mới nhất mà Long đã gộp vào `frontend`:
+### 💻 Bước 1: Đảm bảo đang ở nhánh của mình
 ```bash
-# Đảm bảo đang ở nhánh dung
+# Dũng
 git checkout dung
 
-# Lấy code mới nhất từ frontend gộp vào nhánh dung
-git pull origin frontend
+# Long
+git checkout long
 ```
 
 ### 💻 Bước 2: Viết code tính năng theo Figma
@@ -82,31 +81,102 @@ Tiến hành viết code màn hình/tính năng trong thư mục tương ứng (
   - `AppSnackBar`: Hiển thị thông báo thành công (xanh) hoặc lỗi (đỏ).
   - `AppTheme`: Bảng màu chuẩn Thu nhập (Emerald Green), Chi tiêu (Red).
 
-### 📤 Bước 3: Commit và Push code lên nhánh `dung`
+### 📤 Bước 3: Commit và Push code lên nhánh CÁ NHÂN
 Khi làm xong một màn hình hoặc đoạn tính năng:
 ```bash
-# Thêm các file thay đổi
-git add .
+# Thêm các file thay đổi (CHỈ add feature folder của mình)
+git add lib/features/wallet/   # Dũng
+# hoặc
+git add lib/features/home/     # Long
 
 # Commit với thông điệp rõ ràng
-git commit -m "feat: implement transaction form screen from figma"
+git commit -m "feat(wallet): implement smart spending page"
 
-# Đẩy code lên nhánh dung trên GitHub
-git push origin dung
+# Đẩy code lên nhánh CỦA MÌNH trên GitHub
+git push origin dung    # Dũng
+# hoặc
+git push origin long    # Long
 ```
 
-### 🔀 Bước 4: Tạo Pull Request (PR) gộp code vào `frontend`
-1. Truy cập vào trang GitHub dự án: `https://github.com/nguyennhatLong2905/APP_BTL`
-2. Nhấp vào nút **Compare & pull request** (hoặc vào mục **Pull Requests** -> **New Pull Request**).
-3. Chọn:
-   - **base (gộp vào):** `frontend`
-   - **compare (từ nhánh):** `dung`
-4. Bấm **Create pull request**. Long sẽ duyệt (Approve) và Merge code của Dũng vào nhánh `frontend`!
+### ✅ Bước 4: Khi HOÀN THÀNH TẤT CẢ các màn hình
+
+**👨‍💻 Dũng** (khi xong 3 màn hình):
+```bash
+# 1. Đảm bảo đã commit & push hết code
+git status   # Phải clean (nothing to commit)
+git push origin dung
+
+# 2. Báo Long
+# "Anh Long ơi, em đã hoàn thành xong 3 màn hình rồi.
+#  Anh merge code giúp em nhé!"
+
+# 3. Chờ Long merge → XONG! Không cần làm gì thêm.
+```
+
+**👨‍💻 Long** (người merge - khi cả 2 đã hoàn thành):
+```bash
+# 1. Đảm bảo branch long đã xong & push hết
+git checkout long
+git push origin long
+
+# 2. Merge long vào frontend trước
+git checkout frontend
+git pull origin frontend
+git merge long --no-ff -m "feat: merge Long's work (4 screens)"
+git push origin frontend
+
+# 3. Merge dung vào frontend
+git merge dung --no-ff -m "feat: merge Dung's work (3 screens)"
+
+# 4. Giải quyết conflict (nếu có)
+# 5. Test tổng thể
+flutter run
+
+# 6. Push lên frontend
+git push origin frontend
+```
 
 ---
 
-## 🛠️ 4. CẤU TRÚC THƯ MỤC CẦN LƯU Ý
-- Code giao diện & logic màn hình làm việc trong thư mục: `lib/features/`
-- Màu sắc, font chữ, UI dùng chung lấy ở: `lib/core/theme/` và `lib/core/widgets/`
+## ⚠️ 4. QUY TẮC VÀNG - TRÁNH CONFLICT
+
+### ✅ **ĐƯỢC PHÉP:**
+1. Chỉ code trong **feature folder được giao**
+2. Tạo **widgets riêng** trong folder của mình
+3. Tạo **models/providers riêng** cho feature
+4. Update file `TASKS_LONG.md` hoặc `TASKS_DUNG.md` của mình
+5. Commit & push lên **nhánh CỦA MÌNH** bất cứ lúc nào
+
+### ❌ **TUYỆT ĐỐI KHÔNG:**
+1. ❌ Động vào feature folder của người khác
+2. ❌ Sửa file shared (main.dart, routes, theme) - **TRÁNH HOÀN TOÀN**
+3. ❌ Pull từ `frontend` trong quá trình làm việc
+4. ❌ Merge bất kỳ branch nào vào branch của mình
+5. ❌ Push trực tiếp lên `frontend` hoặc `main` (CHỈ Long merge khi xong)
+6. ❌ Force push (`git push -f`)
+
+---
+
+## 🛠️ 5. CẤU TRÚC THƯ MỤC CẦN LƯU Ý
+
+**Long - CHỈ code trong:**
+- `lib/features/auth/` - Splash Screen
+- `lib/features/home/` - Dashboard
+- `lib/features/transaction/` - Thêm Giao Dịch
+- `lib/features/report/` - Lịch Sử Giao Dịch
+
+**Dũng - CHỈ code trong:**
+- `lib/features/wallet/` - Mua Hay Chờ
+- `lib/features/settings/` - Kế Hoạch Chi Tiêu
+- `lib/features/notifications/` - Nhìn Lại Nhật Ký
+
+**Dùng chung:**
+- Màu sắc, font chữ, UI: `lib/core/theme/` và `lib/core/widgets/`
+
+---
 
 Chúc 2 bạn phối hợp mượt mà và hoàn thành dự án xuất sắc! 🔥
+
+---
+
+**Cập nhật lần cuối:** 2026-10-15
