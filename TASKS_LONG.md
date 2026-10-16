@@ -146,7 +146,9 @@ image_picker: ^1.0.0  # Chọn ảnh
 
 ---
 
-### ✅ 4. Lịch Sử Giao Dịch (Reports) - `P2` ⭐⭐⭐⭐
+### ✅ 4. Lịch Sử Giao Dịch & Báo Cáo - `P2` ⭐⭐⭐⭐
+
+> 📌 **Lưu ý tên:** Màn này là **"Lịch Sử & Báo Cáo"** (thống kê, chart). KHÁC với màn **"Nhìn Lại Nhật Ký"** của Dũng (timeline chronological). Hai màn bổ sung nhau!
 
 **Feature:** `lib/features/report/presentation/screens/report_screen.dart`
 
