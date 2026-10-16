@@ -1,4 +1,4 @@
-# 👨‍💻 Công Việc Của Dũng
+﻿# 👨‍💻 Công Việc Của Dũng
 
 > **Branch:** `dung`  
 > **Tổng màn hình:** 3  
@@ -10,7 +10,7 @@
 
 ### ✅ 1. Mua Hay Chờ (Smart Spending) - `P1`
 
-**Feature:** `lib/features/wallet/presentation/pages/smart_spending_page.dart`
+**Feature:** `lib/features/wallet/presentation/screens/smart_spending_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Mua Hay Chờ
@@ -38,8 +38,8 @@ lib/features/wallet/
 │   └── services/
 │       └── recommendation_service.dart  ← Logic đề xuất
 ├── presentation/
-│   ├── pages/
-│   │   └── smart_spending_page.dart
+│   ├── screens/
+│   │   └── smart_spending_screen.dart
 │   ├── widgets/
 │   │   ├── balance_indicator.dart
 │   │   ├── item_input_form.dart
@@ -78,7 +78,7 @@ class RecommendationService {
 
 ### ✅ 2. Kế Hoạch Chi Tiêu (Budget Planning) - `P1`
 
-**Feature:** `lib/features/settings/presentation/pages/budget_planning_page.dart`
+**Feature:** `lib/features/settings/presentation/screens/budget_planning_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Kế Hoạch Chi Tiêu
@@ -107,8 +107,8 @@ lib/features/settings/
 │       ├── category_budget.dart
 │       └── budget_template.dart
 ├── presentation/
-│   ├── pages/
-│   │   └── budget_planning_page.dart
+│   ├── screens/
+│   │   └── budget_planning_screen.dart
 │   ├── widgets/
 │   │   ├── monthly_budget_input.dart
 │   │   ├── category_budget_item.dart    ← 1 item có progress bar
@@ -147,7 +147,7 @@ syncfusion_flutter_sliders: ^24.0.0  # Cho drag slider
 
 ### ✅ 3. Nhìn Lại Nhật Ký (Transaction Timeline) - `P2`
 
-**Feature:** `lib/features/notifications/presentation/pages/timeline_page.dart`
+**Feature:** `lib/features/notifications/presentation/screens/timeline_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Nhìn Lại Nhật Ký
@@ -179,8 +179,8 @@ lib/features/notifications/
 │       ├── timeline_item.dart
 │       └── transaction_group.dart
 ├── presentation/
-│   ├── pages/
-│   │   └── timeline_page.dart
+│   ├── screens/
+│   │   └── timeline_screen.dart
 │   ├── widgets/
 │   │   ├── timeline_item_card.dart
 │   │   ├── date_header.dart
@@ -536,8 +536,8 @@ lib/features/wallet/
 │   └── services/
 │       └── recommendation_service.dart
 └── presentation/
-    ├── pages/
-    │   └── smart_spending_page.dart    ← MÀN MUA HAY CHỜ
+    ├── screens/
+    │   └── smart_spending_screen.dart    ← MÀN MUA HAY CHỜ
     ├── widgets/
     │   ├── balance_indicator.dart
     │   ├── item_input_form.dart
@@ -553,8 +553,8 @@ lib/features/settings/
 │       ├── category_budget.dart
 │       └── budget_template.dart
 └── presentation/
-    ├── pages/
-    │   └── budget_planning_page.dart   ← MÀN KẾ HOẠCH CHI TIÊU
+    ├── screens/
+    │   └── budget_planning_screen.dart   ← MÀN KẾ HOẠCH CHI TIÊU
     ├── widgets/
     │   ├── monthly_budget_input.dart
     │   ├── category_budget_item.dart
@@ -570,8 +570,8 @@ lib/features/notifications/
 │       ├── timeline_item.dart
 │       └── transaction_group.dart
 └── presentation/
-    ├── pages/
-    │   └── timeline_page.dart          ← MÀN NHÌN LẠI NHẬT KÝ
+    ├── screens/
+    │   └── timeline_screen.dart        ← MÀN NHÌN LẠI NHẬT KÝ
     ├── widgets/
     │   ├── timeline_item_card.dart
     │   ├── date_header.dart
