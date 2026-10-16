@@ -1,4 +1,4 @@
-﻿# 👨‍💻 Công Việc Của Dũng
+# 👨‍💻 Công Việc Của Dũng
 
 > **Branch:** `dung`  
 > **Tổng màn hình:** 3  
@@ -229,28 +229,31 @@ flutter --version
 
 ### **Bước 2: Cài đặt dependencies**
 
-**Mở file `pubspec.yaml` và thêm:**
+> ✅ **Long đã add sẵn vào `pubspec.yaml`:** `fl_chart`, `image_picker`, `intl`  
+> Bạn chỉ cần pull code mới nhất rồi chạy `flutter pub get` là đủ!
+
+**Chỉ cần thêm các package của Dũng:**
 
 ```yaml
 dependencies:
-  flutter:
-    sdk: flutter
-  
   # State Management (ĐÃ CÓ SẴN)
   flutter_riverpod: ^2.0.0
   
-  # UI Components - CẦN THÊM
+  # ĐÃ CÓ SẴN (Long đã add)
+  fl_chart: ^0.68.0                       # Chart (Long dùng)
+  image_picker: ^1.1.2                    # Chọn ảnh (Long dùng)
+  intl: ^0.19.0                           # Format tiền VND
+  
+  # CẦN THÊM (của Dũng)
   syncfusion_flutter_sliders: ^24.0.0    # Cho Kế Hoạch Chi Tiêu
   table_calendar: ^3.0.9                  # Cho Nhìn Lại Nhật Ký
   sticky_headers: ^0.3.0                  # Cho Nhìn Lại Nhật Ký
-  
-  # Utils (ĐÃ CÓ TỪ LONG)
-  intl: ^0.19.0                           # Format tiền VND
 ```
 
-**Sau đó chạy:**
+**Chạy để cài package của Dũng:**
 
 ```bash
+flutter pub add syncfusion_flutter_sliders table_calendar sticky_headers
 flutter pub get
 ```
 
@@ -519,8 +522,9 @@ Nếu không lỗi → ✅ OK
 - [ ] Clone repo về máy: `git clone https://github.com/nguyennhatLong2905/APP_BTL.git`
 - [ ] Vào folder: `cd APP/App`
 - [ ] Checkout branch `dung`: `git checkout dung`
-- [ ] Pull latest: `git pull origin dung`
-- [ ] Chạy `flutter pub get`
+- [ ] Pull latest (⚠️ **bắt buộc** để lấy packages Long đã add): `git pull origin dung`
+- [ ] Chạy `flutter pub get` ← **Cần chạy sau khi pull để cài fl_chart, image_picker mới**
+- [ ] Thêm packages của Dũng: `flutter pub add syncfusion_flutter_sliders table_calendar sticky_headers`
 - [ ] Test app trên emulator/device
 
 ### **Cấu Trúc Code - GHI CHÚ CHO MERGE:**
