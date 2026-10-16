@@ -18,14 +18,30 @@ class AppConstants {
   static const int connectTimeout = 30000;
   static const int receiveTimeout = 30000;
 
-  // Route constants
+  // Route constants - Template (giữ lại để tương thích)
   static const String initialRoute = '/';
-  static const String homeRoute = '/home';
   static const String loginRoute = '/login';
   static const String registerRoute = '/register';
   static const String profileRoute = '/profile';
-  static const String settingsRoute = '/settings';
   static const String languageSettingsRoute = '/settings/language';
+
+  // ============================================================
+  // Route constants - App Ví An (7 màn hình chính)
+  // ============================================================
+
+  // Long's screens
+  static const String splashRoute = '/splash';           // Splash Screen (Logo)
+  static const String homeRoute = '/home';               // Tổng Quan (Dashboard)
+  static const String addTransactionRoute = '/add-transaction'; // Thêm Giao Dịch
+  static const String reportRoute = '/reports';          // Lịch Sử Giao Dịch
+
+  // Dũng's screens
+  static const String smartSpendingRoute = '/smart-spending';   // Mua Hay Chờ
+  static const String budgetPlanningRoute = '/budget-planning'; // Kế Hoạch Chi Tiêu
+  static const String timelineRoute = '/timeline';       // Nhìn Lại Nhật Ký
+
+  // Shared/Settings
+  static const String settingsRoute = '/settings';
   static const String notificationsRoute = '/notifications';
 
   // Hive box names

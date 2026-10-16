@@ -227,51 +227,50 @@ flutter --version
 # Nếu cũ, update: flutter upgrade
 ```
 
-### **Bước 2: Cài đặt dependencies**
+### **Bước 2: Pull code mới nhất và cài packages**
 
-> ✅ **Long đã add sẵn vào `pubspec.yaml`:** `fl_chart`, `image_picker`, `intl`  
-> Bạn chỉ cần pull code mới nhất rồi chạy `flutter pub get` là đủ!
-
-**Chỉ cần thêm các package của Dũng:**
-
-```yaml
-dependencies:
-  # State Management (ĐÃ CÓ SẴN)
-  flutter_riverpod: ^2.0.0
-  
-  # ĐÃ CÓ SẴN (Long đã add)
-  fl_chart: ^0.68.0                       # Chart (Long dùng)
-  image_picker: ^1.1.2                    # Chọn ảnh (Long dùng)
-  intl: ^0.19.0                           # Format tiền VND
-  
-  # CẦN THÊM (của Dũng)
-  syncfusion_flutter_sliders: ^24.0.0    # Cho Kế Hoạch Chi Tiêu
-  table_calendar: ^3.0.9                  # Cho Nhìn Lại Nhật Ký
-  sticky_headers: ^0.3.0                  # Cho Nhìn Lại Nhật Ký
-```
-
-**Chạy để cài package của Dũng:**
+> ✅ **Long đã add sẵn TẤT CẢ packages vào `pubspec.yaml` rồi!**
+> Dũng **CHỈ cần** pull code mới về và chạy `flutter pub get` là xong!
 
 ```bash
-flutter pub add syncfusion_flutter_sliders table_calendar sticky_headers
+# 1. Chắc chắn đang ở branch dung
+git checkout dung
+
+# 2. Pull để lấy pubspec.yaml Long đã cập nhật (có sẵn HẾT packages)
+git pull origin dung
+
+# 3. Cài tất cả packages (1 lệnh duy nhất)
 flutter pub get
 ```
 
-### **Bước 3: Cài từng package riêng (Nếu Bước 2 lỗi)**
+> ⚠️ **QUAN TRỌNG:** Đừng chạy `flutter pub add` - Long đã add sẵn hết rồi!
+> Nếu tự `flutter pub add` trên branch `dung` sẽ gây conflict `pubspec.yaml` khi Long merge!
 
-**Nếu gặp lỗi khi `flutter pub get`, cài từng cái một:**
+**Packages đã có sẵn (Long đã add):**
+
+```yaml
+  # Của Long
+  fl_chart: ^0.68.0
+  image_picker: ^1.1.2
+  intl: ^0.20.2
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
+  
+  # Của Dũng (Long đã add sẵn)
+  syncfusion_flutter_sliders        # Cho Kế Hoạch Chi Tiêu
+  table_calendar                    # Cho Nhìn Lại Nhật Ký
+  sticky_headers                    # Cho Nhìn Lại Nhật Ký
+```
+
+### **Bước 3: Nếu gặp lỗi sau `flutter pub get`**
 
 ```bash
-# 1. Cài Syncfusion Sliders
-flutter pub add syncfusion_flutter_sliders
+# Xóa cache và cài lại
+flutter clean
+flutter pub get
 
-# 2. Cài Table Calendar
-flutter pub add table_calendar
-
-# 3. Cài Sticky Headers
-flutter pub add sticky_headers
-
-# 4. Kiểm tra lại
+# Nếu vẫn lỗi
+flutter pub cache repair
 flutter pub get
 ```
 
@@ -520,12 +519,11 @@ Nếu không lỗi → ✅ OK
 
 ### **Setup Environment:**
 - [ ] Clone repo về máy: `git clone https://github.com/nguyennhatLong2905/APP_BTL.git`
-- [ ] Vào folder: `cd APP/App`
+- [ ] Vào folder: `cd APP_BTL/App`
 - [ ] Checkout branch `dung`: `git checkout dung`
-- [ ] Pull latest (⚠️ **bắt buộc** để lấy packages Long đã add): `git pull origin dung`
-- [ ] Chạy `flutter pub get` ← **Cần chạy sau khi pull để cài fl_chart, image_picker mới**
-- [ ] Thêm packages của Dũng: `flutter pub add syncfusion_flutter_sliders table_calendar sticky_headers`
-- [ ] Test app trên emulator/device
+- [ ] Pull mới nhất (⚠️ **bắt buộc** để lấy pubspec.yaml Long đã update): `git pull origin dung`
+- [ ] Chạy `flutter pub get` ← **KHÔNG chạy flutter pub add, Long đã add sẵn hết rồi!**
+- [ ] Test app trên emulator/device: `flutter run`
 
 ### **Cấu Trúc Code - GHI CHÚ CHO MERGE:**
 
