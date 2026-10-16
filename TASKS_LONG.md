@@ -10,7 +10,7 @@
 
 ### ✅ 1. Splash Screen (Logo) - `P0` ⭐
 
-**Feature:** `lib/features/auth/presentation/pages/splash_screen.dart`
+**Feature:** `lib/features/auth/presentation/screens/splash_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Logo
@@ -27,7 +27,7 @@
 ```
 lib/features/auth/
 ├── presentation/
-│   ├── pages/
+│   ├── screens/
 │   │   └── splash_screen.dart          ← Tạo file này
 │   └── widgets/
 │       └── logo_widget.dart            ← Tạo widget riêng
@@ -44,7 +44,7 @@ lib/features/auth/
 
 ### ✅ 2. Dashboard (Tổng Quan) - `P0` ⭐⭐⭐⭐
 
-**Feature:** `lib/features/home/presentation/pages/home_page.dart`
+**Feature:** `lib/features/home/presentation/screens/home_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Tổng Quan
@@ -67,8 +67,8 @@ lib/features/home/
 │   └── models/
 │       └── dashboard_data.dart         ← Model cho data
 ├── presentation/
-│   ├── pages/
-│   │   └── home_page.dart              ← Main page
+│   ├── screens/
+│   │   └── home_screen.dart            ← Main screen
 │   ├── widgets/
 │   │   ├── balance_card.dart           ← Card số dư
 │   │   ├── quick_action_buttons.dart   ← 4 nút nhanh
@@ -100,7 +100,7 @@ final mockTransactions = [
 
 ### ✅ 3. Thêm Giao Dịch - `P1` ⭐⭐⭐
 
-**Feature:** `lib/features/transaction/presentation/pages/add_transaction_page.dart`
+**Feature:** `lib/features/transaction/presentation/screens/add_transaction_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Thêm Giao Dịch
@@ -125,8 +125,8 @@ lib/features/transaction/
 │       ├── transaction.dart
 │       └── transaction_category.dart
 ├── presentation/
-│   ├── pages/
-│   │   └── add_transaction_page.dart
+│   ├── screens/
+│   │   └── add_transaction_screen.dart
 │   ├── widgets/
 │   │   ├── amount_input.dart
 │   │   ├── category_grid.dart
@@ -148,7 +148,7 @@ image_picker: ^1.0.0  # Chọn ảnh
 
 ### ✅ 4. Lịch Sử Giao Dịch (Reports) - `P2` ⭐⭐⭐⭐
 
-**Feature:** `lib/features/report/presentation/pages/report_page.dart`
+**Feature:** `lib/features/report/presentation/screens/report_screen.dart`
 
 **Design:** 
 - Xem: `docs/design/FIGMA_SCREENS.md` → Lịch Sử Giao Dịch
@@ -171,8 +171,8 @@ lib/features/report/
 │   └── models/
 │       └── report_data.dart
 ├── presentation/
-│   ├── pages/
-│   │   └── report_page.dart
+│   ├── screens/
+│   │   └── report_screen.dart
 │   ├── widgets/
 │   │   ├── period_selector.dart
 │   │   ├── summary_cards.dart
@@ -209,7 +209,7 @@ syncfusion_flutter_charts: ^24.0.0  # Optional, nếu cần chart đẹp hơn
 ```
 lib/features/auth/
 ├── presentation/
-│   ├── pages/
+│   ├── screens/
 │   │   └── splash_screen.dart          ← MÀN SPLASH
 │   └── widgets/
 │       └── logo_widget.dart
@@ -221,8 +221,8 @@ lib/features/home/
 ├── data/
 │   └── mock_data.dart                  ← MOCK DATA
 └── presentation/
-    ├── pages/
-    │   └── home_page.dart              ← MÀN DASHBOARD
+    ├── screens/
+    │   └── home_screen.dart            ← MÀN DASHBOARD
     ├── widgets/
     │   ├── balance_card.dart
     │   ├── quick_action_buttons.dart
@@ -238,8 +238,8 @@ lib/features/transaction/
 │       ├── transaction.dart
 │       └── transaction_category.dart
 └── presentation/
-    ├── pages/
-    │   └── add_transaction_page.dart   ← MÀN THÊM GIAO DỊCH
+    ├── screens/
+    │   └── add_transaction_screen.dart ← MÀN THÊM GIAO DỊCH
     ├── widgets/
     │   ├── amount_input.dart
     │   ├── category_grid.dart
@@ -253,8 +253,8 @@ lib/features/report/
 │   └── models/
 │       └── report_data.dart
 └── presentation/
-    ├── pages/
-    │   └── report_page.dart            ← MÀN LỊCH SỬ
+    ├── screens/
+    │   └── report_screen.dart          ← MÀN LỊCH SỬ
     ├── widgets/
     │   ├── period_selector.dart
     │   ├── summary_cards.dart
