@@ -22,7 +22,7 @@
 # Vào folder muốn làm việc
 
 git clone https://github.com/nguyennhatLong2905/APP_BTL.git
-cd APP/App
+cd APP_BTL/App
 ```
 
 ### **Bước 2: Checkout Branch `dung`**
