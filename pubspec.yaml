@@ -39,6 +39,8 @@ dependencies:
   form_builder_validators: ^11.2.0
   crypto: ^3.0.6
   path_provider: ^2.1.5
+  fl_chart: ^0.68.0
+  image_picker: ^1.1.2
   flutter_tts: ^4.2.1
   workmanager: ^0.5.2
   grpc: ^4.0.1
