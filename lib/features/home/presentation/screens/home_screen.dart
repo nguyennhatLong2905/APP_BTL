@@ -5,6 +5,15 @@ import 'package:flutter_riverpod_clean_architecture/core/utils/app_utils.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 
+/// TODO (Long): Implement Home/Dashboard Screen
+/// - Header: Avatar, tên user, notification icon
+/// - Balance Card: Hiển thị tổng số dư (số lớn, highlight)
+/// - Quick Actions: 4 nút (Thu/Chi/Chuyển/Mục tiêu)
+/// - Transaction List: List 5 giao dịch gần nhất
+/// - Chart: Biểu đồ chi tiêu tuần (line chart hoặc bar chart)
+/// - Bottom Navigation Bar: 5 tabs (Home/Transaction/Report/Wallet/Settings)
+/// - Pull-to-refresh
+/// - Skeleton loading khi fetch data
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -16,7 +25,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expense Tracker'),
+        title: const Text('Tổng Quan'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -30,16 +39,16 @@ class HomeScreen extends ConsumerWidget {
               final shouldLogout = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
+                  title: const Text('Đăng xuất'),
+                  content: const Text('Bạn có chắc muốn đăng xuất?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
+                      child: const Text('Huỷ'),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Logout'),
+                      child: const Text('Đăng xuất'),
                     ),
                   ],
                 ),
@@ -66,12 +75,12 @@ class HomeScreen extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () async {
-                // Refresh logic
+                // TODO (Long): Thêm refresh logic
               },
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // User profile card
+                  // TODO (Long): Thay bằng BalanceCard widget
                   Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     child: Padding(
@@ -80,9 +89,8 @@ class HomeScreen extends ConsumerWidget {
                         children: [
                           CircleAvatar(
                             radius: 30,
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
                             child: Text(
                               user.name.isNotEmpty
                                   ? user.name.substring(0, 1).toUpperCase()
@@ -132,6 +140,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
 
                   const SizedBox(height: 16),
+                  // TODO (Long): Implement dashboard widgets
                   const Card(
                     child: Padding(
                       padding: EdgeInsets.all(16),
@@ -139,7 +148,7 @@ class HomeScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Expense Tracker Base Ready',
+                            'Dashboard - Đang phát triển',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -147,7 +156,7 @@ class HomeScreen extends ConsumerWidget {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Dự án đã dọn dẹp sạch sẽ và sẵn sàng xây dựng các tính năng Quản lý chi tiêu.',
+                            'Long sẽ implement: Balance Card, Quick Actions, Transaction List, Spending Chart...',
                           ),
                         ],
                       ),

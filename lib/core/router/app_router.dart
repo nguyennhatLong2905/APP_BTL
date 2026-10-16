@@ -7,10 +7,15 @@ import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/p
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/profile_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/register_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/splash_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/screens/home_screen.dart';
-import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/timeline_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/report/presentation/screens/report_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/budget_planning_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/language_settings_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/settings_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/presentation/screens/add_transaction_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/screens/smart_spending_screen.dart';
 import 'package:go_router/go_router.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -19,97 +24,121 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Watch for locale changes - this rebuilds the router when locale changes
   ref.watch(persistentLocaleProvider);
 
-  // Create a router with locale awareness
   return GoRouter(
-    initialLocation: AppConstants.initialRoute,
+    initialLocation: AppConstants.splashRoute,
     debugLogDiagnostics: true,
-    // Add the observer for locale awareness
     observers: [ref.read(localizationRouterObserverProvider)],
     redirect: (context, state) {
-      // Get the authentication status
       final isLoggedIn = authState.isAuthenticated;
+      final location = state.matchedLocation;
 
-      // Check if the user is going to the login page
-      final isGoingToLogin = state.matchedLocation == AppConstants.loginRoute;
+      final isGoingToLogin = location == AppConstants.loginRoute;
+      final isGoingToRegister = location == AppConstants.registerRoute;
+      final isGoingToSplash = location == AppConstants.splashRoute;
 
-      // Check if the user is going to the register page
-      final isGoingToRegister =
-          state.matchedLocation == AppConstants.registerRoute;
+      // Splash luôn được vào
+      if (isGoingToSplash) return null;
 
-      // If not logged in and not going to login or register, redirect to login
+      // Nếu chưa login → về login
       if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
         return AppConstants.loginRoute;
       }
 
-      // If logged in and going to login, redirect to home
+      // Nếu đã login mà vào login/register → về home
       if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
         return AppConstants.homeRoute;
       }
 
-      // No redirect needed
       return null;
     },
     routes: [
-      // Home route
+      // ============================================================
+      // App Ví An - 7 màn hình chính
+      // ============================================================
+
+      // Long's screens
+      GoRoute(
+        path: AppConstants.splashRoute,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: AppConstants.homeRoute,
         name: 'home',
         builder: (context, state) => const HomeScreen(),
       ),
+      GoRoute(
+        path: AppConstants.addTransactionRoute,
+        name: 'add_transaction',
+        builder: (context, state) => const AddTransactionScreen(),
+      ),
+      GoRoute(
+        path: AppConstants.reportRoute,
+        name: 'report',
+        builder: (context, state) => const ReportScreen(),
+      ),
 
-      // Login route
+      // Dũng's screens
+      GoRoute(
+        path: AppConstants.smartSpendingRoute,
+        name: 'smart_spending',
+        builder: (context, state) => const SmartSpendingScreen(),
+      ),
+      GoRoute(
+        path: AppConstants.budgetPlanningRoute,
+        name: 'budget_planning',
+        builder: (context, state) => const BudgetPlanningScreen(),
+      ),
+      GoRoute(
+        path: AppConstants.timelineRoute,
+        name: 'timeline',
+        builder: (context, state) => const TimelineScreen(),
+      ),
+
+      // ============================================================
+      // Auth & Settings routes
+      // ============================================================
       GoRoute(
         path: AppConstants.loginRoute,
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-
-      // Register route
       GoRoute(
         path: AppConstants.registerRoute,
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
       ),
-
-      // Settings route
       GoRoute(
         path: AppConstants.settingsRoute,
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
       ),
-
-      // Language settings route
       GoRoute(
         path: AppConstants.languageSettingsRoute,
         name: 'language_settings',
         builder: (context, state) => const LanguageSettingsScreen(),
       ),
-
-      // Profile route
       GoRoute(
         path: AppConstants.profileRoute,
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
       ),
-
-      // Notifications route
       GoRoute(
         path: AppConstants.notificationsRoute,
         name: 'notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        // Redirect sang timeline (màn của Dũng)
+        redirect: (context, state) => AppConstants.timelineRoute,
       ),
 
-      // Initial route - redirects based on auth state
+      // Initial route
       GoRoute(
-        path: AppConstants.initialRoute,
+        path: '/',
         name: 'initial',
-        redirect: (context, state) => authState.isAuthenticated
-            ? AppConstants.homeRoute
-            : AppConstants.loginRoute,
+        redirect: (context, state) => AppConstants.splashRoute,
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(title: const Text('Page Not Found')),
+      appBar: AppBar(title: const Text('Không Tìm Thấy Trang')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -119,11 +148,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text('Page ${state.uri.path} not found'),
+            Text('Trang ${state.uri.path} không tồn tại'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => context.go(AppConstants.homeRoute),
-              child: const Text('Go Home'),
+              child: const Text('Về Trang Chủ'),
             ),
           ],
         ),
