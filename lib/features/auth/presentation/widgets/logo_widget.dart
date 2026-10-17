@@ -1,7 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 
-/// Widget hiển thị logo Ví An (icon + tên app)
-/// Nhận [animation] từ ngoài để điều khiển fade-in
+/// Widget hiển thị logo Ví An — icon teal bo góc + tên app
+/// Nhận [animation] từ ngoài để điều khiển fade-in + scale
 class LogoWidget extends StatelessWidget {
   final Animation<double> animation;
 
@@ -18,48 +19,40 @@ class LogoWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Logo icon (Tròn với border trắng) ──────────────────────
+            // ── Logo icon: Teal rounded square + mascot ────────────────
             Container(
-              width: 100,
-              height: 100,
-              padding: const EdgeInsets.all(4),
+              width: 108,
+              height: 108,
               decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+                color: const Color(0xFF2C7873),
+                borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 8),
+                    color: const Color(0xFF2C7873).withValues(alpha: 0.45),
+                    blurRadius: 32,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF00A86B),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.account_balance_wallet_rounded,
-                    color: Colors.white,
-                    size: 48,
-                  ),
+              child: Center(
+                child: CustomPaint(
+                  size: const Size(64, 64),
+                  painter: _MascotPainter(),
                 ),
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // ── Tên App ────────────────────────────────────────────────
             const Text(
               'Ví An',
               style: TextStyle(
-                fontSize: 32,
+                fontSize: 30,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                letterSpacing: 1.2,
+                letterSpacing: 1.5,
               ),
             ),
 
@@ -71,7 +64,7 @@ class LogoWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: Colors.white.withValues(alpha: 0.75),
                 letterSpacing: 0.3,
               ),
             ),
@@ -80,4 +73,63 @@ class LogoWidget extends StatelessWidget {
       ),
     );
   }
+}
+
+/// CustomPainter vẽ icon mascot Ví An:
+/// - Vòng tròn viền trắng bên ngoài
+/// - Hai mắt tròn (filled white)
+/// - Cung miệng/cằm phía dưới
+class _MascotPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    // ── 1. Vòng tròn viền ngoài ─────────────────────────────────────
+    final outerRadius = size.width * 0.44;
+    canvas.drawCircle(Offset(cx, cy), outerRadius, strokePaint);
+
+    // ── 2. Mắt trái ─────────────────────────────────────────────────
+    final eyeRadius = size.width * 0.07;
+    final eyeY = cy - size.height * 0.10;
+    canvas.drawCircle(Offset(cx - size.width * 0.16, eyeY), eyeRadius, fillPaint);
+
+    // ── 3. Mắt phải ─────────────────────────────────────────────────
+    canvas.drawCircle(Offset(cx + size.width * 0.16, eyeY), eyeRadius, fillPaint);
+
+    // ── 4. Cung miệng / cằm (nụ cười nhẹ) ──────────────────────────
+    final mouthRect = Rect.fromCenter(
+      center: Offset(cx, cy + size.height * 0.08),
+      width: size.width * 0.38,
+      height: size.height * 0.22,
+    );
+    canvas.drawArc(mouthRect, pi * 0.15, pi * 0.70, false, strokePaint);
+
+    // ── 5. Tai/antenna trái (vòng nhỏ phía trên bên trái) ──────────
+    canvas.drawCircle(
+      Offset(cx - size.width * 0.30, cy - size.height * 0.28),
+      size.width * 0.07,
+      strokePaint,
+    );
+
+    // ── 6. Tai/antenna phải (vòng nhỏ phía trên bên phải) ──────────
+    canvas.drawCircle(
+      Offset(cx + size.width * 0.30, cy - size.height * 0.28),
+      size.width * 0.07,
+      strokePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

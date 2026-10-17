@@ -21,10 +21,10 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // ── Animation Controller: 300ms fade-in ────────────────────────
+    // ── Animation Controller: 400ms fade-in ────────────────────────
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
     );
 
     _fadeAnimation = CurvedAnimation(
@@ -59,15 +59,15 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         width: size.width,
         height: size.height,
-        // ── Background Gradient ──────────────────────────────────────
+        // ── Background: Teal gradient khớp màu Figma ────────────────
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF00A86B), // Emerald Green — màu chính
-              Color(0xFF007A4D), // Emerald đậm hơn
-              Color(0xFF005C3A), // Emerald tối
+              Color(0xFF1A5C58), // Teal đậm trên
+              Color(0xFF2C7873), // Teal chính giữa
+              Color(0xFF3D9E98), // Teal sáng dưới
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -115,14 +115,14 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   children: [
                     SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     Text(
                       'Đang khởi động...',
                       style: TextStyle(
