@@ -51,14 +51,14 @@ lib/features/auth/
 - Ảnh: `docs/design/tong-quan.png`
 
 **Yêu cầu:**
-- [ ] **Header:** Avatar, tên user, notification icon
-- [ ] **Balance Card:** Hiển thị tổng số dư (số lớn, highlight)
-- [ ] **Quick Actions:** 4 nút (Thu/Chi/Chuyển/Mục tiêu)
-- [ ] **Transaction List:** List 5 giao dịch gần nhất
-- [ ] **Chart:** Biểu đồ chi tiêu tuần (line chart hoặc bar chart)
-- [ ] **Bottom Navigation Bar:** 5 tabs (Home/Transaction/Report/Wallet/Settings)
-- [ ] Pull-to-refresh
-- [ ] Skeleton loading khi fetch data
+- [x] **Header:** Avatar, tên user, notification icon
+- [x] **Balance Card:** Hiển thị tổng số dư (số lớn, highlight)
+- [x] **Quick Actions:** 4 nút (Thu/Chi/Chuyển/Mục tiêu)
+- [x] **Transaction List:** List 5 giao dịch gần nhất
+- [x] **Chart:** Biểu đồ chi tiêu tuần (line chart hoặc bar chart)
+- [x] **Bottom Navigation Bar:** 5 tabs (Home/Transaction/Report/Wallet/Settings)
+- [x] Pull-to-refresh
+- [x] Skeleton loading khi fetch data
 
 **Cấu trúc folder:**
 ```
@@ -335,8 +335,8 @@ git push origin frontend
 
 | Màn Hình | Status | Start Date | End Date | Notes |
 |----------|--------|------------|----------|-------|
-| Splash Screen | ⏳ Todo | - | - | - |
-| Dashboard | ⏳ Todo | - | - | - |
+| Splash Screen | ✅ Done | - | - | Đã hoàn thành trước đó |
+| Dashboard | ✅ Done | 2026-10-17 | 2026-10-17 | Đã tạo đủ models, mock data, widgets, skeleton & provider |
 | Thêm Giao Dịch | ⏳ Todo | - | - | - |
 | Lịch Sử Giao Dịch | ⏳ Todo | - | - | - |
 
