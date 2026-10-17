@@ -38,9 +38,9 @@ class _SplashScreenState extends State<SplashScreen>
     // ── Auto navigate sau 2 giây ────────────────────────────────────
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        // Router sẽ tự redirect dựa theo auth state
-        // Nếu chưa login → /login, đã login → /home
-        context.go(AppConstants.loginRoute);
+        // TODO: Tạm thời đi thẳng vào home để test UI
+        // Sau này bật lại: context.go(AppConstants.loginRoute);
+        context.go(AppConstants.homeRoute);
       }
     });
   }

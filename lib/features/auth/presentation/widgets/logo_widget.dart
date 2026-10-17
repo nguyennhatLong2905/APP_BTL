@@ -12,34 +12,40 @@ class LogoWidget extends StatelessWidget {
     return FadeTransition(
       opacity: animation,
       child: ScaleTransition(
-        scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+        scale: Tween<double>(begin: 0.85, end: 1.0).animate(
           CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Logo icon ──────────────────────────────────────────────
+            // ── Logo icon (Tròn với border trắng) ──────────────────────
             Container(
-              width: 120,
-              height: 120,
+              width: 100,
+              height: 100,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
+                color: Colors.white,
+                shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF00A86B).withValues(alpha: 0.35),
-                    blurRadius: 32,
-                    spreadRadius: 4,
-                    offset: const Offset(0, 12),
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF00A86B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: Colors.white,
+                    size: 48,
+                  ),
                 ),
               ),
             ),
@@ -50,23 +56,23 @@ class LogoWidget extends StatelessWidget {
             const Text(
               'Ví An',
               style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w800,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
                 color: Colors.white,
-                letterSpacing: 1.5,
+                letterSpacing: 1.2,
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
             // ── Tagline ────────────────────────────────────────────────
             Text(
               'Quản lý tài chính thông minh',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: Colors.white.withValues(alpha: 0.75),
-                letterSpacing: 0.5,
+                color: Colors.white.withValues(alpha: 0.8),
+                letterSpacing: 0.3,
               ),
             ),
           ],

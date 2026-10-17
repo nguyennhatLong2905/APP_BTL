@@ -29,25 +29,28 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     observers: [ref.read(localizationRouterObserverProvider)],
     redirect: (context, state) {
-      final isLoggedIn = authState.isAuthenticated;
-      final location = state.matchedLocation;
+      // TODO: Tạm thời bỏ qua auth để test UI
+      // Uncomment để bật lại auth flow
+      
+      // final isLoggedIn = authState.isAuthenticated;
+      // final location = state.matchedLocation;
 
-      final isGoingToLogin = location == AppConstants.loginRoute;
-      final isGoingToRegister = location == AppConstants.registerRoute;
-      final isGoingToSplash = location == AppConstants.splashRoute;
+      // final isGoingToLogin = location == AppConstants.loginRoute;
+      // final isGoingToRegister = location == AppConstants.registerRoute;
+      // final isGoingToSplash = location == AppConstants.splashRoute;
 
-      // Splash luôn được vào
-      if (isGoingToSplash) return null;
+      // // Splash luôn được vào
+      // if (isGoingToSplash) return null;
 
-      // Nếu chưa login → về login
-      if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
-        return AppConstants.loginRoute;
-      }
+      // // Nếu chưa login → về login
+      // if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
+      //   return AppConstants.loginRoute;
+      // }
 
-      // Nếu đã login mà vào login/register → về home
-      if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
-        return AppConstants.homeRoute;
-      }
+      // // Nếu đã login mà vào login/register → về home
+      // if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
+      //   return AppConstants.homeRoute;
+      // }
 
       return null;
     },
