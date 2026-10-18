@@ -338,7 +338,7 @@ git push origin frontend
 | Splash Screen | ✅ Done | - | - | Đã hoàn thành trước đó |
 | Dashboard | ✅ Done | 2026-10-17 | 2026-10-17 | Đã tạo đủ models, mock data, widgets, skeleton & provider |
 | Thêm Giao Dịch | ✅ Done | 2026-10-17 | 2026-10-17 | Tab selector, amount input, category grid, date picker, photo picker, validation |
-| Lịch Sử Giao Dịch | ⏳ Todo | - | - | - |
+| Lịch Sử Giao Dịch | ✅ Done | 2026-10-18 | 2026-10-18 | Search, period/wallet filter, grouped by date, insight card |
 
 **Legend:**
 - ⏳ Todo
