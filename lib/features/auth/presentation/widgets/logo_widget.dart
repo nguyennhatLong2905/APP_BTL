@@ -95,7 +95,7 @@ class ViAnLogoIcon extends StatelessWidget {
           // ── Icon mascot ──────────────────────────────────────────
           // Painter cao hơn để chứa smile bên dưới arch
           CustomPaint(
-            size: Size(size * 0.38, size * 0.46),
+            size: Size(size * 0.42, size * 0.48),
             painter: _LogoIconPainter(),
           ),
         ],
@@ -116,7 +116,7 @@ class _LogoIconPainter extends CustomPainter {
 
     final paint = Paint()
       ..color = Colors.white
-      ..strokeWidth = w * 0.155
+      ..strokeWidth = w * 0.14
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
@@ -124,22 +124,22 @@ class _LogoIconPainter extends CustomPainter {
     // ── 1. Arch/vòm đối xứng ─────────────────────────────────────
     // Control point ở X = w/2 để arch đối xứng trái-phải
     final archPath = Path()
-      ..moveTo(0, h * 0.78)
-      ..quadraticBezierTo(w * 0.5, -h * 0.18, w, h * 0.78);
+      ..moveTo(w * 0.05, h * 0.72)
+      ..quadraticBezierTo(w * 0.5, -h * 0.40, w * 0.95, h * 0.72);
     canvas.drawPath(archPath, paint);
 
     // ── 2. Vòng tròn nhỏ ở trung tâm arch ───────────────────────
     canvas.drawCircle(
-      Offset(w * 0.5, h * 0.42),
-      w * 0.105,
+      Offset(w * 0.5, h * 0.55),
+      w * 0.14,
       paint,
     );
 
     // ── 3. Đường cong đáy (smile/base) ───────────────────────────
     // Nằm dưới arch, cong nhẹ xuống rồi lên
     final smilePath = Path()
-      ..moveTo(w * 0.14, h * 0.96)
-      ..quadraticBezierTo(w * 0.5, h * 1.22, w * 0.86, h * 0.96);
+      ..moveTo(w * 0.15, h * 0.88)
+      ..quadraticBezierTo(w * 0.5, h * 1.08, w * 0.85, h * 0.88);
     canvas.drawPath(smilePath, paint);
   }
 
