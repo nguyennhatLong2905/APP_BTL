@@ -24,12 +24,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 
   // ── Màu sắc ─────────────────────────────────────────────────────
   static const Color _teal = Color(0xFF1A6B5A);
-  static const Color _tealLight = Color(0xFFD1EDE7);
   static const Color _bg = Color(0xFFEFF9F6);
   static const Color _textPrimary = Color(0xFF1A1A1A);
   static const Color _textSecondary = Color(0xFF6B7280);
-  static const Color _cardBg = Color(0xFFF8FFFE);
-  static const Color _searchBg = Color(0xFFF2F2F2);
 
   @override
   void initState() {
@@ -260,7 +257,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             // Clear button
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: _searchController,
-              builder: (_, value, __) {
+              builder: (_, value, child) {
                 if (value.text.isEmpty) return const SizedBox.shrink();
                 return GestureDetector(
                   onTap: () {

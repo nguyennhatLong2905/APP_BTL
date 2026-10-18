@@ -12,7 +12,6 @@ class PeriodSelectorWidget extends ConsumerWidget {
   const PeriodSelectorWidget({super.key});
 
   static const _teal = Color(0xFF1A6B5A);
-  static const _tealLight = Color(0xFFD1EDE7);
   static const _bg = Color(0xFFF5F5F5);
   static const _textDark = Color(0xFF1A1A1A);
 
@@ -208,18 +207,16 @@ class GroupedTransactionList extends ConsumerWidget {
   const GroupedTransactionList({super.key});
 
   static const _teal = Color(0xFF1A6B5A);
-  static const _tealBg = Color(0xFFE8F5F1);
   static const _textPrimary = Color(0xFF1A1A1A);
   static const _textSecondary = Color(0xFF6B7280);
   static const _income = Color(0xFF1A6B5A);
   static const _expense = Color(0xFFD32F2F);
-  static const _transfer = Color(0xFF1565C0);
   static const _cardBg = Color(0xFFF8FFFE);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(reportProvider.notifier);
-    final groups = notifier.dailyGroups;
+    final groups = notifier.dailyGroups();
 
     if (groups.isEmpty) {
       return _buildEmpty();
@@ -469,16 +466,12 @@ class _TransactionItem extends StatelessWidget {
 
     // Icon background color
     Color iconBg;
-    Color iconColor;
     if (isExpense) {
-      iconBg = _tealBg;
-      iconColor = _teal;
+      iconBg = const Color(0xFFE8F5F1);
     } else if (isIncome) {
       iconBg = const Color(0xFFE8F5F1);
-      iconColor = _income;
     } else {
       iconBg = _transferBg;
-      iconColor = _transferColor;
     }
 
     // Amount
