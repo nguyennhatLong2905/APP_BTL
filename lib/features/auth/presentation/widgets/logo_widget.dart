@@ -24,11 +24,11 @@ class LogoWidget extends StatelessWidget {
               width: 108,
               height: 108,
               decoration: BoxDecoration(
-                color: const Color(0xFF2C7873),
+                color: const Color(0xFF1A6B5A),
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF2C7873).withValues(alpha: 0.45),
+                    color: const Color(0xFF1A6B5A).withValues(alpha: 0.45),
                     blurRadius: 32,
                     spreadRadius: 0,
                     offset: const Offset(0, 12),
@@ -75,59 +75,71 @@ class LogoWidget extends StatelessWidget {
   }
 }
 
-/// CustomPainter vẽ icon mascot Ví An:
-/// - Vòng tròn viền trắng bên ngoài
-/// - Hai mắt tròn (filled white)
-/// - Cung miệng/cằm phía dưới
+/// CustomPainter vẽ icon mascot Ví An theo đúng thiết kế Figma:
+/// - Vòng tròn mờ phía ngoài (aura/glow)
+/// - Thân hình vòm/nón (như con bọ/mascot)
+/// - 1 mắt tròn ở giữa (có viền + chấm đen)
 class _MascotPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    final strokePaint = Paint()
+    // ── Paint objects ────────────────────────────────────────────────
+    final strokeWhite = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
+      ..strokeWidth = 3.0
       ..strokeCap = StrokeCap.round;
 
-    final fillPaint = Paint()
+    final fillWhite = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    // ── 1. Vòng tròn viền ngoài ─────────────────────────────────────
-    final outerRadius = size.width * 0.44;
-    canvas.drawCircle(Offset(cx, cy), outerRadius, strokePaint);
+    final fillDark = Paint()
+      ..color = const Color(0xFF1A6B5A)
+      ..style = PaintingStyle.fill;
 
-    // ── 2. Mắt trái ─────────────────────────────────────────────────
-    final eyeRadius = size.width * 0.07;
-    final eyeY = cy - size.height * 0.10;
-    canvas.drawCircle(Offset(cx - size.width * 0.16, eyeY), eyeRadius, fillPaint);
+    // ── 1. Vòng tròn mờ phía ngoài (aura) ───────────────────────────
+    final auraPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawCircle(Offset(cx, cy), size.width * 0.46, auraPaint);
 
-    // ── 3. Mắt phải ─────────────────────────────────────────────────
-    canvas.drawCircle(Offset(cx + size.width * 0.16, eyeY), eyeRadius, fillPaint);
+    // ── 2. Thân hình vòm (arch/dome body) ───────────────────────────
+    // Phần trên: cung vòm từ trái sang phải
+    final bodyPath = Path();
+    final bodyLeft  = cx - size.width * 0.28;
+    final bodyRight = cx + size.width * 0.28;
+    final bodyTop   = cy - size.height * 0.30;
+    final bodyBottom = cy + size.height * 0.22;
 
-    // ── 4. Cung miệng / cằm (nụ cười nhẹ) ──────────────────────────
-    final mouthRect = Rect.fromCenter(
-      center: Offset(cx, cy + size.height * 0.08),
-      width: size.width * 0.38,
-      height: size.height * 0.22,
-    );
-    canvas.drawArc(mouthRect, pi * 0.15, pi * 0.70, false, strokePaint);
+    bodyPath.moveTo(bodyLeft, bodyBottom);
+    // Cung vòm phía trên
+    bodyPath.quadraticBezierTo(bodyLeft,  bodyTop, cx, bodyTop);
+    bodyPath.quadraticBezierTo(bodyRight, bodyTop, bodyRight, bodyBottom);
+    // Đáy cong nhẹ
+    bodyPath.quadraticBezierTo(cx, bodyBottom + size.height * 0.08, bodyLeft, bodyBottom);
+    bodyPath.close();
 
-    // ── 5. Tai/antenna trái (vòng nhỏ phía trên bên trái) ──────────
-    canvas.drawCircle(
-      Offset(cx - size.width * 0.30, cy - size.height * 0.28),
-      size.width * 0.07,
-      strokePaint,
-    );
+    canvas.drawPath(bodyPath, fillWhite);
 
-    // ── 6. Tai/antenna phải (vòng nhỏ phía trên bên phải) ──────────
-    canvas.drawCircle(
-      Offset(cx + size.width * 0.30, cy - size.height * 0.28),
-      size.width * 0.07,
-      strokePaint,
-    );
+    // ── 3. Mắt tròn 1 ở giữa (vị trí hơi trên trung tâm thân) ──────
+    final eyeCx = cx;
+    final eyeCy = cy - size.height * 0.04;
+    final eyeOuterR = size.width * 0.115;
+    final eyeInnerR = size.width * 0.055;
+
+    // Viền ngoài mắt (teal, cùng màu nền)
+    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeOuterR, fillDark);
+    // Mống mắt trắng
+    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeOuterR, strokeWhite);
+    // Chấm đồng tử đen nhỏ ở giữa
+    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeInnerR,
+        Paint()..color = Colors.white..style = PaintingStyle.fill);
+    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeInnerR * 0.5,
+        Paint()..color = const Color(0xFF1A6B5A)..style = PaintingStyle.fill);
   }
 
   @override
