@@ -438,7 +438,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   // ── Quick Amount Chips ────────────────────────────────────────────────────
   Widget _buildQuickAmountChips(
       TransactionFormState state, TransactionFormNotifier notifier) {
-    const chips = [10000.0, 50000.0, 100000.0, 200000.0];
+    const chips = [10000.0, 50000.0, 100000.0];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(

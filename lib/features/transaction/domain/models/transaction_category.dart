@@ -37,7 +37,7 @@ class DefaultCategories {
     ),
     TransactionCategory(
       id: 'transport',
-      name: 'Di chuyển',
+      name: 'Đi lại',
       icon: Icons.directions_car_rounded,
       color: Color(0xFF6C63FF),
       type: TransactionCategoryType.expense,
@@ -47,6 +47,20 @@ class DefaultCategories {
       name: 'Mua sắm',
       icon: Icons.shopping_bag_rounded,
       color: Color(0xFFFF9F1C),
+      type: TransactionCategoryType.expense,
+    ),
+    TransactionCategory(
+      id: 'bills',
+      name: 'Hóa đơn',
+      icon: Icons.receipt_long_rounded,
+      color: Color(0xFFEF4444),
+      type: TransactionCategoryType.expense,
+    ),
+    TransactionCategory(
+      id: 'other_expense',
+      name: 'Khác',
+      icon: Icons.more_horiz_rounded,
+      color: Color(0xFF9CA3AF),
       type: TransactionCategoryType.expense,
     ),
     TransactionCategory(
@@ -68,20 +82,6 @@ class DefaultCategories {
       name: 'Giáo dục',
       icon: Icons.school_rounded,
       color: Color(0xFF3B82F6),
-      type: TransactionCategoryType.expense,
-    ),
-    TransactionCategory(
-      id: 'bills',
-      name: 'Hóa đơn',
-      icon: Icons.receipt_long_rounded,
-      color: Color(0xFFEF4444),
-      type: TransactionCategoryType.expense,
-    ),
-    TransactionCategory(
-      id: 'other_expense',
-      name: 'Khác',
-      icon: Icons.more_horiz_rounded,
-      color: Color(0xFF9CA3AF),
       type: TransactionCategoryType.expense,
     ),
   ];

@@ -370,12 +370,13 @@ class GroupedTransactionList extends ConsumerWidget {
     final yesterday = today.subtract(const Duration(days: 1));
     final d = DateTime(date.year, date.month, date.day);
 
+    final dateFormatted = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     if (d == today) {
-      return 'Hôm nay –\n${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+      return 'Hôm nay - $dateFormatted';
     } else if (d == yesterday) {
-      return 'Hôm qua –\n${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+      return 'Hôm qua - $dateFormatted';
     }
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    return dateFormatted;
   }
 
   Widget _buildInsightCard() {

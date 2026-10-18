@@ -76,22 +76,16 @@ class LogoWidget extends StatelessWidget {
 }
 
 /// CustomPainter vẽ icon mascot Ví An theo đúng thiết kế Figma:
-/// - Vòng tròn mờ phía ngoài (aura/glow)
-/// - Thân hình vòm/nón (như con bọ/mascot)
-/// - 1 mắt tròn ở giữa (có viền + chấm đen)
+/// - Vòng tròn mờ phía ngoài (aura)
+/// - Thân hình vòm/khiên (shield/dome)
+/// - Mắt tròn đồng tâm (outer ring + inner dot)
 class _MascotPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // ── Paint objects ────────────────────────────────────────────────
-    final strokeWhite = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round;
-
+    // ── Paints ───────────────────────────────────────────────────────
     final fillWhite = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
@@ -100,48 +94,70 @@ class _MascotPainter extends CustomPainter {
       ..color = const Color(0xFF1A6B5A)
       ..style = PaintingStyle.fill;
 
-    // ── 1. Vòng tròn mờ phía ngoài (aura) ───────────────────────────
-    final auraPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.25)
+    final strokeWhiteThin = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-    canvas.drawCircle(Offset(cx, cy), size.width * 0.46, auraPaint);
+      ..strokeWidth = 2.0;
 
-    // ── 2. Thân hình vòm (arch/dome body) ───────────────────────────
-    // Phần trên: cung vòm từ trái sang phải
+    final strokeWhiteMed = Paint()
+      ..color = Colors.white.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8;
+
+    // ── 1. Outer aura ring (faint, large) ────────────────────────────
+    canvas.drawCircle(Offset(cx, cy), size.width * 0.47, strokeWhiteThin);
+
+    // ── 2. Inner aura ring (slightly less faint) ─────────────────────
+    canvas.drawCircle(Offset(cx, cy), size.width * 0.38, strokeWhiteMed);
+
+    // ── 3. Body: shield/dome shape ───────────────────────────────────
+    // Top half is a semicircle, bottom tapers to a rounded point
     final bodyPath = Path();
-    final bodyLeft  = cx - size.width * 0.28;
-    final bodyRight = cx + size.width * 0.28;
-    final bodyTop   = cy - size.height * 0.30;
-    final bodyBottom = cy + size.height * 0.22;
+    final bLeft  = cx - size.width  * 0.25;
+    final bRight = cx + size.width  * 0.25;
+    final bTop   = cy - size.height * 0.32;
+    final bMid   = cy + size.height * 0.05;
+    final bTip   = cy + size.height * 0.30;
 
-    bodyPath.moveTo(bodyLeft, bodyBottom);
-    // Cung vòm phía trên
-    bodyPath.quadraticBezierTo(bodyLeft,  bodyTop, cx, bodyTop);
-    bodyPath.quadraticBezierTo(bodyRight, bodyTop, bodyRight, bodyBottom);
-    // Đáy cong nhẹ
-    bodyPath.quadraticBezierTo(cx, bodyBottom + size.height * 0.08, bodyLeft, bodyBottom);
+    // Top arc (semicircle)
+    bodyPath.moveTo(bLeft, bMid);
+    bodyPath.quadraticBezierTo(bLeft, bTop, cx, bTop);
+    bodyPath.quadraticBezierTo(bRight, bTop, bRight, bMid);
+    // Bottom taper to rounded tip
+    bodyPath.quadraticBezierTo(bRight, bTip, cx, bTip);
+    bodyPath.quadraticBezierTo(bLeft, bTip, bLeft, bMid);
     bodyPath.close();
 
     canvas.drawPath(bodyPath, fillWhite);
 
-    // ── 3. Mắt tròn 1 ở giữa (vị trí hơi trên trung tâm thân) ──────
-    final eyeCx = cx;
-    final eyeCy = cy - size.height * 0.04;
-    final eyeOuterR = size.width * 0.115;
-    final eyeInnerR = size.width * 0.055;
+    // ── 4. Eye: concentric circles ───────────────────────────────────
+    final eyeCx  = cx;
+    final eyeCy  = cy - size.height * 0.06;
+    final outerR = size.width * 0.115;
+    final innerR = size.width * 0.058;
 
-    // Viền ngoài mắt (teal, cùng màu nền)
-    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeOuterR, fillDark);
-    // Mống mắt trắng
-    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeOuterR, strokeWhite);
-    // Chấm đồng tử đen nhỏ ở giữa
-    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeInnerR,
-        Paint()..color = Colors.white..style = PaintingStyle.fill);
-    canvas.drawCircle(Offset(eyeCx, eyeCy), eyeInnerR * 0.5,
-        Paint()..color = const Color(0xFF1A6B5A)..style = PaintingStyle.fill);
+    // Outer ring (dark fill = "hole" showing background)
+    canvas.drawCircle(Offset(eyeCx, eyeCy), outerR, fillDark);
+    // Thin white ring outline
+    canvas.drawCircle(
+      Offset(eyeCx, eyeCy),
+      outerR,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+    // Inner white filled circle (pupil)
+    canvas.drawCircle(Offset(eyeCx, eyeCy), innerR, fillWhite);
+    // Dark center dot (center of pupil)
+    canvas.drawCircle(
+      Offset(eyeCx, eyeCy),
+      innerR * 0.45,
+      Paint()..color = const Color(0xFF1A6B5A)..style = PaintingStyle.fill,
+    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
