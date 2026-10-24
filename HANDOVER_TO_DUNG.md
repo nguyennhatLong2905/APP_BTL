@@ -22,7 +22,7 @@
 # Vào folder muốn làm việc
 
 git clone https://github.com/nguyennhatLong2905/APP_BTL.git
-cd APP/App
+cd APP_BTL/App
 ```
 
 ### **Bước 2: Checkout Branch `dung`**
@@ -163,17 +163,20 @@ git push origin dung
 
 ---
 
-## 📦 Dependencies Cần Cài
+## 📦 Dependencies — Không cần cài thêm!
 
-Dũng cần add các packages sau:
+> ✅ **Long đã add sẵn TẤT CẢ packages vào `pubspec.yaml` rồi!**  
+> Dũng **CHỈ cần** chạy 1 lệnh sau khi clone:
 
 ```bash
-flutter pub add syncfusion_flutter_sliders    # Cho Kế Hoạch Chi Tiêu
-flutter pub add table_calendar                 # Cho Nhìn Lại Nhật Ký
-flutter pub add sticky_headers                 # Cho Nhìn Lại Nhật Ký
+flutter pub get
 ```
 
-**Chi tiết:** Xem trong `TASKS_DUNG.md` → phần "HƯỚNG DẪN CÀI ĐẶT THƯ VIỆN"
+> ❌ **TUYỆT ĐỐI KHÔNG chạy** `flutter pub add` — sẽ gây conflict `pubspec.yaml` khi Long merge!
+
+Packages đã có sẵn cho Dũng: `syncfusion_flutter_sliders`, `table_calendar`, `sticky_headers`, `intl`
+
+**Chi tiết cách dùng:** Xem trong `TASKS_DUNG.md` → phần "HƯỚNG DẪN CÀI ĐẶT THƯ VIỆN"
 
 ---
 

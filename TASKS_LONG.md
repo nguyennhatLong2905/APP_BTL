@@ -51,14 +51,14 @@ lib/features/auth/
 - Ảnh: `docs/design/tong-quan.png`
 
 **Yêu cầu:**
-- [ ] **Header:** Avatar, tên user, notification icon
-- [ ] **Balance Card:** Hiển thị tổng số dư (số lớn, highlight)
-- [ ] **Quick Actions:** 4 nút (Thu/Chi/Chuyển/Mục tiêu)
-- [ ] **Transaction List:** List 5 giao dịch gần nhất
-- [ ] **Chart:** Biểu đồ chi tiêu tuần (line chart hoặc bar chart)
-- [ ] **Bottom Navigation Bar:** 5 tabs (Home/Transaction/Report/Wallet/Settings)
-- [ ] Pull-to-refresh
-- [ ] Skeleton loading khi fetch data
+- [x] **Header:** Avatar, tên user, notification icon
+- [x] **Balance Card:** Hiển thị tổng số dư (số lớn, highlight)
+- [x] **Quick Actions:** 4 nút (Thu/Chi/Chuyển/Mục tiêu)
+- [x] **Transaction List:** List 5 giao dịch gần nhất
+- [x] **Chart:** Biểu đồ chi tiêu tuần (line chart hoặc bar chart)
+- [x] **Bottom Navigation Bar:** 5 tabs (Home/Transaction/Report/Wallet/Settings)
+- [x] Pull-to-refresh
+- [x] Skeleton loading khi fetch data
 
 **Cấu trúc folder:**
 ```
@@ -107,15 +107,15 @@ final mockTransactions = [
 - Ảnh: `docs/design/them-giao-dich.png`
 
 **Yêu cầu:**
-- [ ] **Tab Selector:** Thu / Chi
-- [ ] **Amount Input:** TextField số tiền (format tiền VND)
-- [ ] **Category Picker:** Grid các category (Ăn uống, Di chuyển, Mua sắm...)
-- [ ] **Date Picker:** Chọn ngày giao dịch
-- [ ] **Note Input:** TextField ghi chú (optional)
-- [ ] **Photo Attachment:** Button chụp/chọn ảnh hóa đơn (optional)
-- [ ] **Save Button:** Lưu giao dịch
-- [ ] Form validation (số tiền > 0, category required)
-- [ ] Success message sau khi save
+- [x] **Tab Selector:** Thu / Chi
+- [x] **Amount Input:** TextField số tiền (format tiền VND)
+- [x] **Category Picker:** Grid các category (Ăn uống, Di chuyển, Mua sắm...)
+- [x] **Date Picker:** Chọn ngày giao dịch
+- [x] **Note Input:** TextField ghi chú (optional)
+- [x] **Photo Attachment:** Button chụp/chọn ảnh hóa đơn (optional)
+- [x] **Save Button:** Lưu giao dịch
+- [x] Form validation (số tiền > 0, category required)
+- [x] Success message sau khi save
 
 **Cấu trúc folder:**
 ```
@@ -146,7 +146,9 @@ image_picker: ^1.0.0  # Chọn ảnh
 
 ---
 
-### ✅ 4. Lịch Sử Giao Dịch (Reports) - `P2` ⭐⭐⭐⭐
+### ✅ 4. Lịch Sử Giao Dịch & Báo Cáo - `P2` ⭐⭐⭐⭐
+
+> 📌 **Lưu ý tên:** Màn này là **"Lịch Sử & Báo Cáo"** (thống kê, chart). KHÁC với màn **"Nhìn Lại Nhật Ký"** của Dũng (timeline chronological). Hai màn bổ sung nhau!
 
 **Feature:** `lib/features/report/presentation/screens/report_screen.dart`
 
@@ -333,10 +335,10 @@ git push origin frontend
 
 | Màn Hình | Status | Start Date | End Date | Notes |
 |----------|--------|------------|----------|-------|
-| Splash Screen | ⏳ Todo | - | - | - |
-| Dashboard | ⏳ Todo | - | - | - |
-| Thêm Giao Dịch | ⏳ Todo | - | - | - |
-| Lịch Sử Giao Dịch | ⏳ Todo | - | - | - |
+| Splash Screen | ✅ Done | - | - | Đã hoàn thành trước đó |
+| Dashboard | ✅ Done | 2026-10-17 | 2026-10-17 | Đã tạo đủ models, mock data, widgets, skeleton & provider |
+| Thêm Giao Dịch | ✅ Done | 2026-10-17 | 2026-10-17 | Tab selector, amount input, category grid, date picker, photo picker, validation |
+| Lịch Sử Giao Dịch | ✅ Done | 2026-10-18 | 2026-10-18 | Search, period/wallet filter, grouped by date, insight card |
 
 **Legend:**
 - ⏳ Todo

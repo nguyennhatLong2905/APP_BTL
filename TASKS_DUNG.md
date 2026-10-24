@@ -147,6 +147,8 @@ syncfusion_flutter_sliders: ^24.0.0  # Cho drag slider
 
 ### ✅ 3. Nhìn Lại Nhật Ký (Transaction Timeline) - `P2`
 
+> 📌 **Lưu ý tên:** Màn này là **"Nhật ký thượng niêm"** theo dòng thời gian + đánh giá cảm xúc. KHÁC với màn **"Lịch Sử & Báo Cáo"** của Long (chart + thống kê). Hai màn bổ sung nhau!
+
 **Feature:** `lib/features/notifications/presentation/screens/timeline_screen.dart`
 
 **Design:** 

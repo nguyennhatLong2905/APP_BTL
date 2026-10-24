@@ -10,7 +10,7 @@ class AppConstants {
   static const String refreshTokenKey = 'refreshToken';
 
   // App constants
-  static const String appName = 'Expense Tracker';
+  static const String appName = 'Ví An';
   static const String appVersion = '1.0.0';
   static const String packageName = 'com.mycompany.expensetracker';
 
