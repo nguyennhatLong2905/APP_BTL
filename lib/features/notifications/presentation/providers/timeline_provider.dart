@@ -73,6 +73,9 @@ class TimelineState {
     ],
   });
 
+  /// Số lượng giao dịch đã được đánh giá cảm xúc
+  int get totalRated => reflectionItems.where((i) => i.rating != null).length;
+
   TimelineState copyWith({
     List<TimelineItem>? reflectionItems,
   }) {
