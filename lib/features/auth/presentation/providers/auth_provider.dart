@@ -41,11 +41,16 @@ class AuthNotifier extends Notifier<AuthState> {
 
   // Check auth status
   Future<void> checkAuthStatus() async {
-    // Here you would typically check if there's a valid token stored
-    // and validate it with your API if necessary
-
-    // For now, we'll just return false
     state = state.copyWith(isAuthenticated: false, user: null);
+  }
+
+  // ── Mock login: dùng cho demo (tài khoản: user / 123) ────────────
+  void loginWithMock(String username) {
+    state = state.copyWith(
+      isAuthenticated: true,
+      isLoading: false,
+      errorMessage: null,
+    );
   }
 
   // Login
