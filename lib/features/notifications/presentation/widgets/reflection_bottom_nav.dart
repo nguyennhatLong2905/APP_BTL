@@ -27,7 +27,7 @@ class ReflectionBottomNav extends StatelessWidget {
             context,
             icon: Icons.grid_view_outlined,
             label: 'Tổng quan',
-            route: AppConstants.splashRoute,
+            route: AppConstants.homeRoute,
             isSelected: false,
           ),
           _buildNavItem(

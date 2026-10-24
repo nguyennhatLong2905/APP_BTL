@@ -689,3 +689,73 @@ git push origin dung
 ---
 
 **Cập nhật lần cuối:** 2026-10-06
+
+---
+
+## 🔍 Review Code Dũng vs Figma
+
+> **Review bởi:** Long  
+> **Ngày review:** 2026-10-24  
+> **Kết luận chung:** Code của Dũng khá sát Figma về cấu trúc và layout. Còn một số điểm nhỏ cần chú ý.
+
+---
+
+### ✅ Budget Planning (Màn 1) — Rất sát Figma
+
+Header AppBar, SalaryCycleCard, tabs (Ngân sách/Mục tiêu/Hóa đơn), filter chips, summary card, category cards, progress bars, bottom nav → tất cả đúng
+
+**✅ Đã tự fix:** Text filter chip `"Thư viện bản trống"` — **ĐÚNG** (không cần sửa)
+
+---
+
+### ✅ Timeline / Nhìn Lại (Màn 2) — Sát Figma
+
+**✅ Đã tự fix — Không cần action thêm:**
+
+| File | Vấn đề ban đầu | Trạng thái |
+|------|----------------|------------|
+| `reflection_transaction_card.dart` | Icon "Cần cân nhắc" | ✅ Đã đúng `'🤔'` |
+| `reflection_transaction_card.dart` | Icon "Rất đáng tiền" | ✅ Đã đúng `'❤️❤️'` |
+| `self_insight_card.dart` | Badge "Dựa trên X đánh giá" | ✅ Đã nhận `ratingCount` từ provider (default = 8 theo Figma) |
+| `weekly_expense_summary_card.dart` | Segmented progress bar | ✅ Đã tính động từ `categories` data thực |
+
+---
+
+### ✅ Smart Spending / Mua Hay Chờ (Màn 3) — Rất sát Figma
+
+---
+
+### 🔴 Bug Đã Fix (Long đã sửa 2026-10-24)
+
+**Bug: Nav item "Tổng quan" navigate về Splash Screen thay vì Dashboard**
+
+```dart
+// ❌ Sai — đã tồn tại trong 2 bottom nav của Dũng
+route: AppConstants.splashRoute   // '/splash' → Logo screen
+
+// ✅ Đã fix → dùng đúng route Dashboard
+route: AppConstants.homeRoute     // '/home' → Tổng Quan screen
+```
+
+| File đã fix | Thay đổi |
+|-------------|----------|
+| `budget_bottom_nav.dart` | `splashRoute` → `homeRoute` |
+| `reflection_bottom_nav.dart` | `splashRoute` → `homeRoute` |
+
+> **Ghi chú:** `timeline_screen.dart` AppBar back button đã dùng `context.pop()` đúng rồi ✅
+
+---
+
+### 📋 Tổng Kết Review
+
+| Mức | Vấn đề | File | Trạng thái |
+|-----|--------|------|------------|
+| 🔴 Bug | Nav "Tổng quan" → `splashRoute` | `budget_bottom_nav.dart` | ✅ **Đã fix** |
+| 🔴 Bug | Nav "Tổng quan" → `splashRoute` | `reflection_bottom_nav.dart` | ✅ **Đã fix** |
+| 🟠 UI | Icon "Cần cân nhắc" | `reflection_transaction_card.dart` | ✅ **Đã đúng** |
+| 🟡 Nhỏ | Icon "Rất đáng tiền" | `reflection_transaction_card.dart` | ✅ **Đã đúng** |
+| 🟡 Nhỏ | Text filter chip | `budget_control_tabs.dart` | ✅ **Đã đúng** |
+| 🟢 Data | Badge số đánh giá | `self_insight_card.dart` | ✅ **Dynamic từ provider** |
+| 🟢 Data | Segmented progress bar | `weekly_expense_summary_card.dart` | ✅ **Tính từ data thực** |
+
+**→ Tất cả items đã resolve. Code sẵn sàng merge! 🚀**
