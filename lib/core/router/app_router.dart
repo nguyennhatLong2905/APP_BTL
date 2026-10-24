@@ -36,8 +36,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isGoingToRegister = location == AppConstants.registerRoute;
       final isGoingToSplash = location == AppConstants.splashRoute;
 
-      // Splash luôn được vào
-      if (isGoingToSplash) return null;
+      // Cho phép vào trực tiếp các màn hình tính năng để test/xem UI
+      final isFeatureScreen = location == AppConstants.smartSpendingRoute ||
+          location == AppConstants.budgetPlanningRoute ||
+          location == AppConstants.timelineRoute ||
+          location == AppConstants.homeRoute ||
+          location == AppConstants.addTransactionRoute ||
+          location == AppConstants.reportRoute;
+
+      // Splash & Feature screens luôn được phép vào
+      if (isGoingToSplash || isFeatureScreen) return null;
 
       // Nếu chưa login → về login
       if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
