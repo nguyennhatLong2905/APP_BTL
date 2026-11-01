@@ -1,0 +1,181 @@
+{
+  "data": {
+    "wallets": [
+      {
+        "_id": "000000000000000000000002",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Ví tiền mặt",
+        "type": "cash",
+        "currency": "VND",
+        "openingBalance": "215000",
+        "openingAt": "2026-09-15T17:00:00.000Z",
+        "balance": "600000",
+        "status": "active",
+        "version": 0
+      },
+      {
+        "_id": "000000000000000000000003",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Tài khoản thanh toán",
+        "type": "bank",
+        "currency": "VND",
+        "openingBalance": "8765000",
+        "openingAt": "2026-09-15T17:00:00.000Z",
+        "balance": "7400000",
+        "status": "active",
+        "version": 0
+      }
+    ],
+    "categories": [
+      {
+        "_id": "00000000000000000000000a",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Ăn uống",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 0
+      },
+      {
+        "_id": "00000000000000000000000b",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Đi lại",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 1
+      },
+      {
+        "_id": "00000000000000000000000c",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Mua sắm cá nhân",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 2
+      },
+      {
+        "_id": "00000000000000000000000d",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Sinh hoạt & khác",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 3
+      },
+      {
+        "_id": "00000000000000000000000e",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Hóa đơn",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 4
+      },
+      {
+        "_id": "00000000000000000000000f",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Học tập",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 5
+      },
+      {
+        "_id": "000000000000000000000010",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Thu nhập",
+        "kind": "income",
+        "status": "active",
+        "sortOrder": 6
+      }
+    ],
+    "defaultWalletId": "000000000000000000000002",
+    "defaultOccurredAt": "2026-10-03T09:18:25.314Z",
+    "quickAmounts": [
+      "10000",
+      "50000",
+      "100000"
+    ],
+    "overview": {
+      "asOf": "2026-10-03T09:18:25.314Z",
+      "nextPayday": "2026-10-15T17:00:00.000Z",
+      "daysRemaining": 13,
+      "missingData": [],
+      "currency": "VND",
+      "total": "8000000",
+      "unpaidBills": "3500000",
+      "protectedMoney": "2400000",
+      "available": "2100000",
+      "dailyReference": "161538",
+      "wallets": [
+        {
+          "_id": "000000000000000000000002",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "name": "Ví tiền mặt",
+          "type": "cash",
+          "currency": "VND",
+          "openingBalance": "215000",
+          "openingAt": "2026-09-15T17:00:00.000Z",
+          "balance": "600000",
+          "status": "active",
+          "version": 0
+        },
+        {
+          "_id": "000000000000000000000003",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "name": "Tài khoản thanh toán",
+          "type": "bank",
+          "currency": "VND",
+          "openingBalance": "8765000",
+          "openingAt": "2026-09-15T17:00:00.000Z",
+          "balance": "7400000",
+          "status": "active",
+          "version": 0
+        }
+      ],
+      "bills": [
+        {
+          "_id": "00000000000000000000019a",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "templateId": "000000000000000000000190",
+          "name": "Tiền nhà",
+          "amount": "3000000",
+          "categoryId": "00000000000000000000000e",
+          "dueAt": "2026-10-04T17:00:00.000Z",
+          "status": "unpaid"
+        },
+        {
+          "_id": "00000000000000000000019b",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "templateId": "000000000000000000000191",
+          "name": "Điện nước sinh hoạt",
+          "amount": "500000",
+          "categoryId": "00000000000000000000000e",
+          "dueAt": "2026-10-09T17:00:00.000Z",
+          "status": "unpaid"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "vi-an-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env --watch src/server.js",
+    "start": "node --env-file=.env src/server.js",
+    "setup:env": "node scripts/setup-env.js",
+    "db:init": "node --env-file=.env scripts/init-db.js",
+    "db:seed": "node --env-file=.env scripts/init-db.js --seed",
+    "test": "node --test test/*.test.js",
+    "test:integration": "node --test test/integration.js",
+    "docs:export": "node scripts/export-openapi.js",
+    "frontend:example": "node scripts/frontend-example.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.3.0",
+    "@fastify/jwt": "10.2.2",
+    "@fastify/rate-limit": "10.3.0",
+    "@fastify/swagger": "9.9.1",
+    "@fastify/swagger-ui": "5.2.6",
+    "csv-parse": "6.2.1",
+    "csv-stringify": "6.9.0",
+    "fastify": "5.12.5",
+    "luxon": "3.7.2",
+    "mongodb": "7.7.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "10.4.3",
+    "prettier": "3.9.9"
+  }
+}

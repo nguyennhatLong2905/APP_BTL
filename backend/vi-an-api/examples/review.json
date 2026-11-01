@@ -1,0 +1,177 @@
+{
+  "data": {
+    "report": {
+      "startAt": "2026-09-24T17:00:00.000Z",
+      "endAt": "2026-10-01T17:00:00.000Z",
+      "previousStartAt": "2026-09-17T17:00:00.000Z",
+      "income": "25000",
+      "expense": "450000",
+      "net": "-425000",
+      "previousExpense": "380000",
+      "expenseChangePercent": 18.42,
+      "byCategory": [
+        {
+          "type": "income",
+          "categoryId": "000000000000000000000010",
+          "amount": "25000",
+          "count": 1
+        },
+        {
+          "type": "expense",
+          "categoryId": "00000000000000000000000f",
+          "amount": "450000",
+          "count": 1
+        }
+      ]
+    },
+    "reflections": [
+      {
+        "_id": "000000000000000000000259",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "transactionId": "00000000000000000000006a",
+        "dueAt": "2026-10-01T03:00:00.000Z",
+        "status": "pending",
+        "transaction": {
+          "_id": "00000000000000000000006a",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "type": "expense",
+          "amount": "380000",
+          "currency": "VND",
+          "occurredAt": "2026-09-24T03:00:00.000Z",
+          "status": "posted",
+          "idempotencyKey": "demo:106",
+          "version": 1,
+          "source": "manual",
+          "walletId": "000000000000000000000003",
+          "categoryId": "00000000000000000000000c",
+          "note": "Áo khoác gió thu đông"
+        }
+      },
+      {
+        "_id": "000000000000000000000258",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "transactionId": "000000000000000000000069",
+        "dueAt": "2026-10-02T03:00:00.000Z",
+        "status": "pending",
+        "transaction": {
+          "_id": "000000000000000000000069",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "type": "expense",
+          "amount": "450000",
+          "currency": "VND",
+          "occurredAt": "2026-09-25T03:00:00.000Z",
+          "status": "posted",
+          "idempotencyKey": "demo:105",
+          "version": 1,
+          "source": "manual",
+          "walletId": "000000000000000000000003",
+          "categoryId": "00000000000000000000000f",
+          "note": "Khóa học tiếng Anh giao tiếp"
+        }
+      }
+    ],
+    "patterns": {
+      "sampleCount": 0,
+      "byCategory": [],
+      "hasEnoughData": false
+    },
+    "insights": [
+      {
+        "_id": "0000000000000000000002bc",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "type": "cooldown_suggestion",
+        "title": "Thử khoảng lặng 48h trước khi mua",
+        "body": "Gợi ý trải nghiệm; chưa đủ đánh giá để kết luận về thói quen cá nhân.",
+        "evidenceTransactionIds": [],
+        "status": "new",
+        "generatedAt": "2026-10-02T16:59:59.000Z",
+        "action": {
+          "type": "start_challenge",
+          "challengeType": "cooldown_48h"
+        }
+      }
+    ],
+    "categories": [
+      {
+        "_id": "00000000000000000000000a",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Ăn uống",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 0
+      },
+      {
+        "_id": "00000000000000000000000b",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Đi lại",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 1
+      },
+      {
+        "_id": "00000000000000000000000c",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Mua sắm cá nhân",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 2
+      },
+      {
+        "_id": "00000000000000000000000d",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Sinh hoạt & khác",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 3
+      },
+      {
+        "_id": "00000000000000000000000e",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Hóa đơn",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 4
+      },
+      {
+        "_id": "00000000000000000000000f",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Học tập",
+        "kind": "expense",
+        "status": "active",
+        "sortOrder": 5
+      },
+      {
+        "_id": "000000000000000000000010",
+        "userId": "000000000000000000000001",
+        "createdAt": "2026-10-02T16:59:59.000Z",
+        "updatedAt": "2026-10-02T16:59:59.000Z",
+        "name": "Thu nhập",
+        "kind": "income",
+        "status": "active",
+        "sortOrder": 6
+      }
+    ]
+  }
+}
