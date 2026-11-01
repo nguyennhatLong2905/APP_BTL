@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
+  <title>Ví An — Thử ghép API</title>
+  <style>
+    body {
+      font:
+        16px system-ui,
+        sans-serif;
+      background: #f1f6f4;
+      color: #193b34;
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    h1 {
+      margin-bottom: 6px;
+    }
+    section {
+      background: white;
+      border-radius: 16px;
+      padding: 22px;
+      margin: 20px 0;
+    }
+    button,
+    input,
+    select {
+      font: inherit;
+      padding: 10px;
+      border: 1px solid #aac1b9;
+      border-radius: 8px;
+      margin: 5px 4px 5px 0;
+    }
+    button {
+      background: #126551;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+    }
+    label {
+      display: inline-block;
+    }
+    small {
+      display: block;
+      margin: 8px 0;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #eef4f1;
+      padding: 16px;
+      max-height: 500px;
+      overflow: auto;
+    }
+    #message {
+      color: #8f2b21;
+    }
+  </style>
+  <h1>Ví An · Thử ghép API</h1>
+  <p>
+    Ví dụ kết nối backend. Mở dự án frontend của bạn và dùng cùng file
+    <code>vi-an-client.js</code>.
+  </p>
+  <section>
+    <label
+      >API
+      <input id="base" value="http://127.0.0.1:3000/api/v1" size="38" /></label
+    ><button id="login">Kết nối dữ liệu An (local)</button
+    ><small id="identity">Chưa đăng nhập</small>
+  </section>
+  <section>
+    <h2>Đọc dữ liệu các màn hình</h2>
+    <select id="screen">
+      <option value="dashboard">Tổng quan</option>
+      <option value="form">Thêm giao dịch</option>
+      <option value="history">Lịch sử giao dịch</option>
+      <option value="plans">Kế hoạch chi tiêu</option>
+      <option value="purchase">Mua hay chờ — thử 900.000đ</option>
+      <option value="review">Nhìn lại — 7 ngày gần đây</option></select
+    ><button id="load">Tải dữ liệu</button>
+    <p id="summary"></p>
+  </section>
+  <section>
+    <h2>Ghi một khoản chi thật</h2>
+    <p>
+      Thao tác này sẽ thêm giao dịch và trừ số dư ví trong database đang kết
+      nối.
+    </p>
+    <form id="expense">
+      <label
+        >Số tiền VND
+        <input
+          id="amount"
+          inputmode="numeric"
+          pattern="[1-9][0-9]*"
+          value="50000"
+          required /></label
+      ><label
+        >Ví
+        <select id="wallet" required></select></label
+      ><label
+        >Danh mục
+        <select id="category" required></select></label
+      ><label>Ghi chú <input id="note" value="Bữa ăn" /></label
+      ><button id="save">Lưu giao dịch</button>
+    </form>
+    <small
+      >Khi lỗi mạng: giữ nguyên form và bấm lại để thử lại cùng yêu cầu. Sau khi
+      thành công mới tạo khóa yêu cầu mới.</small
+    >
+  </section>
+  <p id="message" role="alert"></p>
+  <pre id="output">Kết nối để bắt đầu.</pre>
+  <script type="module">
+    import { createViAnClient, formatVnd } from "./vi-an-client.js";
+    const $ = (id) => document.getElementById(id);
+    let token = null,
+      api = null,
+      pending = null;
+    const show = (data) =>
+      ($("output").textContent = JSON.stringify(data, null, 2));
+    async function guard(fn) {
+      $("message").textContent = "";
+      try {
+        await fn();
+      } catch (e) {
+        $("message").textContent = `${e.code || "NETWORK_ERROR"}: ${e.message}`;
+      }
+    }
+    function fill(select, rows) {
+      select.replaceChildren(
+        ...rows.map((row) => {
+          const o = document.createElement("option");
+          o.value = row._id;
+          o.textContent = row.name;
+          return o;
+        }),
+      );
+    }
+    $("login").onclick = () =>
+      guard(async () => {
+        api = createViAnClient({
+          baseUrl: $("base").value,
+          getToken: () => token,
+        });
+        const auth = await api.demoLogin();
+        token = auth.accessToken;
+        pending = null;
+        $("identity").textContent = "Đã kết nối: " + auth.user.displayName;
+        const form = await api.transactionForm();
+        fill($("wallet"), form.wallets);
+        fill(
+          $("category"),
+          form.categories.filter((c) => c.kind === "expense"),
+        );
+        if (form.defaultWalletId) $("wallet").value = form.defaultWalletId;
+        show(await api.dashboard());
+      });
+    $("load").onclick = () =>
+      guard(async () => {
+        if (!api || !token) throw new Error("Kết nối trước.");
+        const end = new Date(),
+          start = new Date(end.getTime() - 7 * 86400000);
+        const calls = {
+          dashboard: () => api.dashboard(),
+          form: () => api.transactionForm(),
+          history: () => api.history({ limit: 30 }),
+          plans: () => api.plans(),
+          purchase: () => api.simulatePurchase({ price: "900000" }),
+          review: () =>
+            api.review({
+              startAt: start.toISOString(),
+              endAt: end.toISOString(),
+            }),
+        };
+        const result = await calls[$("screen").value]();
+        show(result);
+        $("summary").textContent =
+          $("screen").value === "dashboard"
+            ? "Còn để chi: " + formatVnd(result.available)
+            : "";
+      });
+    $("expense").onsubmit = (e) => {
+      e.preventDefault();
+      guard(async () => {
+        if (!api || !token) throw new Error("Kết nối trước.");
+        const input = {
+          type: "expense",
+          amount: $("amount").value,
+          walletId: $("wallet").value,
+          categoryId: $("category").value,
+          note: $("note").value,
+          trackReview: true,
+        };
+        const fingerprint = JSON.stringify(input);
+        if (pending && pending.fingerprint !== fingerprint)
+          throw new Error(
+            "Yêu cầu trước chưa có kết quả. Giữ nguyên nội dung và thử lại trước khi đổi form.",
+          );
+        pending ||= {
+          fingerprint,
+          key: crypto.randomUUID(),
+          body: { ...input, occurredAt: new Date().toISOString() },
+        };
+        $("save").disabled = true;
+        try {
+          const tx = await api.createTransaction(pending.body, pending.key);
+          pending = null;
+          show({ transaction: tx, dashboard: await api.dashboard() });
+        } catch (e) {
+          if (e.status && e.status < 500 && e.status !== 429) pending = null;
+          throw e;
+        } finally {
+          $("save").disabled = false;
+        }
+      });
+    };
+  </script>
+</html>
