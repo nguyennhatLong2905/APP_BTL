@@ -24,14 +24,14 @@ class ApiClient {
     }
   }
 
-  // POST request — tự động gắn Idempotency-Key
+  // POST request — tự động gắn idempotency-key (lowercase theo OpenAPI schema)
   Future<Either<Failure, dynamic>> post(String path, {dynamic data}) async {
     try {
       final response = await _dio.post(
         path,
         data: data,
         options: Options(
-          headers: {'Idempotency-Key': _uuid.v4()},
+          headers: {'idempotency-key': _uuid.v4()},
         ),
       );
       return Right(response.data);
@@ -40,14 +40,14 @@ class ApiClient {
     }
   }
 
-  // PUT request — tự động gắn Idempotency-Key
+  // PUT request — tự động gắn idempotency-key (lowercase theo OpenAPI schema)
   Future<Either<Failure, dynamic>> put(String path, {dynamic data}) async {
     try {
       final response = await _dio.put(
         path,
         data: data,
         options: Options(
-          headers: {'Idempotency-Key': _uuid.v4()},
+          headers: {'idempotency-key': _uuid.v4()},
         ),
       );
       return Right(response.data);
@@ -56,14 +56,14 @@ class ApiClient {
     }
   }
 
-  // PATCH request — tự động gắn Idempotency-Key
+  // PATCH request — tự động gắn idempotency-key (lowercase theo OpenAPI schema)
   Future<Either<Failure, dynamic>> patch(String path, {dynamic data}) async {
     try {
       final response = await _dio.patch(
         path,
         data: data,
         options: Options(
-          headers: {'Idempotency-Key': _uuid.v4()},
+          headers: {'idempotency-key': _uuid.v4()},
         ),
       );
       return Right(response.data);

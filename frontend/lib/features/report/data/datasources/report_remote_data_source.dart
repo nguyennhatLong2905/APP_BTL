@@ -55,8 +55,8 @@ class ReportRemoteDataSourceImpl implements ReportRemoteDataSource {
   }) async {
     final params = <String, dynamic>{'limit': limit};
     if (cursor != null) params['cursor'] = cursor;
-    if (startDate != null) params['startDate'] = startDate;
-    if (endDate != null) params['endDate'] = endDate;
+    if (startDate != null) params['startAt'] = '${startDate}T00:00:00.000Z';
+    if (endDate != null) params['endAt'] = '${endDate}T23:59:59.999Z';
     if (categoryId != null) params['categoryId'] = categoryId;
 
     final result = await _apiClient.get('/screens/transactions', queryParameters: params);

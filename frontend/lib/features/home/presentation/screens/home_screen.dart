@@ -35,6 +35,13 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final homeState = ref.watch(homeProvider);
     final notifier = ref.read(homeProvider.notifier);
+    
+    // Load dữ liệu nếu chưa có hoặc cũ
+    if (homeState.dashboardData == null && !homeState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifier.loadDashboard();
+      });
+    }
 
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

@@ -49,6 +49,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       statusBarIconBrightness: Brightness.dark,
     ));
 
+    // Đảm bảo reportProvider được khởi tạo ngay khi vào trang
+    final reportState = ref.watch(reportProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

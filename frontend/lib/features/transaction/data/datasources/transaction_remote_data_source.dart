@@ -16,10 +16,11 @@ abstract class TransactionRemoteDataSource {
   /// Tạo giao dịch mới
   Future<Map<String, dynamic>> createTransaction({
     required String type, // 'income' | 'expense' | 'transfer'
-    required int amount,  // VND (integer)
+    required String amount,  // VND as string (backend requires string)
     required String occurredAt, // ISO8601
     String? categoryId,
     String? walletId,
+    String? fromWalletId,
     String? toWalletId,
     String? memo,
     String? note,
@@ -33,6 +34,9 @@ abstract class TransactionRemoteDataSource {
 
   /// Hủy giao dịch (void)
   Future<void> voidTransaction(String id);
+
+  /// Hoàn tác hủy giao dịch (restore)
+  Future<void> restoreTransaction(String id, int expectedVersion);
 
   /// Lấy danh sách ví
   Future<List<Map<String, dynamic>>> getWallets();
@@ -71,21 +75,23 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
   @override
   Future<Map<String, dynamic>> createTransaction({
     required String type,
-    required int amount,
+    required String amount,  // Changed from int to String
     required String occurredAt,
     String? categoryId,
     String? walletId,
+    String? fromWalletId,
     String? toWalletId,
     String? memo,
     String? note,
   }) async {
     final data = <String, dynamic>{
       'type': type,
-      'amount': amount,
+      'amount': amount,  // Now string, no conversion needed
       'occurredAt': occurredAt,
     };
     if (categoryId != null) data['categoryId'] = categoryId;
     if (walletId != null) data['walletId'] = walletId;
+    if (fromWalletId != null) data['fromWalletId'] = fromWalletId;
     if (toWalletId != null) data['toWalletId'] = toWalletId;
     if (memo != null && memo.isNotEmpty) data['memo'] = memo;
     if (note != null && note.isNotEmpty) data['note'] = note;
@@ -118,6 +124,17 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
   @override
   Future<void> voidTransaction(String id) async {
     final result = await _apiClient.post('/transactions/$id/void');
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
+    );
+  }
+
+  @override
+  Future<void> restoreTransaction(String id, int expectedVersion) async {
+    final result = await _apiClient.post('/transactions/$id/restore', data: {
+      'expectedVersion': expectedVersion,
+    });
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,

@@ -15,40 +15,58 @@ import 'package:flutter_riverpod_clean_architecture/features/settings/presentati
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/language_settings_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/settings_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/transaction/presentation/screens/add_transaction_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/screens/create_wallet_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/screens/smart_spending_screen.dart';
 import 'package:go_router/go_router.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
-  // Watch for locale changes - this rebuilds the router when locale changes
-  ref.watch(persistentLocaleProvider);
+  // We use ref.listen to trigger a refresh of the router without recreating it
+  final notifier = ValueNotifier<int>(0);
+  
+  ref.listen(authProvider, (prev, next) {
+    if (prev?.isAuthenticated != next.isAuthenticated) {
+      notifier.value++;
+    }
+  });
+  
+  ref.listen(persistentLocaleProvider, (_, _) {
+    notifier.value++;
+  });
 
   return GoRouter(
     initialLocation: AppConstants.splashRoute,
     debugLogDiagnostics: true,
+    refreshListenable: notifier,
     observers: [ref.read(localizationRouterObserverProvider)],
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isLoggedIn = authState.isAuthenticated;
       final location = state.matchedLocation;
+      
+      debugPrint('GoRouter redirect eval: location=$location, isLoggedIn=$isLoggedIn, isLoading=${authState.isLoading}');
 
       final isGoingToLogin = location == AppConstants.loginRoute;
       final isGoingToRegister = location == AppConstants.registerRoute;
       final isGoingToSplash = location == AppConstants.splashRoute;
 
       // Splash luôn được vào
-      if (isGoingToSplash) return null;
+      if (isGoingToSplash) {
+        return null;
+      }
 
       // Nếu chưa login → về login
       if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
+        debugPrint('GoRouter: not logged in -> redirect to login');
         return AppConstants.loginRoute;
       }
 
       // Nếu đã login mà vào login/register → về home
       if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
+        debugPrint('GoRouter: logged in but going to auth -> redirect to home');
         return AppConstants.homeRoute;
       }
 
+      debugPrint('GoRouter: allowed -> return null');
       return null;
     },
     routes: [
@@ -83,6 +101,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppConstants.smartSpendingRoute,
         name: 'smart_spending',
         builder: (context, state) => const SmartSpendingScreen(),
+      ),
+      GoRoute(
+        path: '/create-wallet',
+        name: 'create_wallet',
+        builder: (context, state) => const CreateWalletScreen(),
       ),
       GoRoute(
         path: AppConstants.budgetPlanningRoute,
