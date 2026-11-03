@@ -19,12 +19,18 @@ Dio dio(Ref ref) {
   final secureStorage = ref.watch(secureStorageServiceProvider);
 
   dio.options.baseUrl = EnvConfig.baseUrl;
-  dio.options.connectTimeout = const Duration(milliseconds: 30000);
-  dio.options.receiveTimeout = const Duration(milliseconds: 30000);
+  // Tối ưu timeout - giảm từ 30s xuống 10s
+  dio.options.connectTimeout = const Duration(milliseconds: 10000);
+  dio.options.receiveTimeout = const Duration(milliseconds: 10000);
+  dio.options.sendTimeout = const Duration(milliseconds: 10000);
   dio.options.headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'Accept-Encoding': 'gzip, deflate', // Bật compression
   };
+  // Connection pooling - tái sử dụng kết nối
+  dio.options.persistentConnection = true;
+  dio.options.receiveDataWhenStatusError = true;
 
   // 1. AuthInterceptor - Tự động đính kèm Bearer Token
   dio.interceptors.add(AuthInterceptor(secureStorage));

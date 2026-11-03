@@ -27,56 +27,59 @@ export function authRoutes(app, ctx, config, r) {
       summary: "Đăng ký tài khoản",
     },
     async (req) => {
-      fail(
-        ctx.transactionCapable,
-        "REPLICA_SET_REQUIRED",
-        "Cần replica set để đăng ký.",
-        503,
-      );
       const b = req.input,
         email = b.email.toLowerCase(),
-        encoded = passwordHash(b.password),
-        session = ctx.client.startSession();
+        encoded = passwordHash(b.password);
+
       let user;
-      try {
-        await session.withTransaction(async () => {
-          user = {
-            _id: new ObjectId(),
-            authSubject: "local:" + email,
-            displayName: b.displayName,
-            timezone: "Asia/Ho_Chi_Minh",
-            currency: "VND",
-            nextPayday: b.nextPayday ? new Date(b.nextPayday) : null,
-            settings: { hideAmounts: false, reviewDelayDays: I(7) },
-            tokenVersion: I(0),
-            createdAt: now(),
-            updatedAt: now(),
-          };
-          await db.collection("users").insertOne(user, { session });
+      const doInsert = async (opts) => {
+        user = {
+          _id: new ObjectId(),
+          authSubject: "local:" + email,
+          displayName: b.displayName,
+          timezone: "Asia/Ho_Chi_Minh",
+          currency: "VND",
+          nextPayday: b.nextPayday ? new Date(b.nextPayday) : null,
+          settings: { hideAmounts: false, reviewDelayDays: I(7) },
+          tokenVersion: I(0),
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        await db.collection("users").insertOne(user, opts);
+        await db
+          .collection("auth_accounts")
+          .insertOne(
+            { ...base(user._id), email, passwordHash: encoded },
+            opts
+          );
+        for (const [name, kind] of [
+          ["Ăn uống", "expense"],
+          ["Đi lại", "expense"],
+          ["Mua sắm", "expense"],
+          ["Hóa đơn", "expense"],
+          ["Học tập", "expense"],
+          ["Khác", "expense"],
+          ["Thu nhập", "income"],
+        ]) {
           await db
-            .collection("auth_accounts")
+            .collection("categories")
             .insertOne(
-              { ...base(user._id), email, passwordHash: encoded },
-              { session },
+              { ...base(user._id), name, kind, status: "active" },
+              opts
             );
-          for (const [name, kind] of [
-            ["Ăn uống", "expense"],
-            ["Đi lại", "expense"],
-            ["Mua sắm", "expense"],
-            ["Hóa đơn", "expense"],
-            ["Học tập", "expense"],
-            ["Khác", "expense"],
-            ["Thu nhập", "income"],
-          ])
-            await db
-              .collection("categories")
-              .insertOne(
-                { ...base(user._id), name, kind, status: "active" },
-                { session },
-              );
-        });
-      } finally {
-        await session.endSession();
+        }
+      };
+
+      if (ctx.transactionCapable) {
+        const session = ctx.client.startSession();
+        try {
+          await session.withTransaction(() => doInsert({ session }));
+        } finally {
+          await session.endSession();
+        }
+      } else {
+        // Fallback: Chạy bình thường không cần Transaction khi Dev ở Local
+        await doInsert({});
       }
       return { accessToken: token(user), user };
     },

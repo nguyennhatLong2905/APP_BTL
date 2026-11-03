@@ -9,6 +9,7 @@ class HomeState {
   final bool isLoading;
   final DashboardData? dashboardData;
   final String? errorMessage;
+  final DateTime? lastLoadedAt;
 
   const HomeState({
     this.showWarningBanner = true,
@@ -16,6 +17,7 @@ class HomeState {
     this.isLoading = false,
     this.dashboardData,
     this.errorMessage,
+    this.lastLoadedAt,
   });
 
   HomeState copyWith({
@@ -24,6 +26,7 @@ class HomeState {
     bool? isLoading,
     DashboardData? dashboardData,
     String? errorMessage,
+    DateTime? lastLoadedAt,
   }) {
     return HomeState(
       showWarningBanner: showWarningBanner ?? this.showWarningBanner,
@@ -31,6 +34,7 @@ class HomeState {
       isLoading: isLoading ?? this.isLoading,
       dashboardData: dashboardData ?? this.dashboardData,
       errorMessage: errorMessage,
+      lastLoadedAt: lastLoadedAt ?? this.lastLoadedAt,
     );
   }
 }
@@ -39,18 +43,29 @@ class HomeState {
 class HomeNotifier extends Notifier<HomeState> {
   @override
   HomeState build() {
-    // Tự động load dashboard khi provider được tạo
-    Future.microtask(() => loadDashboard());
-    return const HomeState(isLoading: true);
+    // Không load tự động nữa
+    return const HomeState();
   }
 
-  /// Load dữ liệu dashboard từ API
-  Future<void> loadDashboard() async {
+  /// Load dữ liệu dashboard từ API với cache 30s
+  Future<void> loadDashboard({bool force = false}) async {
+    // Cache 30 giây
+    if (!force && state.lastLoadedAt != null && state.dashboardData != null) {
+      final age = DateTime.now().difference(state.lastLoadedAt!);
+      if (age.inSeconds < 30) {
+        return; // Dùng cache
+      }
+    }
+    
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final dataSource = ref.read(dashboardRemoteDataSourceProvider);
       final data = await dataSource.getDashboard();
-      state = state.copyWith(isLoading: false, dashboardData: data);
+      state = state.copyWith(
+        isLoading: false, 
+        dashboardData: data,
+        lastLoadedAt: DateTime.now(),
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

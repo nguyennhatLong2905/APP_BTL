@@ -34,23 +34,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller.forward();
 
-    // Kiểm tra auth status rồi điều hướng
-    _initAndNavigate();
+    // Kiểm tra auth status rồi điều hướng sau khi frame đầu tiên render
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initAndNavigate();
+    });
   }
 
   Future<void> _initAndNavigate() async {
-    // Chờ animation + kiểm tra token song song
-    await Future.wait([
-      Future.delayed(const Duration(seconds: 2)),
-      ref.read(authProvider.notifier).checkAuthStatus(),
-    ]);
+    debugPrint('Splash: Bắt đầu _initAndNavigate');
+    try {
+      // Chờ animation + kiểm tra token song song
+      await Future.wait([
+        Future.delayed(const Duration(seconds: 2)),
+        ref.read(authProvider.notifier).checkAuthStatus(),
+      ]);
+      debugPrint('Splash: Future.wait hoàn thành');
+    } catch (e) {
+      debugPrint('Splash: Lỗi Future.wait: $e');
+    }
 
-    if (!mounted) return;
+    if (!mounted) {
+      debugPrint('Splash: Widget unmounted, bỏ qua điều hướng');
+      return;
+    }
 
     final isAuthenticated = ref.read(authProvider).isAuthenticated;
+    debugPrint('Splash: Điều hướng. isAuthenticated: $isAuthenticated');
+    
     if (isAuthenticated) {
+      debugPrint('Splash: context.go -> homeRoute');
       context.go(AppConstants.homeRoute);
     } else {
+      debugPrint('Splash: context.go -> loginRoute');
       context.go(AppConstants.loginRoute);
     }
   }

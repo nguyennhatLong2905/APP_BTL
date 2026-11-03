@@ -48,6 +48,7 @@ class Transaction {
 
 /// Enum loại giao dịch
 enum TransactionType {
-  income,  // Thu nhập
-  expense, // Chi tiêu
+  income,   // Thu nhập
+  expense,  // Chi tiêu
+  transfer, // Chuyển ví
 }

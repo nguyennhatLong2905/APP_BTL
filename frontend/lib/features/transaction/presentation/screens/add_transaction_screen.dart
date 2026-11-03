@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../providers/transaction_provider.dart';
 import '../../domain/models/transaction.dart';
 import '../../domain/models/transaction_category.dart';
+import '../../data/datasources/transaction_remote_data_source.dart';
 
 // ─── Màu chủ đạo ───────────────────────────────────────────────────────────
 const _kBackground = Color(0xFFE0F5F0);
@@ -56,10 +58,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       notifier.setAmount(next.isEmpty ? null : double.parse(next));
     } else if (key == '000') {
       if (current.isEmpty) return;
-      final next = current + '000';
+      final next = '${current}000';
       notifier.setAmount(double.parse(next));
     } else {
-      final next = current + key;
+      final next = '$current$key';
       notifier.setAmount(double.parse(next));
     }
   }
@@ -111,6 +113,36 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         );
         notifier.reset();
       }
+      
+      // Error handler - navigate to create wallet if no wallet exists
+      if (next.error != null && next.error!.contains('chưa có ví')) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Chưa có ví'),
+            content: const Text('Bạn chưa có ví nào.\n\nVui lòng tạo ví trước để ghi nhận giao dịch.'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.push('/create-wallet');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Tạo ví'),
+              ),
+            ],
+          ),
+        );
+      }
     });
 
     return Scaffold(
@@ -160,7 +192,13 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         children: [
           // Nút back
           GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home'); // Fallback nếu không có back stack
+              }
+            },
             child: Container(
               width: 40,
               height: 40,
@@ -321,7 +359,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         children: [
           _buildTab('↓ Chi tiêu', TransactionType.expense, state, notifier),
           _buildTab('↑ Thu nhập', TransactionType.income, state, notifier),
-          _buildTab('⇄ Chuyển ví', null, state, notifier),
+          _buildTab('⇄ Chuyển ví', TransactionType.transfer, state, notifier),
         ],
       ),
     );
@@ -528,42 +566,45 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
         // Nguồn tiền
         Expanded(
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: _kPrimaryLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _kBorderColor, width: 1),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.account_balance_wallet_rounded,
-                    color: _kPrimary, size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Nguồn tiền',
-                        style: TextStyle(fontSize: 10, color: _kTextGrey),
-                      ),
-                      Text(
-                        'Ví tiền mặt',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kTextDark,
+          child: GestureDetector(
+            onTap: () => _showWalletPicker(context, notifier),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _kPrimaryLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kBorderColor, width: 1),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded,
+                      color: _kPrimary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Nguồn tiền',
+                          style: TextStyle(fontSize: 10, color: _kTextGrey),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                        Text(
+                          state.selectedWalletName ?? 'Chọn ví',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _kTextDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: _kTextGrey, size: 18),
-              ],
+                  const Icon(Icons.keyboard_arrow_down_rounded,
+                      color: _kTextGrey, size: 18),
+                ],
+              ),
             ),
           ),
         ),
@@ -885,6 +926,204 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Wallet Picker Bottom Sheet
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<void> _showWalletPicker(
+    BuildContext context,
+    TransactionFormNotifier notifier,
+  ) async {
+    // Lấy danh sách ví từ API - dùng context để get provider
+    final container = ProviderScope.containerOf(context);
+    final ds = container.read(transactionRemoteDataSourceProvider);
+    List<Map<String, dynamic>> wallets = [];
+    
+    try {
+      wallets = await ds.getWallets();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách ví: $e')),
+        );
+      }
+      return;
+    }
+
+    if (wallets.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chưa có ví nào. Vui lòng tạo ví trước.')),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: _kCardBg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Chọn ví',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _kTextDark,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(ctx),
+                  child: const Icon(Icons.close_rounded, color: _kTextGrey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Danh sách ví
+            ...wallets.map((wallet) {
+              final name = wallet['name'] as String;
+              final balance = wallet['balance'] as String? ?? '0';
+              final type = wallet['type'] as String? ?? 'cash';
+              final id = wallet['_id'] as String;
+
+              // Icon theo loại ví
+              IconData icon;
+              switch (type) {
+                case 'cash':
+                  icon = Icons.payments_rounded;
+                  break;
+                case 'bank':
+                  icon = Icons.account_balance_rounded;
+                  break;
+                case 'ewallet':
+                  icon = Icons.credit_card_rounded;
+                  break;
+                case 'savings':
+                  icon = Icons.savings_rounded;
+                  break;
+                default:
+                  icon = Icons.account_balance_wallet_rounded;
+              }
+
+              // Format số dư
+              final formatter = NumberFormat('#,###', 'vi_VN');
+              final balanceFormatted = formatter.format(int.parse(balance)).replaceAll(',', '.');
+
+              return GestureDetector(
+                onTap: () {
+                  notifier.selectWallet(id, name);
+                  Navigator.pop(ctx);
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _kBorderColor, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      // Icon
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: _kPrimaryLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: _kPrimary, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Tên và số dư
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: _kTextDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$balanceFormatted đ',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: _kTextGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Check icon nếu đã chọn
+                      if (container.read(transactionFormProvider).selectedWalletId == id)
+                        const Icon(Icons.check_circle_rounded, color: _kPrimary, size: 24),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            
+            // Nút tạo ví mới
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/create-wallet');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _kPrimary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _kPrimary, width: 2),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 24),
+                    SizedBox(width: 12),
+                    Text(
+                      'Tạo ví mới',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );

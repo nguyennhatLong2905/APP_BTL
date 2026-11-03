@@ -3,6 +3,7 @@ import { documentResponses } from "./openapi-contract.js";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
+import compress from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import { z } from "zod";
@@ -18,10 +19,22 @@ export async function buildApp(ctx, config = {}) {
     logger: config.logger ?? false,
     bodyLimit: 6 * 1024 * 1024,
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false } },
+    // Tối ưu cho production
+    trustProxy: true,
+    disableRequestLogging: true,
   });
+  
+  // Compression - giảm 70-80% kích thước response
+  await app.register(compress, {
+    global: true,
+    threshold: 1024, // Chỉ compress response > 1KB
+    encodings: ['gzip', 'deflate'],
+  });
+  
   await app.register(cors, {
-    origin: config.origins || ["http://localhost:5173"],
-    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
+    origin: true, // Cho phép mọi origin để tiện test local web
+    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Accept"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await app.register(jwt, {
     secret: config.jwtSecret || "documentation-only-not-for-running-server",

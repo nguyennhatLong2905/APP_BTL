@@ -25,7 +25,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late final Animation<Offset> _slideAnim;
 
   static const _primaryColor = Color(0xFF0F5B47);
-  static const _accentColor = Color(0xFF1A7A60);
 
   @override
   void initState() {
@@ -92,6 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('LoginScreen: build called!');
     // Listen auth state → navigate khi đăng nhập thành công
     ref.listen(authProvider, (prev, next) {
       if (next.isAuthenticated && mounted) {
@@ -162,7 +162,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Vui lòng nhập email';
                                 }
-                                if (!v.contains('@')) {
+                                // Bỏ qua check @ nếu là tài khoản demo 'user'
+                                if (v.trim() != 'user' && !v.contains('@')) {
                                   return 'Email không hợp lệ';
                                 }
                                 return null;

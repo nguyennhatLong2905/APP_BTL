@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/report_data.dart';
 import '../providers/report_provider.dart';
+import '../../../wallet/data/datasources/wallet_remote_data_source.dart';
 
 // ════════════════════════════════════════════════════════════════════
 // Widget: Period Selector (Tháng 10/2026 | Tuần này | Hôm nay)
@@ -127,30 +128,49 @@ class WalletFilterWidget extends ConsumerWidget {
   static const _bg = Color(0xFFF5F5F5);
   static const _textDark = Color(0xFF1A1A1A);
 
-  static const _wallets = ['Tất cả ví', 'Ví tiền mặt', 'Tài khoản', 'Ăn uống'];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(reportProvider);
     final notifier = ref.read(reportProvider.notifier);
+    
+    // Lấy danh sách ví từ API
+    final walletDataSource = ref.watch(walletRemoteDataSourceProvider);
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: _wallets
-            .map((w) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _WalletChip(
-                    label: w,
-                    isActive: state.selectedWallet == w,
-                    activeColor: _teal,
-                    inactiveColor: _bg,
-                    textColor: state.selectedWallet == w ? Colors.white : _textDark,
-                    onTap: () => notifier.setWallet(w),
-                  ),
-                ))
-            .toList(),
-      ),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: walletDataSource.getWallets(),
+      builder: (context, snapshot) {
+        // Nếu đang loading hoặc lỗi, hiển thị "Tất cả ví"
+        final walletNames = <String>['Tất cả ví'];
+        
+        if (snapshot.hasData && snapshot.data != null) {
+          // Thêm tên các ví từ API
+          for (final w in snapshot.data!) {
+            final name = w['name'] as String?;
+            if (name != null && name.isNotEmpty) {
+              walletNames.add(name);
+            }
+          }
+        }
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: walletNames
+                .map((w) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _WalletChip(
+                        label: w,
+                        isActive: state.selectedWallet == w,
+                        activeColor: _teal,
+                        inactiveColor: _bg,
+                        textColor: state.selectedWallet == w ? Colors.white : _textDark,
+                        onTap: () => notifier.setWallet(w),
+                      ),
+                    ))
+                .toList(),
+          ),
+        );
+      },
     );
   }
 }
@@ -215,8 +235,19 @@ class GroupedTransactionList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(reportProvider);
     final notifier = ref.read(reportProvider.notifier);
     final groups = notifier.dailyGroups();
+
+    // Hiển thị loading khi đang tải dữ liệu lần đầu
+    if (state.isLoading && groups.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: CircularProgressIndicator(color: _teal),
+        ),
+      );
+    }
 
     if (groups.isEmpty) {
       return _buildEmpty();
@@ -447,8 +478,6 @@ class _TransactionItem extends StatelessWidget {
 
   const _TransactionItem({required this.transaction});
 
-  static const _teal = Color(0xFF1A6B5A);
-  static const _tealBg = Color(0xFFE8F5F1);
   static const _income = Color(0xFF1A6B5A);
   static const _expense = Color(0xFFD32F2F);
   static const _expenseBadgeBg = Color(0xFFFFEBEE);

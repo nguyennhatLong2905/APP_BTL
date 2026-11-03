@@ -17,6 +17,9 @@ class ReportState {
   final List<ReportTransaction> allTransactions;
   final double totalIncome;
   final double totalExpense;
+  
+  // Cache timestamp để tránh load lại liên tục
+  final DateTime? lastLoadedAt;
 
   const ReportState({
     this.selectedPeriod = PeriodFilter.month,
@@ -27,6 +30,7 @@ class ReportState {
     this.allTransactions = const [],
     this.totalIncome = 0,
     this.totalExpense = 0,
+    this.lastLoadedAt,
   });
 
   ReportState copyWith({
@@ -38,6 +42,7 @@ class ReportState {
     List<ReportTransaction>? allTransactions,
     double? totalIncome,
     double? totalExpense,
+    DateTime? lastLoadedAt,
   }) {
     return ReportState(
       selectedPeriod: selectedPeriod ?? this.selectedPeriod,
@@ -48,6 +53,7 @@ class ReportState {
       allTransactions: allTransactions ?? this.allTransactions,
       totalIncome: totalIncome ?? this.totalIncome,
       totalExpense: totalExpense ?? this.totalExpense,
+      lastLoadedAt: lastLoadedAt ?? this.lastLoadedAt,
     );
   }
 }
@@ -59,11 +65,20 @@ class ReportState {
 class ReportNotifier extends Notifier<ReportState> {
   @override
   ReportState build() {
-    Future.microtask(loadTransactions);
+    // Load ngay khi provider được tạo
+    Future.microtask(() => loadTransactions());
     return const ReportState(isLoading: true);
   }
 
-  Future<void> loadTransactions() async {
+  Future<void> loadTransactions({bool force = false}) async {
+    // Cache trong 30 giây - không load lại nếu dữ liệu còn mới
+    if (!force && state.lastLoadedAt != null) {
+      final age = DateTime.now().difference(state.lastLoadedAt!);
+      if (age.inSeconds < 30 && state.allTransactions.isNotEmpty) {
+        return; // Dùng cache
+      }
+    }
+    
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final ds = ref.read(reportRemoteDataSourceProvider);
@@ -109,6 +124,7 @@ class ReportNotifier extends Notifier<ReportState> {
         allTransactions: txs,
         totalIncome: income,
         totalExpense: expense,
+        lastLoadedAt: DateTime.now(),
       );
     } catch (e) {
       state = state.copyWith(
@@ -120,11 +136,12 @@ class ReportNotifier extends Notifier<ReportState> {
 
   void setPeriod(PeriodFilter period) {
     state = state.copyWith(selectedPeriod: period);
-    loadTransactions();
+    loadTransactions(force: true); // Force reload khi đổi period
   }
 
   void setWallet(String wallet) {
     state = state.copyWith(selectedWallet: wallet);
+    // Không cần load lại - chỉ filter client-side
   }
 
   void setSearchQuery(String query) {
@@ -136,10 +153,9 @@ class ReportNotifier extends Notifier<ReportState> {
     var list = List<ReportTransaction>.from(state.allTransactions);
 
     if (state.selectedWallet != 'Tất cả ví') {
+      // So sánh chính xác tên ví, không dùng contains
       list = list
-          .where((t) => t.walletLabel
-              .toLowerCase()
-              .contains(state.selectedWallet.toLowerCase()))
+          .where((t) => t.walletLabel.trim() == state.selectedWallet.trim())
           .toList();
     }
 

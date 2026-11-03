@@ -93,7 +93,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         ds.getPlansScreen(),
         ds.getBudgets(),
         ds.getGoals(),
-        ds.getUpcomingBills(),
+        ds.getBills(),
       ]);
 
       final plans = results[0] as Map<String, dynamic>;
@@ -111,7 +111,6 @@ class BudgetNotifier extends Notifier<BudgetState> {
       final cats = budgets.map(_parseCategoryBudget).toList();
 
       // Compute status
-      final remaining = totalBudget - totalSpent;
       final pct = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
       final cycleStatus = pct < 0.6
           ? 'Rất an tâm'

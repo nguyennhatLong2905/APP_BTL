@@ -119,8 +119,7 @@ class WalletNotifier extends Notifier<WalletState> {
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final result = await ds.simulatePurchase(
-        amount: state.itemPrice.toInt(),
-        itemName: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
+        price: state.itemPrice.toInt().toString(),
       );
       state = state.copyWith(isSimulating: false, simulationResult: result);
     } catch (e) {
