@@ -5,20 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="896df5cc-389e-403d-ba85-81268a472335" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/src/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/src/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/src/routes-auth.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/src/routes-auth.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/core/router/app_router.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/core/router/app_router.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/auth/presentation/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/auth/presentation/screens/login_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/auth/presentation/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/auth/presentation/screens/splash_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/report/data/datasources/report_remote_data_source.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/report/data/datasources/report_remote_data_source.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/report/presentation/widgets/grouped_transaction_list.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/report/presentation/widgets/grouped_transaction_list.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/settings/presentation/providers/budget_provider.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/settings/presentation/providers/budget_provider.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/transaction/data/datasources/transaction_remote_data_source.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/transaction/data/datasources/transaction_remote_data_source.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/transaction/domain/models/transaction.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/transaction/domain/models/transaction.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/transaction/presentation/providers/transaction_provider.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/transaction/presentation/providers/transaction_provider.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/lib/features/transaction/presentation/screens/add_transaction_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/lib/features/transaction/presentation/screens/add_transaction_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/test/features/auth/presentation/screens/goldens/login_screen.png" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/test/features/auth/presentation/screens/goldens/login_screen.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/add-transaction.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/add-transaction.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/dashboard.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/dashboard.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/plans.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/plans.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/purchase-simulation.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/purchase-simulation.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/review.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/review.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/examples/transactions.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/examples/transactions.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/src/common.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/src/common.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/vi-an-api/src/routes-data.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/vi-an-api/src/routes-data.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugin_registrant.cc" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugin_registrant.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugin_registrant.h" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugin_registrant.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/linux/flutter/generated_plugins.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/macos/Flutter/GeneratedPluginRegistrant.swift" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/macos/Flutter/GeneratedPluginRegistrant.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugin_registrant.cc" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugin_registrant.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugin_registrant.h" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugin_registrant.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/windows/flutter/generated_plugins.cmake" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,7 +60,7 @@
     "io.flutter.project.isFirstOpen": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "D:/APP_BTL",
-    "settings.editor.selected.configurable": "com.android.studio.ml.AcpConfigurable",
+    "settings.editor.selected.configurable": "templates.modelproviders.configurable",
     "show.migrate.to.gradle.popup": "false"
   }
 }]]></component>
