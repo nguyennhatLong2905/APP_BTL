@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,14 +82,23 @@ class HomeScreen extends ConsumerWidget {
 
                     const SizedBox(height: 4),
 
-                    // Card "Còn để chi"
-                    BalanceCard(
-                      remainingAmount: 2100000,
-                      dailyRate: 150000,
-                      daysLeft: 14,
-                      nextPaydayLabel: '16/10',
-                      progressPercent: 58,
-                      startDateLabel: '16/09',
+                    // Card "Còn để chi" — số liệu thật từ /dashboard
+                    Builder(
+                      builder: (context) {
+                        final d = homeState.dashboardData;
+                        final days = d?.daysRemaining ?? 0;
+                        final payday = d?.nextPayday;
+                        return BalanceCard(
+                          remainingAmount: d?.spendable ?? 0,
+                          dailyRate: d?.dailyLimit ?? 0,
+                          daysLeft: days < 0 ? 0 : days,
+                          nextPaydayLabel: payday == null
+                              ? '--'
+                              : DateFormat('dd/MM').format(payday),
+                          progressPercent: 0,
+                          startDateLabel: '--',
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 12),
@@ -169,18 +179,21 @@ class HomeScreen extends ConsumerWidget {
 
           const SizedBox(width: 10),
 
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: _teal,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_outlined,
-              color: Colors.white,
-              size: 22,
+          // Avatar → mở Cài Đặt (có đăng xuất)
+          GestureDetector(
+            onTap: () => context.go(AppConstants.settingsRoute),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: _teal,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
           ),
         ],

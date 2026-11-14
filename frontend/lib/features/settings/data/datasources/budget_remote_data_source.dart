@@ -8,18 +8,34 @@ abstract class BudgetRemoteDataSource {
   // Screens
   Future<Map<String, dynamic>> getPlansScreen();
 
+  // Categories
+  Future<List<Map<String, dynamic>>> getCategories();
+  Future<Map<String, dynamic>> createCategory({
+    required String name,
+    required String kind, // 'expense' | 'income'
+  });
+
   // Budgets
   Future<List<Map<String, dynamic>>> getBudgets();
   Future<Map<String, dynamic>> createBudget({
     required String name,
     required String periodType, // 'month' | 'pay_cycle'
+    required String startAt, // ISO8601 có timezone
+    required String endAt, // ISO8601 có timezone
     required List<Map<String, dynamic>> limits, // [{ categoryId, limit }]
     int? warningPercent,
   });
+
+  /// Backend PUT /budgets/:id thay toàn bộ kỳ ngân sách (schema strict),
+  /// nên phải gửi đủ name/periodType/startAt/endAt/limits.
   Future<Map<String, dynamic>> updateBudget({
     required String id,
+    required String name,
+    required String periodType,
+    required String startAt,
+    required String endAt,
     required List<Map<String, dynamic>> limits,
-    required int expectedVersion,
+    int? warningPercent,
   });
   Future<void> closeBudget(String id);
 
@@ -48,6 +64,15 @@ abstract class BudgetRemoteDataSource {
     required String targetAmount,
     required String targetAt,
   });
+
+  /// POST /goals với payload tự do (dùng cho provider mới)
+  Future<Map<String, dynamic>> createGoalRaw(Map<String, dynamic> data);
+
+  /// PATCH /goals/:id với payload tự do
+  Future<Map<String, dynamic>> updateGoalPatch(
+    String id,
+    Map<String, dynamic> data,
+  );
 
   // Bills
   Future<List<Map<String, dynamic>>> getBills({String? status});
@@ -123,12 +148,16 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
   Future<Map<String, dynamic>> createBudget({
     required String name,
     required String periodType,
+    required String startAt,
+    required String endAt,
     required List<Map<String, dynamic>> limits,
     int? warningPercent,
   }) async {
     final data = <String, dynamic>{
       'name': name,
       'periodType': periodType,
+      'startAt': startAt,
+      'endAt': endAt,
       'limits': limits,
     };
     if (warningPercent != null) data['warningPercent'] = warningPercent;
@@ -146,12 +175,54 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
   @override
   Future<Map<String, dynamic>> updateBudget({
     required String id,
+    required String name,
+    required String periodType,
+    required String startAt,
+    required String endAt,
     required List<Map<String, dynamic>> limits,
-    required int expectedVersion,
+    int? warningPercent,
   }) async {
-    final result = await _apiClient.put('/budgets/$id', data: {
+    final data = <String, dynamic>{
+      'name': name,
+      'periodType': periodType,
+      'startAt': startAt,
+      'endAt': endAt,
       'limits': limits,
-      'expectedVersion': expectedVersion,
+    };
+    if (warningPercent != null) data['warningPercent'] = warningPercent;
+
+    final result = await _apiClient.put('/budgets/$id', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    final result = await _apiClient.get('/categories');
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        final data = res['data'];
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return [];
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCategory({
+    required String name,
+    required String kind,
+  }) async {
+    final result = await _apiClient.post('/categories', data: {
+      'name': name,
+      'kind': kind,
     });
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
@@ -273,12 +344,38 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
     );
   }
 
+  @override
+  Future<Map<String, dynamic>> createGoalRaw(Map<String, dynamic> data) async {
+    final result = await _apiClient.post('/goals', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateGoalPatch(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _apiClient.patch('/goals/$id', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
   // Bills Implementation
   @override
   Future<List<Map<String, dynamic>>> getBills({String? status}) async {
     final params = <String, dynamic>{};
     if (status != null) params['status'] = status;
-
     final result = await _apiClient.get('/bills', queryParameters: params);
     return result.fold(
       (failure) => throw ServerException(message: failure.message),

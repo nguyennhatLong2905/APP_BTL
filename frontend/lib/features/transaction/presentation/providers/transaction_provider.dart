@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_riverpod_clean_architecture/core/utils/refresh_financial_data.dart';
 import 'package:flutter_riverpod_clean_architecture/features/transaction/data/datasources/transaction_remote_data_source.dart';
 import 'package:flutter_riverpod_clean_architecture/features/transaction/domain/models/transaction.dart';
 import 'package:flutter_riverpod_clean_architecture/features/transaction/domain/models/transaction_category.dart';
@@ -182,6 +184,30 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       // Dùng ví đã chọn, hoặc ví đầu tiên nếu chưa chọn
       final walletId = state.selectedWalletId ?? wallets.first['_id'] as String;
 
+      // Chặn sớm trên client: ngày giao dịch phải >= openingAt của mọi ví liên quan
+      // (backend trả 422 BEFORE_OPENING nếu vi phạm)
+      List<Map<String, dynamic>> involvedWallets(List<String> ids) =>
+          wallets.where((w) => ids.contains(w['_id'] as String)).toList();
+      final involved = state.type == TransactionType.transfer
+          ? involvedWallets([
+              state.selectedWalletId ?? wallets[0]['_id'] as String,
+              state.selectedToWalletId ?? wallets[1]['_id'] as String,
+            ])
+          : involvedWallets([walletId]);
+      for (final w in involved) {
+        final openingAtRaw = w['openingAt'];
+        if (openingAtRaw != null) {
+          final openingAt = DateTime.tryParse(openingAtRaw as String)?.toLocal();
+          if (openingAt != null && state.selectedDate.isBefore(openingAt)) {
+            throw Exception(
+                'Ngày giao dịch (${DateFormat('dd/MM/yyyy').format(state.selectedDate)}) '
+                'trước ngày bắt đầu theo dõi ví "${w['name']}" '
+                '(${DateFormat('dd/MM/yyyy').format(openingAt)}). '
+                'Hãy chọn ngày sau đó, hoặc tạo ví mới với ngày bắt đầu sớm hơn.');
+          }
+        }
+      }
+
       if (state.type == TransactionType.transfer) {
         if (wallets.length < 2) {
           throw Exception('Cần ít nhất 2 ví để thực hiện chuyển ví');
@@ -240,6 +266,10 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
       // Thành công
       state = state.copyWith(isLoading: false, isSuccess: true);
+
+      // Làm mới dữ liệu các màn hình khác: giao dịch vừa tạo phải xuất hiện
+      // ngay ở Tổng quan, Giao dịch và Kế hoạch (số dư ví, tiến độ ngân sách).
+      invalidateFinancialData(ref);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

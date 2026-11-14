@@ -351,7 +351,7 @@ void main() async {
     }
 
     // Summary
-    print('\n' + '=' * 70);
+    print('\n${'=' * 70}');
     print('✨ TEST SUMMARY');
     print('=' * 70);
     print('');

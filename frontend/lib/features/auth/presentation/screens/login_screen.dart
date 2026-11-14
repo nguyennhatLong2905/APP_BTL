@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
+import 'package:flutter_riverpod_clean_architecture/core/utils/app_utils.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/widgets/logo_widget.dart';
 import 'package:go_router/go_router.dart';
@@ -50,12 +51,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _handleLogin() async {
+    final email = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    // Cả hai ô trống → dùng demo login của backend
+    if (email.isEmpty && password.isEmpty) {
+      FocusScope.of(context).unfocus();
+      setState(() => _isLoading = true);
+      await ref.read(authProvider.notifier).demoLogin();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final error = ref.read(authProvider).errorMessage;
+      if (error != null) _showError(error);
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
-
-    final email = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
 
     await ref.read(authProvider.notifier).login(
       email: email,
@@ -159,12 +172,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               icon: Icons.email_outlined,
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
+                                final email = v?.trim() ?? '';
+                                if (email.isEmpty) {
                                   return 'Vui lòng nhập email';
                                 }
-                                // Bỏ qua check @ nếu là tài khoản demo 'user'
-                                if (v.trim() != 'user' && !v.contains('@')) {
-                                  return 'Email không hợp lệ';
+                                if (!AppUtils.isValidEmail(email)) {
+                                  return 'Email không hợp lệ (vd: ten@gmail.com)';
                                 }
                                 return null;
                               },
@@ -445,33 +458,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFC2E8DF)),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, color: _primaryColor, size: 16),
-          const SizedBox(width: 10),
-          Expanded(
-            child: RichText(
-              text: const TextSpan(
-                style: TextStyle(fontSize: 12, color: Color(0xFF2D2D2D)),
-                children: [
-                  TextSpan(text: 'Tài khoản thử nghiệm: '),
-                  TextSpan(
-                    text: 'user',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: _primaryColor),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: _primaryColor, size: 16),
+              const SizedBox(width: 10),
+              Expanded(
+                child: RichText(
+                  text: const TextSpan(
+                    style: TextStyle(fontSize: 12, color: Color(0xFF2D2D2D)),
+                    children: [
+                      TextSpan(
+                          text:
+                              'Dùng thử nhanh: bấm Đăng nhập khi để trống email '
+                              'và mật khẩu (tài khoản demo của máy chủ).'),
+                    ],
                   ),
-                  TextSpan(text: ' / '),
-                  TextSpan(
-                    text: '123',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: _primaryColor),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
     );
   }
 

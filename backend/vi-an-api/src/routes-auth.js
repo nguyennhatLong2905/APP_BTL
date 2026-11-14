@@ -31,6 +31,17 @@ export function authRoutes(app, ctx, config, r) {
         email = b.email.toLowerCase(),
         encoded = passwordHash(b.password);
 
+      // Từ chối sớm khi email đã đăng ký, tránh lỗi E11000 thô từ Mongo
+      const existing = await db
+        .collection("users")
+        .findOne({ authSubject: "local:" + email }, { projection: { _id: 1 } });
+      fail(
+        !existing,
+        "EMAIL_EXISTS",
+        "Email này đã được đăng ký. Dùng đăng nhập hoặc email khác.",
+        409,
+      );
+
       let user;
       const doInsert = async (opts) => {
         user = {
@@ -70,16 +81,32 @@ export function authRoutes(app, ctx, config, r) {
         }
       };
 
-      if (ctx.transactionCapable) {
-        const session = ctx.client.startSession();
-        try {
-          await session.withTransaction(() => doInsert({ session }));
-        } finally {
-          await session.endSession();
+      const insert = async () => {
+        if (ctx.transactionCapable) {
+          const session = ctx.client.startSession();
+          try {
+            await session.withTransaction(() => doInsert({ session }));
+          } finally {
+            await session.endSession();
+          }
+        } else {
+          // Fallback: Chạy bình thường không cần Transaction khi Dev ở Local
+          await doInsert({});
         }
-      } else {
-        // Fallback: Chạy bình thường không cần Transaction khi Dev ở Local
-        await doInsert({});
+      };
+
+      try {
+        await insert();
+      } catch (e) {
+        // Hai request trùng email cùng lúc vượt qua check đầu
+        if (e.code === 11000 || e.code === 121)
+          fail(
+            false,
+            "EMAIL_EXISTS",
+            "Email này đã được đăng ký. Dùng đăng nhập hoặc email khác.",
+            409,
+          );
+        throw e;
       }
       return { accessToken: token(user), user };
     },

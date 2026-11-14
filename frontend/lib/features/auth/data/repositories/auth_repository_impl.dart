@@ -77,6 +77,46 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, UserEntity>> demoLogin() async {
+    try {
+      final response = await _remoteDataSource.demoLogin();
+
+      final accessToken = response['accessToken'] as String;
+      final userData = response['user'] as Map<String, dynamic>;
+
+      await _secureStorageService.write(
+        key: AppConstants.tokenKey,
+        value: accessToken,
+      );
+
+      final user = UserModel(
+        id: userData['_id'] as String,
+        name: userData['displayName'] as String? ?? 'An',
+        email: 'demo@vian.local',
+        createdAt: userData['createdAt'] != null
+            ? DateTime.tryParse(userData['createdAt'].toString())
+            : null,
+        updatedAt: userData['updatedAt'] != null
+            ? DateTime.tryParse(userData['updatedAt'].toString())
+            : null,
+      );
+
+      await _localStorageService.setObject(
+        AppConstants.userDataKey,
+        user.toJson(),
+      );
+
+      return Right(user.toEntity());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity>> register({
     required String name,
     required String email,
@@ -128,15 +168,22 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> logout() async {
+    // Đăng xuất phải luôn thành công ở phía client.
+    // Xoá local data là đủ để coi như đã đăng xuất; nếu secure storage lỗi
+    // (ví dụ plugin web/desktop không xoá được) thì vẫn tiếp tục.
     try {
       await _localStorageService.remove(AppConstants.userDataKey);
-      await _secureStorageService.delete(key: AppConstants.tokenKey);
-      return const Right(null);
-    } on CacheException catch (e) {
-      return Left(CacheFailure(message: e.message));
     } on Exception {
-      return const Left(ServerFailure());
+      // bỏ qua - vẫn cho đăng xuất
     }
+
+    try {
+      await _secureStorageService.delete(key: AppConstants.tokenKey);
+    } on Exception {
+      // bỏ qua - token sẽ bị ghi đè ở lần đăng nhập sau
+    }
+
+    return const Right(null);
   }
 
   @override

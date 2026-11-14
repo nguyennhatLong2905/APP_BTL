@@ -33,7 +33,7 @@ abstract class TransactionRemoteDataSource {
   });
 
   /// Hủy giao dịch (void)
-  Future<void> voidTransaction(String id);
+  Future<void> voidTransaction(String id, {int? expectedVersion});
 
   /// Hoàn tác hủy giao dịch (restore)
   Future<void> restoreTransaction(String id, int expectedVersion);
@@ -122,8 +122,10 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
   }
 
   @override
-  Future<void> voidTransaction(String id) async {
-    final result = await _apiClient.post('/transactions/$id/void');
+  Future<void> voidTransaction(String id, {int? expectedVersion}) async {
+    final data = <String, dynamic>{};
+    if (expectedVersion != null) data['expectedVersion'] = expectedVersion;
+    final result = await _apiClient.post('/transactions/$id/void', data: data);
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,

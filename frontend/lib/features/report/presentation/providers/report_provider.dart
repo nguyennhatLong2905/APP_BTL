@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/refresh_financial_data.dart';
+import '../../../transaction/data/datasources/transaction_remote_data_source.dart';
 import '../../data/datasources/report_remote_data_source.dart';
 import '../../domain/models/report_data.dart';
 
@@ -250,7 +252,66 @@ class ReportNotifier extends Notifier<ReportState> {
       type: txType,
       walletLabel: walletName,
       typeLabel: typeLabel,
+      walletId: raw['walletId'] as String? ?? wallet?['_id'] as String? ?? '',
+      categoryId:
+          raw['categoryId'] as String? ?? cat?['_id'] as String? ?? '',
+      note: raw['note'] as String? ?? raw['memo'] as String? ?? '',
+      version: (raw['version'] as num?)?.toInt() ?? 0,
+      isVoided: (raw['status'] as String?) == 'voided',
     );
+  }
+
+  /// Sửa giao dịch: PUT /transactions/:id (backend cần expectedVersion)
+  Future<String?> editTransaction({
+    required ReportTransaction tx,
+    required double amount,
+    required DateTime occurredAt,
+    String? note,
+  }) async {
+    // Giữ nguyên loại + ví/danh mục để backend không yêu cầu chọn lại
+    final data = <String, dynamic>{
+      'type': tx.type.name,
+      'amount': amount.abs().toInt().toString(),
+      'occurredAt': _isoTimestamp(occurredAt),
+      'expectedVersion': tx.version,
+    };
+    if (tx.type == TransactionType.transfer) return 'Chưa hỗ trợ sửa giao dịch chuyển ví';
+    data['walletId'] = tx.walletId;
+    data['categoryId'] = tx.categoryId;
+    if (note != null && note.trim().isNotEmpty) data['note'] = note.trim();
+
+    try {
+      final ds = ref.read(transactionRemoteDataSourceProvider);
+      await ds.updateTransaction(id: tx.id, data: data);
+      await loadTransactions(force: true);
+      // Số dư ví + tổng quan cũng đổi theo
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Hủy (xóa) giao dịch: POST /transactions/:id/void
+  Future<String?> voidTransaction(ReportTransaction tx) async {
+    try {
+      final ds = ref.read(transactionRemoteDataSourceProvider);
+      await ds.voidTransaction(tx.id, expectedVersion: tx.version);
+      await loadTransactions(force: true);
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Format datetime theo regex backend: YYYY-MM-DDTHH:mm:ss.sssZ (UTC)
+  String _isoTimestamp(DateTime d) {
+    final u = d.toUtc();
+    String p(int v, int n) => v.toString().padLeft(n, '0');
+    return '${p(u.year, 4)}-${p(u.month, 2)}-${p(u.day, 2)}'
+        'T${p(u.hour, 2)}:${p(u.minute, 2)}:${p(u.second, 2)}'
+        '.${p(u.millisecond, 3)}Z';
   }
 }
 

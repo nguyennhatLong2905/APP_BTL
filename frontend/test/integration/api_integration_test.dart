@@ -351,7 +351,7 @@ void main() {
 
   group('📝 Summary', () {
     test('20. Test Summary', () async {
-      print('\n' + '=' * 60);
+      print('\n${'=' * 60}');
       print('🎉 API INTEGRATION TEST SUMMARY');
       print('=' * 60);
       print('✅ All critical APIs tested successfully!');

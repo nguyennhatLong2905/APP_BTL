@@ -47,19 +47,65 @@ class WeeklySpending {
   });
 }
 
+/// Hóa đơn sắp tới (chưa trả)
+class UpcomingBill {
+  final String id;
+  final String name;
+  final double amount;
+  final DateTime? dueAt;
+
+  const UpcomingBill({
+    required this.id,
+    required this.name,
+    required this.amount,
+    this.dueAt,
+  });
+
+  /// Số ngày còn lại tới hạn
+  int? get daysLeft {
+    if (dueAt == null) return null;
+    final d = dueAt!.difference(DateTime.now()).inDays;
+    return d < 0 ? 0 : d;
+  }
+}
+
 /// Model tổng hợp cho Dashboard
 class DashboardData {
   final double totalBalance;
   final double totalIncome;
   final double totalExpense;
+  final double protectedMoney;
+  final double unpaidBills;
+  final double? available; // null khi chưa có ngày lương kế tiếp
+  final int? daysRemaining;
+  final DateTime? nextPayday;
   final List<Transaction> recentTransactions;
+  final List<UpcomingBill> upcomingBills;
   final List<WeeklySpending> weeklyData;
 
   const DashboardData({
     required this.totalBalance,
     required this.totalIncome,
     required this.totalExpense,
+    this.protectedMoney = 0,
+    this.unpaidBills = 0,
+    this.available,
+    this.daysRemaining,
+    this.nextPayday,
     required this.recentTransactions,
+    this.upcomingBills = const [],
     required this.weeklyData,
   });
+
+  /// Số tiền còn được chi = available (đã trừ bảo vệ + hóa đơn),
+  /// fallback tự tính nếu backend không trả.
+  double get spendable =>
+      available ?? (totalBalance - protectedMoney - unpaidBills);
+
+  /// Hạn mức mỗi ngày
+  double get dailyLimit {
+    final d = daysRemaining;
+    if (d == null || d <= 0) return 0;
+    return (spendable / d).clamp(0, double.infinity);
+  }
 }

@@ -16,6 +16,9 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Demo login qua POST /auth/demo (chỉ bật trên localhost dev)
+  Future<Either<Failure, UserEntity>> demoLogin();
+
   /// Logout the current user
   Future<Either<Failure, void>> logout();
 

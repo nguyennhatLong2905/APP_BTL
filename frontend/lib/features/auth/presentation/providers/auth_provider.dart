@@ -21,12 +21,13 @@ class AuthState {
     bool? isAuthenticated,
     bool? isLoading,
     UserEntity? user,
+    bool clearUser = false,
     String? errorMessage,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
-      user: user ?? this.user,
+      user: clearUser ? null : (user ?? this.user),
       errorMessage: errorMessage,
     );
   }
@@ -92,6 +93,28 @@ class AuthNotifier extends Notifier<AuthState> {
     );
   }
 
+  // Demo login (backend: POST /auth/demo, chỉ bật trên localhost dev)
+  Future<void> demoLogin() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final authRepo = ref.read(authRepositoryProvider);
+    final result = await authRepo.demoLogin();
+
+    result.fold(
+      (failure) => state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: false,
+        errorMessage: failure.message,
+      ),
+      (user) => state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        user: user,
+        errorMessage: null,
+      ),
+    );
+  }
+
   // Register thật
   Future<void> register({
     required String name,
@@ -137,7 +160,7 @@ class AuthNotifier extends Notifier<AuthState> {
       (_) => state = state.copyWith(
         isLoading: false,
         isAuthenticated: false,
-        user: null,
+        clearUser: true,
         errorMessage: null,
       ),
     );

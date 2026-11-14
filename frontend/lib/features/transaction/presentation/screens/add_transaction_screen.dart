@@ -69,11 +69,14 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   // ── Chọn ngày ────────────────────────────────────────────────────────────
   Future<void> _pickDate(BuildContext context, TransactionFormNotifier notifier,
       DateTime current) async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: current,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      // Không cho chọn ngày trước hôm nay (backend chặn FUTURE_TRANSACTION,
+      // và ngày cũ dễ rơi trước openingAt của ví -> BEFORE_OPENING)
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
@@ -85,7 +88,19 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         child: child!,
       ),
     );
-    if (picked != null) notifier.setDate(picked);
+    // showDatePicker trả về ngày lúc 00:00; giữ giờ phút giây hiện tại
+    // để tránh ghi 00:00 sớm hơn openingAt của ví (BEFORE_OPENING).
+    if (picked != null) {
+      final keepTime = DateTime.now();
+      notifier.setDate(DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        keepTime.hour,
+        keepTime.minute,
+        keepTime.second,
+      ));
+    }
   }
 
   @override

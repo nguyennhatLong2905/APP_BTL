@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
+import 'package:flutter_riverpod_clean_architecture/core/utils/app_utils.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/widgets/logo_widget.dart';
 import 'package:go_router/go_router.dart';
@@ -170,11 +171,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           hint: 'Nhập địa chỉ email',
                           icon: Icons.email_outlined,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
+                            final email = v?.trim() ?? '';
+                            if (email.isEmpty) {
                               return 'Vui lòng nhập email';
                             }
-                            if (!v.contains('@')) {
-                              return 'Email không hợp lệ';
+                            if (!AppUtils.isValidEmail(email)) {
+                              return 'Email không hợp lệ (vd: ten@gmail.com)';
                             }
                             return null;
                           },
@@ -184,7 +186,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           id: 'register_password_field',
                           controller: _passwordController,
                           label: 'Mật khẩu',
-                          hint: 'Tạo mật khẩu',
+                          hint: 'Tối thiểu 10 ký tự',
                           obscure: _obscurePassword,
                           onToggle: () =>
                               setState(() => _obscurePassword = !_obscurePassword),
@@ -192,8 +194,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             if (v == null || v.isEmpty) {
                               return 'Vui lòng nhập mật khẩu';
                             }
-                            if (v.length < 3) {
-                              return 'Mật khẩu tối thiểu 3 ký tự';
+                            if (v.length < 10) {
+                              return 'Mật khẩu tối thiểu 10 ký tự';
+                            }
+                            if (v.length > 128) {
+                              return 'Mật khẩu tối đa 128 ký tự';
                             }
                             return null;
                           },

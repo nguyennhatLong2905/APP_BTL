@@ -1,34 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-/// Section "Giao dịch gần đây" + "Hóa đơn sắp tới"
-/// Hiển thị ở phần dưới màn hình Home
-class RecentTransactionsSection extends StatelessWidget {
+import '../../../../core/constants/app_constants.dart';
+import '../../domain/models/dashboard_data.dart';
+import '../providers/home_provider.dart';
+
+/// Section "Hóa đơn sắp tới" + "Giao dịch gần đây" — lấy dữ liệu thật
+/// từ homeProvider (/dashboard).
+class RecentTransactionsSection extends ConsumerWidget {
   const RecentTransactionsSection({super.key});
 
   static const Color _teal = Color(0xFF2C7873);
   static const Color _textPrimary = Color(0xFF1A1A1A);
-  static const Color _textSecondary = Color(0xFF757575);
+  static const Color _textSecondary = Color(0xFF9E9E9E);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(homeProvider);
+    final data = state.dashboardData;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildUpcomingBills(),
-        const SizedBox(height: 8),
-        _buildRecentTransactions(context),
+        _buildUpcomingBills(data?.upcomingBills ?? const []),
+        const SizedBox(height: 16),
+        _buildRecentTransactions(context, data, state.isLoading),
       ],
     );
   }
 
-  /// ── Hóa đơn sắp tới ─────────────────────────────────────────────
-  Widget _buildUpcomingBills() {
+  // ── Hóa đơn sắp tới ────────────────────────────────────────────────
+  Widget _buildUpcomingBills(List<UpcomingBill> bills) {
+    if (bills.isEmpty) return const SizedBox.shrink();
+
+    final nextDue = bills.first.dueAt;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -40,53 +52,39 @@ class RecentTransactionsSection extends StatelessWidget {
                   color: _textPrimary,
                 ),
               ),
-              Text(
-                'Trước ngày 16/10',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _textSecondary,
+              if (nextDue != null)
+                Text(
+                  'Trước ngày ${DateFormat('dd/MM').format(nextDue)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _textSecondary,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Tiền nhà
-          _BillItem(
-            iconBg: const Color(0xFFFFF3E0),
-            iconColor: const Color(0xFFFF8F00),
-            icon: Icons.home_outlined,
-            title: 'Tiền nhà',
-            subtitle: 'Hạn 05/10/2026',
-            amount: -3000000,
-            urgencyBadge: 'Còn 3 ngày',
-            badgeColor: const Color(0xFFFF8F00),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Điện nước sinh hoạt
-          _BillItem(
-            iconBg: const Color(0xFFFFFDE7),
-            iconColor: const Color(0xFFF9A825),
-            icon: Icons.flash_on_outlined,
-            title: 'Điện nước sinh hoạt',
-            subtitle: 'Hạn 10/10/2026',
-            amount: -500000,
-          ),
+          for (int i = 0; i < bills.length; i++) ...[
+            _BillItem(bill: bills[i]),
+            if (i < bills.length - 1) const SizedBox(height: 10),
+          ],
         ],
       ),
     );
   }
 
-  /// ── Giao dịch gần đây ────────────────────────────────────────────
-  Widget _buildRecentTransactions(BuildContext context) {
+  // ── Giao dịch gần đây ──────────────────────────────────────────────
+  Widget _buildRecentTransactions(
+    BuildContext context,
+    DashboardData? data,
+    bool isLoading,
+  ) {
+    final txns = data?.recentTransactions ?? const <Transaction>[];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -99,7 +97,7 @@ class RecentTransactionsSection extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.go(AppConstants.reportRoute),
                 child: const Row(
                   children: [
                     Text(
@@ -118,119 +116,115 @@ class RecentTransactionsSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Cà phê sáng
-          _TransactionItem(
-            iconBg: const Color(0xFFEBF6F3),
-            icon: Icons.coffee_outlined,
-            title: 'Cà phê sáng',
-            subtitle: 'Ví tiền mặt • Hôm nay 08:15',
-            amount: -45000,
-          ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-
-          // Ăn trưa cơm văn phòng
-          _TransactionItem(
-            iconBg: const Color(0xFFEBF6F3),
-            icon: Icons.restaurant_outlined,
-            title: 'Ăn trưa cơm văn phòng',
-            subtitle: 'Tài khoản • Hôm qua',
-            amount: -60000,
-          ),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-
-          // Đổ xăng
-          _TransactionItem(
-            iconBg: const Color(0xFFEBF6F3),
-            icon: Icons.local_gas_station_outlined,
-            title: 'Đổ xăng',
-            subtitle: 'Ví tiền mặt • Hôm qua',
-            amount: -70000,
-          ),
+          if (txns.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  const Icon(Icons.receipt_long_outlined,
+                      size: 32, color: Color(0xFFBDBDBD)),
+                  const SizedBox(height: 8),
+                  Text(
+                    isLoading
+                        ? 'Đang tải giao dịch...'
+                        : 'Chưa có giao dịch nào',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: _textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            for (int i = 0; i < txns.length; i++) ...[
+              _TransactionItem(transaction: txns[i]),
+              if (i < txns.length - 1)
+                const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            ],
         ],
       ),
     );
   }
-}
 
-/// Item hóa đơn đơn lẻ
-class _BillItem extends StatelessWidget {
-  final Color iconBg;
-  final Color iconColor;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final double amount;
-  final String? urgencyBadge;
-  final Color? badgeColor;
-
-  const _BillItem({
-    required this.iconBg,
-    required this.iconColor,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    this.urgencyBadge,
-    this.badgeColor,
-  });
-
-  String _fmt(double v) {
+  /// Format số tiền: 1.234.567 đ
+  static String formatAmount(double v) {
     final str = v.abs().toInt().toString();
     final buf = StringBuffer();
     for (int i = 0; i < str.length; i++) {
       if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
       buf.write(str[i]);
     }
-    return '-${buf.toString()} đ';
+    return '${buf.toString()} đ';
   }
+}
+
+/// Item hóa đơn sắp tới
+class _BillItem extends StatelessWidget {
+  final UpcomingBill bill;
+
+  const _BillItem({required this.bill});
+
+  static const Color _expense = Color(0xFFD32F2F);
+  static const Color _textPrimary = Color(0xFF1A1A1A);
+  static const Color _textSecondary = Color(0xFF9E9E9E);
 
   @override
   Widget build(BuildContext context) {
+    final days = bill.daysLeft;
+    final showBadge = days != null && days <= 3;
+
     return Row(
       children: [
-        // Icon
         Container(
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: iconBg,
+            color: const Color(0xFFFFF3E0),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: iconColor, size: 20),
+          child: const Icon(
+            Icons.home_outlined,
+            color: Color(0xFFFF8F00),
+            size: 20,
+          ),
         ),
         const SizedBox(width: 12),
-
-        // Title + subtitle
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                  Flexible(
+                    child: Text(
+                      bill.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _textPrimary,
+                      ),
                     ),
                   ),
-                  if (urgencyBadge != null) ...[
+                  if (showBadge) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: (badgeColor ?? Colors.orange)
-                            .withValues(alpha: 0.12),
+                        color: const Color(0xFFFF8F00).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        urgencyBadge!,
-                        style: TextStyle(
+                        days == 0 ? 'Hôm nay' : 'Còn $days ngày',
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: badgeColor ?? Colors.orange,
+                          color: Color(0xFFFF8F00),
                         ),
                       ),
                     ),
@@ -239,23 +233,21 @@ class _BillItem extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9E9E9E),
-                ),
+                bill.dueAt == null
+                    ? 'Chưa rõ hạn'
+                    : 'Hạn ${DateFormat('dd/MM/yyyy').format(bill.dueAt!)}',
+                style: const TextStyle(fontSize: 12, color: _textSecondary),
               ),
             ],
           ),
         ),
-
-        // Amount
+        const SizedBox(width: 8),
         Text(
-          _fmt(amount),
+          '-${RecentTransactionsSection.formatAmount(bill.amount)}',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFD32F2F),
+            color: _expense,
           ),
         ),
       ],
@@ -263,86 +255,106 @@ class _BillItem extends StatelessWidget {
   }
 }
 
-/// Item giao dịch đơn lẻ
+/// Item giao dịch đơn lẻ — dựng từ model thật
 class _TransactionItem extends StatelessWidget {
-  final Color iconBg;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final double amount;
+  final Transaction transaction;
 
-  const _TransactionItem({
-    required this.iconBg,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-  });
+  const _TransactionItem({required this.transaction});
 
-  String _fmt(double v) {
-    final str = v.abs().toInt().toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
-      buf.write(str[i]);
+  static const Color _teal = Color(0xFF2C7873);
+  static const Color _expense = Color(0xFFD32F2F);
+  static const Color _textPrimary = Color(0xFF1A1A1A);
+  static const Color _textSecondary = Color(0xFF9E9E9E);
+
+  IconData get _icon {
+    switch (transaction.icon) {
+      case TransactionIcon.food:
+        return Icons.restaurant_outlined;
+      case TransactionIcon.transport:
+        return Icons.local_gas_station_outlined;
+      case TransactionIcon.shopping:
+        return Icons.shopping_bag_outlined;
+      case TransactionIcon.health:
+        return Icons.favorite_outline;
+      case TransactionIcon.entertainment:
+        return Icons.movie_outlined;
+      case TransactionIcon.salary:
+        return Icons.attach_money;
+      case TransactionIcon.transfer:
+        return Icons.swap_horiz;
+      case TransactionIcon.other:
+        return Icons.receipt_long_outlined;
     }
-    final prefix = v < 0 ? '-' : '+';
-    return '$prefix${buf.toString()} đ';
+  }
+
+  /// "Hôm nay 08:15" | "Hôm qua" | "12/11"
+  String get _timeLabel {
+    final d = transaction.date;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(d.year, d.month, d.day);
+    final hm =
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    if (day == today) return 'Hôm nay $hm';
+    if (day == today.subtract(const Duration(days: 1))) return 'Hôm qua';
+    return DateFormat('dd/MM').format(d);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isExpense = amount < 0;
+    final isExpense = transaction.amount < 0;
+    final sign = isExpense ? '-' : '+';
+    final amountText =
+        '$sign${RecentTransactionsSection.formatAmount(transaction.amount)}';
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: iconBg,
+              color: const Color(0xFFEBF6F3),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: const Color(0xFF2C7873), size: 20),
+            child: Icon(_icon, color: _teal, size: 20),
           ),
           const SizedBox(width: 12),
-
-          // Title + subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  transaction.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
+                    color: _textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  subtitle,
+                  '${transaction.category} • $_timeLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF9E9E9E),
+                    color: _textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-
-          // Amount
+          const SizedBox(width: 8),
           Text(
-            _fmt(amount),
+            amountText,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isExpense
-                  ? const Color(0xFFD32F2F)
-                  : const Color(0xFF2C7873),
+              color: isExpense ? _expense : _teal,
             ),
           ),
         ],

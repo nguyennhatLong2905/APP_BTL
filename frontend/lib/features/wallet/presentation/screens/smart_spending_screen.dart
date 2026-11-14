@@ -68,7 +68,11 @@ class SmartSpendingScreen extends ConsumerWidget {
           ],
         );
       },
-    );
+    ).whenComplete(() {
+      // Tránh rò rỉ và tránh controller bị dùng khi đã dispose
+      nameController.dispose();
+      priceController.dispose();
+    });
   }
 
   @override
