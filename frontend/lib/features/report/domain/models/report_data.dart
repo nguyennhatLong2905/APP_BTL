@@ -19,6 +19,13 @@ class ReportTransaction {
   final String walletLabel; // "Ví tiền mặt", "Tài khoản thanh toán"...
   final String typeLabel; // "Chi tiêu", "Thu nhập", "Chuyển tiền"
 
+  // Dữ liệu cần cho sửa / hủy giao dịch
+  final String walletId;
+  final String categoryId;
+  final String note;
+  final int version;
+  final bool isVoided;
+
   const ReportTransaction({
     required this.id,
     required this.title,
@@ -29,7 +36,38 @@ class ReportTransaction {
     required this.type,
     required this.walletLabel,
     required this.typeLabel,
+    this.walletId = '',
+    this.categoryId = '',
+    this.note = '',
+    this.version = 0,
+    this.isVoided = false,
   });
+
+  /// Có thể sửa/hủy khi là giao dịch thủ công chưa bị hủy
+  bool get canModify => !isVoided && id.isNotEmpty;
+
+  ReportTransaction copyWith({
+    String? title,
+    double? amount,
+    DateTime? dateTime,
+  }) {
+    return ReportTransaction(
+      id: id,
+      title: title ?? this.title,
+      category: category,
+      categoryIcon: categoryIcon,
+      amount: amount ?? this.amount,
+      dateTime: dateTime ?? this.dateTime,
+      type: type,
+      walletLabel: walletLabel,
+      typeLabel: typeLabel,
+      walletId: walletId,
+      categoryId: categoryId,
+      note: note,
+      version: version,
+      isVoided: isVoided,
+    );
+  }
 }
 
 class DailyGroup {

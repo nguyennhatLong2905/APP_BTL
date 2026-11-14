@@ -141,7 +141,7 @@ class _CreateWalletScreenState extends ConsumerState<CreateWalletScreen> {
             
             // Loại ví
             DropdownButtonFormField<String>(
-              value: _selectedType,
+              initialValue: _selectedType,
               decoration: InputDecoration(
                 labelText: 'Loại ví *',
                 prefixIcon: const Icon(Icons.category),

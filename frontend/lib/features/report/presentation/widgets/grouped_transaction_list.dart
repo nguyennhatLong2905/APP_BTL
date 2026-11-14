@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../domain/models/report_data.dart';
 import '../providers/report_provider.dart';
 import '../../../wallet/data/datasources/wallet_remote_data_source.dart';
+import 'transaction_actions.dart';
 
 // ════════════════════════════════════════════════════════════════════
 // Widget: Period Selector (Tháng 10/2026 | Tuần này | Hôm nay)
@@ -473,7 +474,7 @@ class GroupedTransactionList extends ConsumerWidget {
 // Widget: Single Transaction Item
 // ════════════════════════════════════════════════════════════════════
 
-class _TransactionItem extends StatelessWidget {
+class _TransactionItem extends ConsumerWidget {
   final ReportTransaction transaction;
 
   const _TransactionItem({required this.transaction});
@@ -488,7 +489,7 @@ class _TransactionItem extends StatelessWidget {
   static const _textSecondary = Color(0xFF6B7280);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final formatter = NumberFormat('#,###', 'vi_VN');
     final isExpense = transaction.type == TransactionType.expense;
     final isIncome = transaction.type == TransactionType.income;
@@ -534,9 +535,13 @@ class _TransactionItem extends StatelessWidget {
     // Wallet sub-label
     final walletShort = isTransfer ? 'Điều chuyển' : transaction.walletLabel;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
+    return InkWell(
+      onTap: transaction.canModify
+          ? () => showTransactionActions(context, ref, transaction)
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
         children: [
           // ── Icon ──────────────────────────────────────────────────
           Container(
@@ -630,6 +635,7 @@ class _TransactionItem extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
     );
   }

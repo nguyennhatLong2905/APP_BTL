@@ -126,9 +126,12 @@ class ApiClient {
     try {
       final data = e.response?.data;
       if (data is Map) {
-        return data['message']?.toString() ??
-            data['error']?.toString() ??
-            'Unknown error occurred';
+        // Backend contract: { "error": { "code": "...", "message": "..." } }
+        final error = data['error'];
+        if (error is Map) {
+          return error['message']?.toString() ?? 'Unknown error occurred';
+        }
+        return data['message']?.toString() ?? 'Unknown error occurred';
       }
     } catch (_) {}
     return 'Unknown error occurred';

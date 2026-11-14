@@ -10,6 +10,9 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
+  /// Demo login (backend: POST /auth/demo, chỉ bật trên localhost dev)
+  Future<Map<String, dynamic>> demoLogin();
+
   /// Register — trả về {accessToken, user}
   Future<Map<String, dynamic>> register({
     required String name,
@@ -37,6 +40,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       (data) {
         final body = data as Map<String, dynamic>;
         // Backend: { data: { accessToken: "...", user: {...} } }
+        return body['data'] as Map<String, dynamic>;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> demoLogin() async {
+    final result = await _apiClient.post('/auth/demo', data: {});
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
         return body['data'] as Map<String, dynamic>;
       },
     );

@@ -20,7 +20,8 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       (failure) => throw ServerException(message: failure.message),
       (data) {
         final body = data as Map<String, dynamic>;
-        // Backend: { data: { overview, recentEntries, upcomingBills, ... } }
+        // Backend trả phẳng: { data: { total, available, wallets,
+        // recentTransactions, ... } }. Giữ fallback cho shape lồng cũ.
         final d = body['data'] as Map<String, dynamic>? ?? body;
         return _parseDashboard(d);
       },
@@ -28,31 +29,72 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   }
 
   DashboardData _parseDashboard(Map<String, dynamic> d) {
-    // Overview: tổng số dư các ví
-    final overview = d['overview'] as Map<String, dynamic>? ?? {};
+    // Trường hợp backend bọc trong 'overview' (shape cũ)
+    final overview = (d['overview'] as Map<String, dynamic>?) ?? d;
+
+    // Tổng số dư: ưu tiên field 'total' của backend,
+    // fallback cộng balance các ví.
     final wallets = overview['wallets'] as List<dynamic>? ?? [];
-    double totalBalance = 0;
+    double walletSum = 0;
+    for (final w in wallets) {
+      final bal = _toDouble((w as Map<String, dynamic>)['balance']);
+      if (bal >= 0) walletSum += bal;
+    }
+    final totalFromApi = overview['total'];
+    final totalBalance =
+        totalFromApi != null ? _toDouble(totalFromApi) : walletSum;
+
+    // Thu/chi trong kỳ: backend dashboard không trả period summary,
+    // nên tính từ recentTransactions nếu có, ngược lại 0.
+    final rawEntries =
+        (d['recentTransactions'] as List<dynamic>?) ??
+        (d['recentEntries'] as List<dynamic>?) ??
+        const [];
+
     double totalIncome = 0;
     double totalExpense = 0;
-
-    for (final w in wallets) {
-      final bal = _toDouble(w['balance']);
-      if (bal >= 0) totalBalance += bal;
+    final parsed = <Transaction>[];
+    for (final e in rawEntries) {
+      final map = e as Map<String, dynamic>;
+      final type = map['type'] as String?;
+      final amount = _toDouble(map['amount'] ?? map['netAmount']);
+      if (type == 'income') {
+        totalIncome += amount;
+        parsed.add(_parseTransaction(map, signed: amount));
+      } else if (type == 'expense') {
+        totalExpense += amount;
+        parsed.add(_parseTransaction(map, signed: -amount));
+      } else {
+        parsed.add(_parseTransaction(map, signed: amount));
+      }
     }
 
-    // Period summary (thu/chi tháng này)
     final period = d['period'] as Map<String, dynamic>? ?? {};
-    totalIncome = _toDouble(period['totalIncome'] ?? period['income']);
-    totalExpense = _toDouble(period['totalExpense'] ?? period['expense']);
-    if (totalBalance == 0) {
-      totalBalance = totalIncome - totalExpense;
+    if (period.isNotEmpty) {
+      totalIncome = _toDouble(period['totalIncome'] ?? period['income']);
+      totalExpense = _toDouble(period['totalExpense'] ?? period['expense']);
     }
 
-    // Recent transactions
-    final rawEntries = d['recentEntries'] as List<dynamic>? ?? [];
-    final recentTransactions = rawEntries
-        .take(10)
-        .map((e) => _parseTransaction(e as Map<String, dynamic>))
+    final recentTransactions = parsed.take(10).toList();
+
+    // Hóa đơn sắp tới (chưa trả) — nằm ở d['bills'] top-level
+    final rawBills =
+        (d['bills'] as List<dynamic>?) ??
+        (overview['bills'] as List<dynamic>?) ??
+        const [];
+    final upcomingBills = rawBills
+        .map((b) {
+          final map = b as Map<String, dynamic>;
+          return UpcomingBill(
+            id: map['_id']?.toString() ?? '',
+            name: map['name']?.toString() ??
+                map['nameTemplate']?.toString() ??
+                'Hóa đơn',
+            amount: _toDouble(map['amount']),
+            dueAt: DateTime.tryParse(map['dueAt']?.toString() ?? '')
+                ?.toLocal(),
+          );
+        })
         .toList();
 
     // Weekly data (fallback: tạo 7 cột trống)
@@ -70,23 +112,35 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       totalBalance: totalBalance,
       totalIncome: totalIncome,
       totalExpense: totalExpense,
+      protectedMoney: _toDouble(overview['protectedMoney']),
+      unpaidBills: _toDouble(overview['unpaidBills']),
+      available: overview['available'] == null
+          ? null
+          : _toDouble(overview['available']),
+      daysRemaining: (overview['daysRemaining'] as num?)?.toInt(),
+      nextPayday: DateTime.tryParse(
+        overview['nextPayday']?.toString() ?? '',
+      )?.toLocal(),
       recentTransactions: recentTransactions,
+      upcomingBills: upcomingBills,
       weeklyData: weeklyData,
     );
   }
 
-  Transaction _parseTransaction(Map<String, dynamic> e) {
-    final amount = _toDouble(e['amount'] ?? e['netAmount']);
+  Transaction _parseTransaction(Map<String, dynamic> e, {double? signed}) {
+    final raw = _toDouble(e['amount'] ?? e['netAmount']);
+    final amount = signed ?? raw;
     final catName = _categoryName(e);
+    final note = e['note']?.toString();
     return Transaction(
       id: e['_id']?.toString() ?? '',
-      title: e['memo']?.toString() ??
-          e['description']?.toString() ??
-          catName,
+      title: (note != null && note.trim().isNotEmpty)
+          ? note
+          : e['memo']?.toString() ?? catName,
       category: catName,
       amount: amount,
       date: _parseDate(e['occurredAt'] ?? e['createdAt']),
-      note: e['note']?.toString(),
+      note: note,
       icon: _iconFor(catName, amount),
     );
   }

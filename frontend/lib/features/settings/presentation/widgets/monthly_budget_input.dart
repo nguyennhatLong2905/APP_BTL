@@ -32,7 +32,16 @@ class _MonthlyBudgetInputState extends State<MonthlyBudgetInput> {
   }
 
   void _showEditDialog() {
-    _controller.text = widget.currentMonthlyBudget.toInt().toString();
+    // Set text kèm selection hợp lệ: gán trực tiếp `.text=` giữ selection cũ
+    // của lần nhập trước → selection có thể vượt độ dài text mới →
+    // assertion "Range start/end is out of text" trong text_input.dart.
+    _controller.value = TextEditingValue(
+      text: widget.currentMonthlyBudget.toInt().toString(),
+      selection: TextSelection.collapsed(
+        offset: widget.currentMonthlyBudget.toInt().toString().length,
+      ),
+      composing: TextRange.empty,
+    );
 
     showDialog(
       context: context,
