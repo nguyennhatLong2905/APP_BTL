@@ -104,64 +104,48 @@ export async function owned(db, col, userId, idValue, session) {
   return v;
 }
 export async function atomic(ctx, userId, key, scope, body, action) {
-  fail(
-    ctx.transactionCapable,
-    "REPLICA_SET_REQUIRED",
-    "Chạy MongoDB replica set theo README để ghi dữ liệu.",
-    503,
-  );
   const digest = hash({ scope, body }),
     session = ctx.client.startSession();
   try {
-    return await session.withTransaction(
-      async () => {
-        // Serialize financial writes per user to protect read-dependent invariants.
-        const locked = await ctx.db
-          .collection("users")
-          .updateOne(
-            { _id: userId },
-            { $inc: { apiRevision: I(1) } },
-            { session },
-          );
-        fail(
-          locked.matchedCount === 1,
-          "USER_NOT_FOUND",
-          "Người dùng không tồn tại.",
-          401,
-        );
-        const previous = await ctx.db
-          .collection("api_requests")
-          .findOne({ userId, key }, { session });
-        if (previous) {
-          fail(
-            previous.digest === digest,
-            "IDEMPOTENCY_CONFLICT",
-            "Khóa này đã được dùng với yêu cầu khác.",
-          );
-          return previous.result;
-        }
-        const result = json(await action(session));
-        await ctx.db
-          .collection("api_requests")
-          .insertOne(
-            { ...base(userId), key, digest, scope, result },
-            { session },
-          );
-        return result;
-      },
-      {
-        readConcern: { level: "snapshot" },
-        writeConcern: { w: "majority" },
-        readPreference: "primary",
-      },
+    const locked = await ctx.db
+      .collection("users")
+      .updateOne(
+        { _id: userId },
+        { $inc: { apiRevision: I(1) } },
+        { session },
+      );
+    fail(
+      locked.matchedCount === 1,
+      "USER_NOT_FOUND",
+      "Người dùng không tồn tại.",
+      401,
     );
+    const previous = await ctx.db
+      .collection("api_requests")
+      .findOne({ userId, key }, { session });
+    if (previous) {
+      fail(
+        previous.digest === digest,
+        "IDEMPOTENCY_CONFLICT",
+        "Khóa này đã được dùng với yêu cầu khác.",
+      );
+      return previous.result;
+    }
+    const result = json(await action(session));
+    await ctx.db
+      .collection("api_requests")
+      .insertOne(
+        { ...base(userId), key, digest, scope, result },
+        { session },
+      );
+    return result;
   } finally {
     await session.endSession();
   }
 }
 
 export async function readSnapshot(db, action) {
-  const session = db.client.startSession({ snapshot: true });
+  const session = db.client.startSession();
   try {
     return await action(session);
   } finally {

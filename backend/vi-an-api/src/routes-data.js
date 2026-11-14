@@ -361,12 +361,11 @@ export function dataRoutes(app, ctx, r) {
       const session = ctx.client.startSession();
       let payload;
       try {
-        payload = await session.withTransaction(
-          async () => {
-            const collections = {};
-            let count = 0;
-            for (const name of financialCollections) {
-              collections[name] = await db
+        payload = await (async () => {
+          const collections = {};
+          let count = 0;
+          for (const name of financialCollections) {
+            collections[name] = await db
                 .collection(name)
                 .find({ userId: req.owner }, { session })
                 .limit(10001)
@@ -397,12 +396,7 @@ export function dataRoutes(app, ctx, r) {
               },
               { relaxed: false },
             );
-          },
-          {
-            readConcern: { level: "snapshot" },
-            writeConcern: { w: "majority" },
-          },
-        );
+        })();
       } finally {
         await session.endSession();
       }

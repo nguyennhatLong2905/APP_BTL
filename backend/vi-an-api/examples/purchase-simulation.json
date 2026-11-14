@@ -2,16 +2,18 @@
   "data": {
     "isSimulation": true,
     "before": {
-      "asOf": "2026-10-03T09:18:25.364Z",
+      "asOf": "2026-11-14T04:28:35.025Z",
       "nextPayday": "2026-10-15T17:00:00.000Z",
-      "daysRemaining": 13,
-      "missingData": [],
+      "daysRemaining": -29,
+      "missingData": [
+        "nextPaydayInFuture"
+      ],
       "currency": "VND",
       "total": "8000000",
       "unpaidBills": "3500000",
       "protectedMoney": "2400000",
       "available": "2100000",
-      "dailyReference": "161538",
+      "dailyReference": null,
       "wallets": [
         {
           "_id": "000000000000000000000002",
@@ -72,7 +74,7 @@
     "price": "900000",
     "releasedReservation": "0",
     "availableAfter": "1200000",
-    "dailyAfter": "92307",
+    "dailyAfter": null,
     "assumptions": [
       "Chưa cộng thu nhập chưa nhận.",
       "Hóa đơn và quỹ bảo vệ đã được giữ riêng."
