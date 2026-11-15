@@ -11,15 +11,15 @@
       "expenseChangePercent": 18.42,
       "byCategory": [
         {
-          "type": "income",
-          "categoryId": "000000000000000000000010",
-          "amount": "25000",
-          "count": 1
-        },
-        {
           "type": "expense",
           "categoryId": "00000000000000000000000f",
           "amount": "450000",
+          "count": 1
+        },
+        {
+          "type": "income",
+          "categoryId": "000000000000000000000010",
+          "amount": "25000",
           "count": 1
         }
       ]

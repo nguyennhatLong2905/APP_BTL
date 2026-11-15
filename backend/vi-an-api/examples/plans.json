@@ -1,11 +1,9 @@
 {
   "data": {
     "overview": {
-
-      "asOf": "2026-11-14T08:14:28.326Z",
-
+      "asOf": "2026-11-15T02:26:08.663Z",
       "nextPayday": "2026-10-15T17:00:00.000Z",
-      "daysRemaining": -29,
+      "daysRemaining": -30,
       "missingData": [
         "nextPaydayInFuture"
       ],

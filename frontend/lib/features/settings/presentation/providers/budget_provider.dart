@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/refresh_financial_data.dart';
 import '../../data/datasources/budget_remote_data_source.dart';
 import '../../domain/models/category_budget.dart';
 import '../../domain/models/savings_goal.dart';
@@ -319,6 +320,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       final err = await _saveToServer(updated);
       if (err != null) return err;
       await loadAll(); // đồng bộ id/version mới từ server
+      
+      // Làm mới home + report vì ngân sách đã đổi
+      invalidateFinancialData(ref);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -344,6 +348,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       if (targetAt != null) data['targetAt'] = _iso(targetAt);
       await ds.createGoalRaw(data);
       await loadAll();
+      
+      // Làm mới home vì mục tiêu tiết kiệm ảnh hưởng đến "Còn để chi"
+      invalidateFinancialData(ref);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -370,6 +377,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       if (data.isEmpty) return null;
       await ds.updateGoalPatch(goalId, data);
       await loadAll();
+      
+      // Làm mới home vì mục tiêu tiết kiệm ảnh hưởng đến "Còn để chi"
+      invalidateFinancialData(ref);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -394,6 +404,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
         amount: amount.toInt().toString(),
       );
       await loadAll();
+      
+      // Làm mới home vì phân bổ tiền ảnh hưởng đến "Còn để chi"
+      invalidateFinancialData(ref);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -492,6 +505,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       }
 
       await loadAll();
+      
+      // Làm mới home + report vì ngân sách đã thay đổi
+      invalidateFinancialData(ref);
       return null;
     } catch (e) {
       // Hoàn tác UI nếu lưu thất bại

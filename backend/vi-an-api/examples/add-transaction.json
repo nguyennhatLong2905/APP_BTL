@@ -103,19 +103,16 @@
       }
     ],
     "defaultWalletId": "000000000000000000000002",
-
-    "defaultOccurredAt": "2026-11-14T08:14:28.281Z",
+    "defaultOccurredAt": "2026-11-15T02:26:08.628Z",
     "quickAmounts": [
       "10000",
       "50000",
       "100000"
     ],
     "overview": {
-
-      "asOf": "2026-11-14T08:14:28.281Z",
-
+      "asOf": "2026-11-15T02:26:08.628Z",
       "nextPayday": "2026-10-15T17:00:00.000Z",
-      "daysRemaining": -29,
+      "daysRemaining": -30,
       "missingData": [
         "nextPaydayInFuture"
       ],

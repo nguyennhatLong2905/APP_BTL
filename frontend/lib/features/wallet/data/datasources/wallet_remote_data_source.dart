@@ -94,9 +94,7 @@ class WalletRemoteDataSourceImpl implements WalletRemoteDataSource {
     String? status,
     required int expectedVersion,
   }) async {
-    final data = <String, dynamic>{
-      'expectedVersion': expectedVersion,
-    };
+    final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
     if (status != null) data['status'] = status;
 

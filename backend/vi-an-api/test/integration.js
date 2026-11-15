@@ -21,7 +21,13 @@ test(
         downloadDir:
           process.env.MONGOMS_DOWNLOAD_DIR || "/tmp/vi-an-mongodb-binaries",
       },
-      replSet: { count: 1 },
+      replSet: {
+        count: 1,
+        configSettings: {
+          electionTimeoutMillis: 3000,
+          heartbeatIntervalMillis: 1000,
+        },
+      },
     });
     const client = new MongoClient(repl.getUri(), { promoteLongs: false });
     await client.connect();

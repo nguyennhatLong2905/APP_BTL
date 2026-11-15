@@ -168,7 +168,7 @@ class SmartSpendingRemoteDataSourceImpl
   }) async {
     final data = <String, dynamic>{
       'question': question,
-      'options': options,
+      'options': options.map((opt) => {'name': opt, 'price': '100000'}).toList(),
     };
     if (minimumDaily != null) data['minimumDaily'] = minimumDaily;
 

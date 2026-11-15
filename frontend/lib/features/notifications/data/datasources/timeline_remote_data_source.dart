@@ -6,7 +6,10 @@ import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasourc
 /// Datasource cho màn "Nhìn Lại Nhật Ký" — kết nối /reflections, /screens/review, /insights, /challenges
 abstract class TimelineRemoteDataSource {
   // Review Screen
-  Future<Map<String, dynamic>> getReviewScreen();
+  Future<Map<String, dynamic>> getReviewScreen({
+    DateTime? startAt,
+    DateTime? endAt,
+  });
 
   // Reflections
   Future<List<Map<String, dynamic>>> getReflections({int limit = 20});
@@ -49,16 +52,52 @@ class TimelineRemoteDataSourceImpl implements TimelineRemoteDataSource {
 
   TimelineRemoteDataSourceImpl(this._apiClient);
 
+  String _toIso8601WithOffset(DateTime dt) {
+    final u = dt.toUtc();
+    String p(int v, int n) => v.toString().padLeft(n, '0');
+    return '${p(u.year, 4)}-${p(u.month, 2)}-${p(u.day, 2)}'
+        'T${p(u.hour, 2)}:${p(u.minute, 2)}:${p(u.second, 2)}'
+        '.${p(u.millisecond, 3)}Z';
+  }
+
   @override
-  Future<Map<String, dynamic>> getReviewScreen() async {
-    final result = await _apiClient.get('/screens/review');
-    return result.fold(
-      (failure) => throw ServerException(message: failure.message),
-      (data) {
-        final body = data as Map<String, dynamic>;
-        return body['data'] as Map<String, dynamic>? ?? body;
-      },
-    );
+  Future<Map<String, dynamic>> getReviewScreen({
+    DateTime? startAt,
+    DateTime? endAt,
+  }) async {
+    try {
+      // Tính toán tuần hiện tại (thứ Hai 00:00:00 đến thứ Hai tuần sau 00:00:00)
+      final now = DateTime.now();
+      final weekStart = startAt ??
+          DateTime(now.year, now.month, now.day)
+              .subtract(Duration(days: now.weekday - 1));
+      final weekEnd = endAt ?? weekStart.add(const Duration(days: 7));
+
+      final startAtParam = _toIso8601WithOffset(weekStart);
+      final endAtParam = _toIso8601WithOffset(weekEnd);
+
+      print('DEBUG: Calling /screens/review with startAt=$startAtParam, endAt=$endAtParam');
+
+      final result = await _apiClient.get('/screens/review', queryParameters: {
+        'startAt': startAtParam,
+        'endAt': endAtParam,
+      });
+
+      return result.fold(
+        (failure) {
+          print('DEBUG: API error - ${failure.message}');
+          throw ServerException(message: failure.message);
+        },
+        (data) {
+          final body = data as Map<String, dynamic>;
+          print('DEBUG: API success - ${body.keys}');
+          return body['data'] as Map<String, dynamic>? ?? body;
+        },
+      );
+    } catch (e) {
+      print('DEBUG: Exception in getReviewScreen - $e');
+      rethrow;
+    }
   }
 
   // Reflections Implementation

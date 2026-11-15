@@ -107,38 +107,64 @@ export async function atomic(ctx, userId, key, scope, body, action) {
   const digest = hash({ scope, body }),
     session = ctx.client.startSession();
   try {
-    const locked = await ctx.db
-      .collection("users")
-      .updateOne(
-        { _id: userId },
-        { $inc: { apiRevision: I(1) } },
-        { session },
-      );
-    fail(
-      locked.matchedCount === 1,
-      "USER_NOT_FOUND",
-      "Người dùng không tồn tại.",
-      401,
-    );
-    const previous = await ctx.db
-      .collection("api_requests")
-      .findOne({ userId, key }, { session });
-    if (previous) {
+    const execute = async (s) => {
+      const locked = await ctx.db
+        .collection("users")
+        .updateOne(
+          { _id: userId },
+          { $inc: { apiRevision: I(1) } },
+          { session: s },
+        );
       fail(
-        previous.digest === digest,
-        "IDEMPOTENCY_CONFLICT",
-        "Khóa này đã được dùng với yêu cầu khác.",
+        locked.matchedCount === 1,
+        "USER_NOT_FOUND",
+        "Người dùng không tồn tại.",
+        401,
       );
-      return previous.result;
+      const previous = await ctx.db
+        .collection("api_requests")
+        .findOne({ userId, key }, { session: s });
+      if (previous) {
+        fail(
+          previous.digest === digest,
+          "IDEMPOTENCY_CONFLICT",
+          "Khóa này đã được dùng với yêu cầu khác.",
+        );
+        return previous.result;
+      }
+      const result = json(await action(s));
+      await ctx.db
+        .collection("api_requests")
+        .insertOne(
+          { ...base(userId), key, digest, scope, result },
+          { session: s },
+        );
+      return result;
+    };
+
+    if (ctx.transactionCapable) {
+      let res;
+      await session.withTransaction(async () => {
+        res = await execute(session);
+      });
+      return res;
     }
-    const result = json(await action(session));
-    await ctx.db
-      .collection("api_requests")
-      .insertOne(
-        { ...base(userId), key, digest, scope, result },
-        { session },
-      );
-    return result;
+    return await execute(session);
+  } catch (err) {
+    if (err.code === 11000 && (err.message?.includes("idempotencyKey") || err.message?.includes("api_requests"))) {
+      const existing = await ctx.db
+        .collection("api_requests")
+        .findOne({ userId, key });
+      if (existing) {
+        fail(
+          existing.digest === digest,
+          "IDEMPOTENCY_CONFLICT",
+          "Khóa này đã được dùng với yêu cầu khác.",
+        );
+        return existing.result;
+      }
+    }
+    throw err;
   } finally {
     await session.endSession();
   }

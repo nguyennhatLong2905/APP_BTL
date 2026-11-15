@@ -43,6 +43,17 @@ class HomeScreen extends ConsumerWidget {
         notifier.loadDashboard();
       });
     }
+    
+    // Tự động reload khi quay lại màn hình (sau 30s)
+    // Kiểm tra xem dữ liệu đã cũ chưa
+    if (homeState.lastLoadedAt != null && !homeState.isLoading) {
+      final age = DateTime.now().difference(homeState.lastLoadedAt!);
+      if (age.inSeconds >= 30) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          notifier.loadDashboard();
+        });
+      }
+    }
 
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -483,24 +494,90 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.account_balance_wallet_outlined,
-                  size: 14, color: _textSecondary),
-              const SizedBox(width: 4),
-              const Text(
-                'Tiền mặt: 600k',
-                style: TextStyle(fontSize: 12, color: _textSecondary),
-              ),
-              const SizedBox(width: 16),
-              const Icon(Icons.account_balance_outlined,
-                  size: 14, color: _textSecondary),
-              const SizedBox(width: 4),
-              const Text(
-                'Tài khoản: 7.4M',
-                style: TextStyle(fontSize: 12, color: _textSecondary),
-              ),
-            ],
+          Consumer(
+            builder: (ctx, ref, _) {
+              final d = ref.watch(homeProvider).dashboardData;
+              final wallets = d?.wallets ?? [];
+              
+              if (wallets.isEmpty) {
+                return Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Chưa có thông tin ví',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ],
+                );
+              }
+              
+              // Tính tổng tiền mặt (cash) và tài khoản (bank + e_wallet)
+              double cashTotal = 0;
+              double bankTotal = 0;
+              
+              for (final w in wallets) {
+                if (w.type == 'cash') {
+                  cashTotal += w.balance;
+                } else {
+                  bankTotal += w.balance;
+                }
+              }
+              
+              // Nếu chỉ có 1 loại ví, hiển thị chi tiết từng ví
+              if (wallets.length == 1) {
+                final w = wallets[0];
+                return Row(
+                  children: [
+                    Icon(
+                      w.type == 'cash' 
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.account_balance_outlined,
+                      size: 14, 
+                      color: _textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${w.name}: ${_fmtAmount(w.balance)}',
+                      style: const TextStyle(fontSize: 12, color: _textSecondary),
+                    ),
+                  ],
+                );
+              }
+              
+              // Hiển thị tổng theo loại
+              return Row(
+                children: [
+                  if (cashTotal > 0) ...[
+                    const Icon(Icons.account_balance_wallet_outlined,
+                        size: 14, color: _textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tiền mặt: ${_fmtAmount(cashTotal)}',
+                      style: const TextStyle(fontSize: 12, color: _textSecondary),
+                    ),
+                  ],
+                  if (cashTotal > 0 && bankTotal > 0) const SizedBox(width: 16),
+                  if (bankTotal > 0) ...[
+                    const Icon(Icons.account_balance_outlined,
+                        size: 14, color: _textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tài khoản: ${_fmtAmount(bankTotal)}',
+                      style: const TextStyle(fontSize: 12, color: _textSecondary),
+                    ),
+                  ],
+                  if (cashTotal == 0 && bankTotal == 0) ...[
+                    Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Số dư: 0 đ',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -508,171 +585,194 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildLayer2() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _layer2Bg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Consumer(
+      builder: (ctx, ref, _) {
+        final d = ref.watch(homeProvider).dashboardData;
+        final unpaidBills = d?.unpaidBills ?? 0;
+        final protectedMoney = d?.protectedMoney ?? 0;
+        final layer2Total = unpaidBills + protectedMoney;
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _layer2Bg,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _textHint,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                '5.900.000 đ',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _layer2Amount,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Hóa đơn cố định:',
-                      style: TextStyle(fontSize: 11, color: _textSecondary),
-                    ),
-                    Text(
-                      '3.500.000 đ',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Quỹ dự phòng:',
-                      style: TextStyle(fontSize: 11, color: _textSecondary),
-                    ),
-                    Text(
-                      '2.400.000 đ',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.lock_outline,
-                size: 13,
-                color: _layer2Amount.withValues(alpha: 0.7),
-              ),
-              const SizedBox(width: 5),
-              const Expanded(
-                child: Text(
-                  'Được khóa bảo vệ an toàn, không tính vào tiền tiêu',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _textSecondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLayer3() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _layer3Bg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LỚP 3: AN TÂM CHI TIÊU',
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: _textHint,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Số tiền thực còn tự do sử dụng',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: const [
-                  Text(
-                    '2.100.000 đ',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _teal,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    '≈ -150.000 đ/ngày',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _textSecondary,
+                    _fmtAmount(layer2Total),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _layer2Amount,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Hóa đơn cố định:',
+                          style: TextStyle(fontSize: 11, color: _textSecondary),
+                        ),
+                        Text(
+                          _fmtAmount(unpaidBills),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Quỹ dự phòng:',
+                          style: TextStyle(fontSize: 11, color: _textSecondary),
+                        ),
+                        Text(
+                          _fmtAmount(protectedMoney),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 13,
+                    color: _layer2Amount.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 5),
+                  const Expanded(
+                    child: Text(
+                      'Được khóa bảo vệ an toàn, không tính vào tiền tiêu',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLayer3() {
+    return Consumer(
+      builder: (ctx, ref, _) {
+        final d = ref.watch(homeProvider).dashboardData;
+        final spendable = d?.spendable ?? 0;
+        final dailyRate = d?.dailyLimit ?? 0;
+        // dailyReference từ backend có thể âm (chi > thu); hiển thị theo đúng dấu
+        final rawDaily = d?.dailyReference;
+        final dailySign = rawDaily != null && rawDaily < 0 ? '-' : '≈';
+        final dailyDisplay = rawDaily != null
+            ? '$dailySign ${_fmtAmount(rawDaily.abs())}/ngày'
+            : (dailyRate > 0 ? '≈ ${_fmtAmount(dailyRate)}/ngày' : '');
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _layer3Bg,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'LỚP 3: AN TÂM CHI TIÊU',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _textHint,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Số tiền thực còn tự do sử dụng',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _fmtAmount(spendable),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _teal,
+                        ),
+                      ),
+                      if (dailyDisplay.isNotEmpty)
+                        Text(
+                          dailyDisplay,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: _textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

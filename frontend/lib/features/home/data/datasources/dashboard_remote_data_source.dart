@@ -32,13 +32,23 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
     // Trường hợp backend bọc trong 'overview' (shape cũ)
     final overview = (d['overview'] as Map<String, dynamic>?) ?? d;
 
+    // Parse wallets
+    final walletsRaw = overview['wallets'] as List<dynamic>? ?? [];
+    final wallets = walletsRaw.map((w) {
+      final map = w as Map<String, dynamic>;
+      return Wallet(
+        id: map['_id']?.toString() ?? '',
+        name: map['name']?.toString() ?? 'Ví',
+        type: map['type']?.toString() ?? 'cash',
+        balance: _toDouble(map['balance']),
+      );
+    }).toList();
+
     // Tổng số dư: ưu tiên field 'total' của backend,
     // fallback cộng balance các ví.
-    final wallets = overview['wallets'] as List<dynamic>? ?? [];
     double walletSum = 0;
     for (final w in wallets) {
-      final bal = _toDouble((w as Map<String, dynamic>)['balance']);
-      if (bal >= 0) walletSum += bal;
+      if (w.balance >= 0) walletSum += w.balance;
     }
     final totalFromApi = overview['total'];
     final totalBalance =
@@ -117,6 +127,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       available: overview['available'] == null
           ? null
           : _toDouble(overview['available']),
+      dailyReference: overview['dailyReference'] == null
+          ? null
+          : _toDouble(overview['dailyReference']),
       daysRemaining: (overview['daysRemaining'] as num?)?.toInt(),
       nextPayday: DateTime.tryParse(
         overview['nextPayday']?.toString() ?? '',
@@ -124,6 +137,7 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       recentTransactions: recentTransactions,
       upcomingBills: upcomingBills,
       weeklyData: weeklyData,
+      wallets: wallets, // Thêm wallets vào model
     );
   }
 
