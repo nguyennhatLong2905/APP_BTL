@@ -25,6 +25,9 @@ class TimelineState {
   final int percentDecrease;
   final List<CategoryExpense> categoryExpenses;
   final List<TimelineItem> reflectionItems;
+  final Map<String, dynamic>? patterns;
+  final List<Map<String, dynamic>> insights;
+  final bool hasActiveCooldown;
   final bool isLoading;
   final String? errorMessage;
 
@@ -36,6 +39,9 @@ class TimelineState {
     this.percentDecrease = 0,
     this.categoryExpenses = const [],
     this.reflectionItems = const [],
+    this.patterns,
+    this.insights = const [],
+    this.hasActiveCooldown = false,
     this.isLoading = false,
     this.errorMessage,
   });
@@ -51,6 +57,9 @@ class TimelineState {
     int? percentDecrease,
     List<CategoryExpense>? categoryExpenses,
     List<TimelineItem>? reflectionItems,
+    Map<String, dynamic>? patterns,
+    List<Map<String, dynamic>>? insights,
+    bool? hasActiveCooldown,
     bool? isLoading,
     String? errorMessage,
   }) {
@@ -62,6 +71,9 @@ class TimelineState {
       percentDecrease: percentDecrease ?? this.percentDecrease,
       categoryExpenses: categoryExpenses ?? this.categoryExpenses,
       reflectionItems: reflectionItems ?? this.reflectionItems,
+      patterns: patterns ?? this.patterns,
+      insights: insights ?? this.insights,
+      hasActiveCooldown: hasActiveCooldown ?? this.hasActiveCooldown,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
@@ -82,10 +94,24 @@ class TimelineNotifier extends Notifier<TimelineState> {
       final results = await Future.wait([
         ds.getReviewScreen(),
         ds.getReflections(limit: 20),
+        ds.getChallenges(),
       ]);
 
       final review = results[0] as Map<String, dynamic>;
       final reflections = (results[1] as List).cast<Map<String, dynamic>>();
+      final challenges = (results[2] as List).cast<Map<String, dynamic>>();
+
+      final hasActiveCooldown = challenges.any((c) {
+        final type = c['type'] as String? ?? '';
+        final status = c['status'] as String? ?? '';
+        return type == 'cooldown_48h' && status == 'active';
+      });
+
+      final patterns = review['patterns'] as Map<String, dynamic>?;
+      final insights = (review['insights'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          [];
 
       // Parse report data từ backend (/screens/review trả về report, categories, reflections, ...)
       final report = review['report'] as Map<String, dynamic>?;
@@ -203,6 +229,9 @@ class TimelineNotifier extends Notifier<TimelineState> {
         percentDecrease: pctDecrease.abs(), // Luôn dương
         categoryExpenses: categories,
         reflectionItems: items,
+        patterns: patterns,
+        insights: insights,
+        hasActiveCooldown: hasActiveCooldown,
       );
     } catch (e) {
       state = state.copyWith(
@@ -210,6 +239,26 @@ class TimelineNotifier extends Notifier<TimelineState> {
         errorMessage: e.toString().replaceAll('Exception: ', ''),
       );
     }
+  }
+
+  Future<String?> activateCooldown48h() async {
+    try {
+      final ds = ref.read(timelineRemoteDataSourceProvider);
+      await ds.createChallenge(type: 'cooldown_48h', durationDays: 2);
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  Future<void> dismissInsight(String id) async {
+    try {
+      final ds = ref.read(timelineRemoteDataSourceProvider);
+      await ds.dismissInsight(id);
+      final remaining = state.insights.where((i) => i['_id'] != id).toList();
+      state = state.copyWith(insights: remaining);
+    } catch (_) {}
   }
 
   void updateItemRating(String id, EmotionRating rating) {

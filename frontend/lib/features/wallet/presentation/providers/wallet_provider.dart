@@ -18,9 +18,9 @@ class WalletState {
   final String? errorMessage;
 
   const WalletState({
-    this.itemName = '',
-    this.itemPrice = 0,
-    this.categoryTag = '',
+    this.itemName = 'Tai nghe không dây',
+    this.itemPrice = 900000,
+    this.categoryTag = 'Mua sắm',
     this.daysLeftInPeriod = 14,
     this.salaryDateText = '--',
     this.currentFreeBalance = 0,
@@ -83,19 +83,45 @@ class WalletNotifier extends Notifier<WalletState> {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final data = await ds.getDashboardOverview();
 
-      final freeBalance = _toDouble(data['freeBalance'] ?? data['totalBalance'] ?? 0);
-      final fixedBills = _toDouble(data['fixedBills'] ?? data['totalFixedExpense'] ?? 0);
-      final daysLeft = (data['daysLeft'] ?? data['daysLeftInPeriod'] ?? 14) as int;
-      final salaryDate = data['salaryDate'] as String? ?? '--';
+      // Backend trả về: available, total, unpaidBills, protectedMoney, daysRemaining, nextPayday
+      final freeBalance = _toDouble(data['available'] ?? data['freeBalance'] ?? data['total'] ?? 0);
+      final fixedBills = _toDouble(data['unpaidBills'] ?? data['fixedBills'] ?? 0);
+      final protectedMoney = _toDouble(data['protectedMoney'] ?? 0);
+      final daysLeft = (data['daysRemaining'] ?? data['daysLeft'] ?? 14) as int;
+      final paydayRaw = data['nextPayday'] as String?;
+      String salaryDate = '--';
+      if (paydayRaw != null) {
+        final parsed = DateTime.tryParse(paydayRaw)?.toLocal();
+        if (parsed != null) {
+          salaryDate = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}';
+        }
+      }
 
       state = state.copyWith(
         currentFreeBalance: freeBalance,
         fixedBillsAmount: fixedBills,
+        emergencyFundAmount: protectedMoney,
         daysLeftInPeriod: daysLeft,
         salaryDateText: salaryDate,
       );
     } catch (_) {
-      // Nếu API lỗi, giữ default values – không hiển thị lỗi trên màn hình này
+      // Nếu API lỗi, giữ default values
+    }
+  }
+
+  /// Lưu món đồ vào danh sách cân nhắc mua sau (Wishlist)
+  Future<String?> savePurchaseWishlist() async {
+    try {
+      final ds = ref.read(smartSpendingRemoteDataSourceProvider);
+      final remindAt = DateTime.now().add(const Duration(days: 7)).toUtc().toIso8601String();
+      await ds.createPurchase(
+        name: state.itemName,
+        price: state.itemPrice.toInt().toString(),
+        remindAt: remindAt,
+      );
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
     }
   }
 

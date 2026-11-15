@@ -28,6 +28,8 @@ class TransactionFormState {
   final bool isLoading;
   final String? error;
   final bool isSuccess;
+  final String? createdTransactionId;
+  final int? createdTransactionVersion;
 
   TransactionFormState({
     this.type = TransactionType.expense,
@@ -43,6 +45,8 @@ class TransactionFormState {
     this.isLoading = false,
     this.error,
     this.isSuccess = false,
+    this.createdTransactionId,
+    this.createdTransactionVersion,
   }) : selectedDate = selectedDate ?? DateTime.now();
 
   TransactionFormState copyWith({
@@ -59,6 +63,8 @@ class TransactionFormState {
     bool? isLoading,
     String? error,
     bool? isSuccess,
+    String? createdTransactionId,
+    int? createdTransactionVersion,
     bool clearCategory = false,
     bool clearPhoto = false,
     bool clearWallet = false,
@@ -78,6 +84,8 @@ class TransactionFormState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       isSuccess: isSuccess ?? this.isSuccess,
+      createdTransactionId: createdTransactionId ?? this.createdTransactionId,
+      createdTransactionVersion: createdTransactionVersion ?? this.createdTransactionVersion,
     );
   }
 
@@ -208,6 +216,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         }
       }
 
+      Map<String, dynamic> res;
       if (state.type == TransactionType.transfer) {
         if (wallets.length < 2) {
           throw Exception('Cần ít nhất 2 ví để thực hiện chuyển ví');
@@ -221,7 +230,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         final occurredAtUtc = state.selectedDate.toUtc();
         final occurredAt = '${occurredAtUtc.year.toString().padLeft(4, '0')}-${occurredAtUtc.month.toString().padLeft(2, '0')}-${occurredAtUtc.day.toString().padLeft(2, '0')}T${occurredAtUtc.hour.toString().padLeft(2, '0')}:${occurredAtUtc.minute.toString().padLeft(2, '0')}:${occurredAtUtc.second.toString().padLeft(2, '0')}.${occurredAtUtc.millisecond.toString().padLeft(3, '0')}Z';
         
-        await ds.createTransaction(
+        res = await ds.createTransaction(
           type: 'transfer',
           amount: state.amount!.toInt().toString(), // Convert to string
           occurredAt: occurredAt,
@@ -254,7 +263,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         final occurredAtUtc = state.selectedDate.toUtc();
         final occurredAt = '${occurredAtUtc.year.toString().padLeft(4, '0')}-${occurredAtUtc.month.toString().padLeft(2, '0')}-${occurredAtUtc.day.toString().padLeft(2, '0')}T${occurredAtUtc.hour.toString().padLeft(2, '0')}:${occurredAtUtc.minute.toString().padLeft(2, '0')}:${occurredAtUtc.second.toString().padLeft(2, '0')}.${occurredAtUtc.millisecond.toString().padLeft(3, '0')}Z';
         
-        await ds.createTransaction(
+        res = await ds.createTransaction(
           type: state.type.name,
           amount: state.amount!.toInt().toString(), // Convert to string
           occurredAt: occurredAt,
@@ -264,8 +273,16 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         );
       }
 
+      final createdId = res['_id'] as String? ?? res['id'] as String?;
+      final createdVersion = (res['version'] as num?)?.toInt() ?? 1;
+
       // Thành công
-      state = state.copyWith(isLoading: false, isSuccess: true);
+      state = state.copyWith(
+        isLoading: false,
+        isSuccess: true,
+        createdTransactionId: createdId,
+        createdTransactionVersion: createdVersion,
+      );
 
       // Làm mới dữ liệu các màn hình khác: giao dịch vừa tạo phải xuất hiện
       // ngay ở Tổng quan, Giao dịch và Kế hoạch (số dư ví, tiến độ ngân sách).
@@ -275,6 +292,21 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         isLoading: false,
         error: 'Không thể lưu giao dịch: ${e.toString()}',
       );
+    }
+  }
+
+  /// Hoàn tác giao dịch vừa tạo
+  Future<bool> undoLastTransaction() async {
+    final id = state.createdTransactionId;
+    final version = state.createdTransactionVersion ?? 1;
+    if (id == null) return false;
+    try {
+      final ds = ref.read(transactionRemoteDataSourceProvider);
+      await ds.voidTransaction(id, expectedVersion: version);
+      invalidateFinancialData(ref);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

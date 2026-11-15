@@ -13,6 +13,9 @@ abstract class TransactionRemoteDataSource {
     String? categoryId,
   });
 
+  /// Lấy chi tiết một giao dịch theo id
+  Future<Map<String, dynamic>> getTransaction(String id);
+
   /// Tạo giao dịch mới
   Future<Map<String, dynamic>> createTransaction({
     required String type, // 'income' | 'expense' | 'transfer'
@@ -68,6 +71,18 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
       (data) {
         final body = data as Map<String, dynamic>;
         return body['data'] as Map<String, dynamic>? ?? body;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getTransaction(String id) async {
+    final result = await _apiClient.get('/transactions/$id');
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return (res['data'] as Map<String, dynamic>?) ?? res;
       },
     );
   }

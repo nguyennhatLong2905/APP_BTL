@@ -516,6 +516,96 @@ class BudgetNotifier extends Notifier<BudgetState> {
     }
   }
 
+  // ── Bills Methods ──────────────────────────────────────────────────
+  Future<String?> createBillTemplate({
+    required String name,
+    required String estimatedAmount,
+    required String categoryId,
+    required String frequency,
+    required DateTime startAt,
+    String? preferredWalletId,
+    int reminderDaysBefore = 3,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.createBillTemplate(
+        name: name,
+        estimatedAmount: estimatedAmount,
+        categoryId: categoryId,
+        frequency: frequency,
+        startAt: _iso(startAt),
+        preferredWalletId: preferredWalletId,
+        reminderDaysBefore: reminderDaysBefore,
+      );
+      await loadAll();
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  Future<String?> payBill({
+    required String billId,
+    required String walletId,
+    required DateTime occurredAt,
+    String? amount,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.payBill(
+        id: billId,
+        walletId: walletId,
+        occurredAt: _iso(occurredAt),
+        amount: amount,
+      );
+      await loadAll();
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  Future<String?> linkBillTransaction({
+    required String billId,
+    required String transactionId,
+    required int expectedVersion,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.linkBillTransaction(
+        billId: billId,
+        transactionId: transactionId,
+        expectedVersion: expectedVersion,
+      );
+      await loadAll();
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  Future<String?> cancelBill({
+    required String billId,
+    int? expectedVersion,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.updateBill(
+        id: billId,
+        status: 'cancelled',
+        expectedVersion: expectedVersion,
+      );
+      await loadAll();
+      invalidateFinancialData(ref);
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
   (String, String) _currentMonthRange(String filterMode) {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, 1);

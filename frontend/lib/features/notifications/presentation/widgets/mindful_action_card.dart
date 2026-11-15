@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/timeline_provider.dart';
 
-class MindfulActionCard extends StatelessWidget {
+class MindfulActionCard extends ConsumerWidget {
   final VoidCallback? onAdjustBudget;
   final VoidCallback? onActivateChallenge;
 
@@ -11,7 +13,10 @@ class MindfulActionCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(timelineProvider);
+    final hasActiveCooldown = state.hasActiveCooldown;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -30,7 +35,7 @@ class MindfulActionCard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Action Item 1
+        // Action Item 1: Điều chỉnh ngân sách
         Card(
           elevation: 0,
           color: Colors.white,
@@ -49,12 +54,12 @@ class MindfulActionCard extends StatelessWidget {
                         color: Color(0xFFC2F0E6),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.attach_money,
+                      child: const Icon(Icons.tune,
                           size: 18, color: Color(0xFF0F5B47)),
                     ),
                     const SizedBox(width: 10),
                     const Text(
-                      'Tăng ngân sách học tập',
+                      'Tối ưu hạn mức ngân sách',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -63,23 +68,12 @@ class MindfulActionCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black87,
-                      height: 1.35,
-                    ),
-                    children: [
-                      TextSpan(text: 'Gợi ý bổ sung thêm '),
-                      TextSpan(
-                        text: '200.000 ₫',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextSpan(
-                          text:
-                              ' cho chu kỳ tới để tiếp tục nuôi dưỡng thói quen phát triển bản yêu thích.'),
-                    ],
+                const Text(
+                  'Cân đối lại hạn mức giữa các danh mục dựa trên báo cáo tuần qua để chi tiêu thảnh thơi hơn.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black87,
+                    height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -91,7 +85,7 @@ class MindfulActionCard extends StatelessWidget {
                     label: const Text(
                       'Điều chỉnh ngân sách',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -112,7 +106,7 @@ class MindfulActionCard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Action Item 2
+        // Action Item 2: Thử thách khoảng lặng 48h
         Card(
           elevation: 0,
           color: Colors.white,
@@ -128,16 +122,27 @@ class MindfulActionCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
+                        color: hasActiveCooldown
+                            ? const Color(0xFFE8F5E9)
+                            : Colors.orange.shade100,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.hourglass_bottom,
-                          size: 18, color: Colors.orange.shade900),
+                      child: Icon(
+                        hasActiveCooldown
+                            ? Icons.check_circle_outline
+                            : Icons.hourglass_bottom,
+                        size: 18,
+                        color: hasActiveCooldown
+                            ? const Color(0xFF2E7D32)
+                            : Colors.orange.shade900,
+                      ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Thử thách khoảng lặng 48h',
-                      style: TextStyle(
+                    Text(
+                      hasActiveCooldown
+                          ? 'Đang bật Khoảng Lặng 48h'
+                          : 'Thử thách khoảng lặng 48h',
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -145,9 +150,11 @@ class MindfulActionCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Tạm ngừng 48 tiếng trước khi thanh toán các món đồ công nghệ hoặc mua sắm sau 22h để kiểm tra độ thật sự cần thiết.',
-                  style: TextStyle(
+                Text(
+                  hasActiveCooldown
+                      ? 'Bạn đang trong khoảng lặng 48 giờ! Hãy cho bản thân thời gian lắng đọng trước khi quyết định mua các món đồ không thật sự cần thiết.'
+                      : 'Tạm ngừng 48 tiếng trước khi thanh toán các món đồ công nghệ hoặc mua sắm sau 22h để kiểm tra độ thật sự cần thiết.',
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.black87,
                     height: 1.35,
@@ -157,19 +164,34 @@ class MindfulActionCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: onActivateChallenge,
-                    icon: const Icon(Icons.flag_outlined, size: 16),
-                    label: const Text(
-                      'Kích hoạt thử thách',
-                      style: TextStyle(
-                        fontSize: 12,
+                    onPressed: hasActiveCooldown ? null : onActivateChallenge,
+                    icon: Icon(
+                      hasActiveCooldown
+                          ? Icons.check
+                          : Icons.flag_outlined,
+                      size: 16,
+                    ),
+                    label: Text(
+                      hasActiveCooldown
+                          ? 'Thử thách đang kích hoạt'
+                          : 'Kích hoạt thử thách 48h',
+                      style: const TextStyle(
+                        fontSize: 12.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEAF8F5),
-                      foregroundColor: const Color(0xFF0F5B47),
-                      side: const BorderSide(color: Color(0xFF80D8C3)),
+                      backgroundColor: hasActiveCooldown
+                          ? const Color(0xFFF1F8E9)
+                          : const Color(0xFFEAF8F5),
+                      foregroundColor: hasActiveCooldown
+                          ? const Color(0xFF2E7D32)
+                          : const Color(0xFF0F5B47),
+                      side: BorderSide(
+                        color: hasActiveCooldown
+                            ? const Color(0xFFA5D6A7)
+                            : const Color(0xFF80D8C3),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),

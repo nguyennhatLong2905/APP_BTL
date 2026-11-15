@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/providers/home_provider.dart';
+import 'calculation_breakdown_sheet.dart';
 
 /// Card hiển thị "Còn để chi đến ngày lương"
 /// Khớp hoàn toàn với thiết kế Figma
@@ -86,7 +87,7 @@ class BalanceCard extends ConsumerWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => showCalculationBreakdownSheet(context, ref),
                 child: const Row(
                   children: [
                     Icon(Icons.format_list_bulleted,

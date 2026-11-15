@@ -4,11 +4,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
+import 'package:flutter_riverpod_clean_architecture/core/widgets/app_snackbar.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasources/profile_remote_data_source.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/providers/home_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/widgets/balance_card.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/widgets/bottom_nav_bar.dart';
+import 'package:flutter_riverpod_clean_architecture/features/home/presentation/widgets/calculation_breakdown_sheet.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/widgets/recent_transactions.dart';
+import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/widgets/wallet_reconciliation_sheet.dart';
 
 // ════════════════════════════════════════════════════════════════════
 // Màn hình Home – Tổng Quan  (theo thiết kế Figma)
@@ -89,7 +93,7 @@ class HomeScreen extends ConsumerWidget {
 
                     // Warning banner (nếu còn hiện)
                     if (homeState.showWarningBanner)
-                      _buildWarningBanner(context, notifier),
+                      _buildWarningBanner(context, ref, notifier),
 
                     const SizedBox(height: 4),
 
@@ -115,7 +119,7 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
 
                     // Section "3 Lớp Tiền Minh Bạch"
-                    _buildThreeLayerSection(context),
+                    _buildThreeLayerSection(context, ref),
 
                     const SizedBox(height: 10),
 
@@ -192,7 +196,7 @@ class HomeScreen extends ConsumerWidget {
 
           // Avatar → mở Cài Đặt (có đăng xuất)
           GestureDetector(
-            onTap: () => context.go(AppConstants.settingsRoute),
+            onTap: () => context.push(AppConstants.settingsRoute),
             child: Container(
               width: 40,
               height: 40,
@@ -284,9 +288,52 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _pickNextPayday(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 14)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      helpText: 'CHỌN NGÀY NHẬN LƯƠNG TIẾP THEO',
+      confirmText: 'LƯU NGÀY LƯƠNG',
+      cancelText: 'HỦY',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _teal,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked == null || !context.mounted) return;
+
+    try {
+      final pds = ref.read(profileRemoteDataSourceProvider);
+      final isoPayday =
+          '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}T00:00:00.000Z';
+      await pds.updateProfile(nextPayday: isoPayday);
+
+      await ref.read(homeProvider.notifier).loadDashboard(force: true);
+
+      if (context.mounted) {
+        AppSnackBar.showSuccess(context,
+            'Đã cập nhật ngày nhận lương: ${DateFormat('dd/MM/yyyy').format(picked)}');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackBar.showError(context, 'Không thể cập nhật ngày lương: $e');
+      }
+    }
+  }
+
   // ── Warning Banner ────────────────────────────────────────────────
   Widget _buildWarningBanner(
-      BuildContext context, HomeNotifier notifier) {
+      BuildContext context, WidgetRef ref, HomeNotifier notifier) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       padding: const EdgeInsets.all(12),
@@ -344,7 +391,7 @@ class HomeScreen extends ConsumerWidget {
               // Nút chính
               Expanded(
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () => _pickNextPayday(context, ref),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
@@ -366,7 +413,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               // Nút phụ
               GestureDetector(
-                onTap: () {},
+                onTap: () => showCalculationBreakdownSheet(context, ref),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Text(
@@ -387,7 +434,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ── 3 Lớp Tiền Minh Bạch ─────────────────────────────────────────
-  Widget _buildThreeLayerSection(BuildContext context) {
+  Widget _buildThreeLayerSection(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -417,12 +464,19 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              const Text(
-                'Tách bạch an tâm',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _teal,
-                  fontWeight: FontWeight.w500,
+              InkWell(
+                onTap: () => showCalculationBreakdownSheet(context, ref),
+                borderRadius: BorderRadius.circular(4),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'Tách bạch an tâm',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _teal,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -431,12 +485,12 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 10),
 
           // ── LỚP 1: Số tiền hiện có ──────────────────────────────
-          _buildLayer1(),
+          _buildLayer1(context, ref),
 
           const SizedBox(height: 8),
 
           // ── LỚP 2: Khoản đã bảo vệ ─────────────────────────────
-          _buildLayer2(),
+          _buildLayer2(context, ref),
 
           const SizedBox(height: 8),
 
@@ -447,165 +501,197 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLayer1() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+  Widget _buildLayer1(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => showWalletReconciliationSheet(context, ref),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8F5F2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE8F5F2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Consumer(
-            builder: (ctx, ref, _) {
-              final d = ref.watch(homeProvider).dashboardData;
-              final bal = d?.totalBalance ?? 0;
-              return Row(
-                children: [
-                  const Text(
-                    'LỚP 1: SỐ TIỀN HIỆN CÓ',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _textHint,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _fmtAmount(bal),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _teal,
-                    ),
-                  ),
-                ],
-              );
-            },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Consumer(
+                builder: (ctx, ref, _) {
+                  final d = ref.watch(homeProvider).dashboardData;
+                  final bal = d?.totalBalance ?? 0;
+                  return Row(
+                    children: [
+                      const Text(
+                        'LỚP 1: SỐ TIỀN HIỆN CÓ',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _textHint,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.tune_outlined, size: 13, color: _teal),
+                      const Spacer(),
+                      Text(
+                        _fmtAmount(bal),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _teal,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              Consumer(
+                builder: (ctx, ref, _) {
+                  final d = ref.watch(homeProvider).dashboardData;
+                  final wallets = d?.wallets ?? [];
+
+                  if (wallets.isEmpty) {
+                    return Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Chưa có thông tin ví',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Tính tổng tiền mặt (cash) và tài khoản (bank + e_wallet)
+                  double cashTotal = 0;
+                  double bankTotal = 0;
+
+                  for (final w in wallets) {
+                    if (w.type == 'cash') {
+                      cashTotal += w.balance;
+                    } else {
+                      bankTotal += w.balance;
+                    }
+                  }
+
+                  // Nếu chỉ có 1 loại ví, hiển thị chi tiết từng ví
+                  if (wallets.length == 1) {
+                    final w = wallets[0];
+                    return Row(
+                      children: [
+                        Icon(
+                          w.type == 'cash'
+                              ? Icons.account_balance_wallet_outlined
+                              : Icons.account_balance_outlined,
+                          size: 14,
+                          color: _textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${w.name}: ${_fmtAmount(w.balance)}',
+                          style: const TextStyle(fontSize: 12, color: _textSecondary),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'Đối chiếu ví →',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _teal,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Hiển thị tổng theo loại
+                  return Row(
+                    children: [
+                      if (cashTotal > 0) ...[
+                        const Icon(Icons.account_balance_wallet_outlined,
+                            size: 14, color: _textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tiền mặt: ${_fmtAmount(cashTotal)}',
+                          style: const TextStyle(fontSize: 12, color: _textSecondary),
+                        ),
+                      ],
+                      if (cashTotal > 0 && bankTotal > 0) const SizedBox(width: 16),
+                      if (bankTotal > 0) ...[
+                        const Icon(Icons.account_balance_outlined,
+                            size: 14, color: _textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tài khoản: ${_fmtAmount(bankTotal)}',
+                          style: const TextStyle(fontSize: 12, color: _textSecondary),
+                        ),
+                      ],
+                      if (cashTotal == 0 && bankTotal == 0) ...[
+                        Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Số dư: 0 đ',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        ),
+                      ],
+                      const Spacer(),
+                      const Text(
+                        'Đối chiếu ví →',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _teal,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Consumer(
-            builder: (ctx, ref, _) {
-              final d = ref.watch(homeProvider).dashboardData;
-              final wallets = d?.wallets ?? [];
-              
-              if (wallets.isEmpty) {
-                return Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Chưa có thông tin ví',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  ],
-                );
-              }
-              
-              // Tính tổng tiền mặt (cash) và tài khoản (bank + e_wallet)
-              double cashTotal = 0;
-              double bankTotal = 0;
-              
-              for (final w in wallets) {
-                if (w.type == 'cash') {
-                  cashTotal += w.balance;
-                } else {
-                  bankTotal += w.balance;
-                }
-              }
-              
-              // Nếu chỉ có 1 loại ví, hiển thị chi tiết từng ví
-              if (wallets.length == 1) {
-                final w = wallets[0];
-                return Row(
-                  children: [
-                    Icon(
-                      w.type == 'cash' 
-                        ? Icons.account_balance_wallet_outlined
-                        : Icons.account_balance_outlined,
-                      size: 14, 
-                      color: _textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${w.name}: ${_fmtAmount(w.balance)}',
-                      style: const TextStyle(fontSize: 12, color: _textSecondary),
-                    ),
-                  ],
-                );
-              }
-              
-              // Hiển thị tổng theo loại
-              return Row(
-                children: [
-                  if (cashTotal > 0) ...[
-                    const Icon(Icons.account_balance_wallet_outlined,
-                        size: 14, color: _textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Tiền mặt: ${_fmtAmount(cashTotal)}',
-                      style: const TextStyle(fontSize: 12, color: _textSecondary),
-                    ),
-                  ],
-                  if (cashTotal > 0 && bankTotal > 0) const SizedBox(width: 16),
-                  if (bankTotal > 0) ...[
-                    const Icon(Icons.account_balance_outlined,
-                        size: 14, color: _textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Tài khoản: ${_fmtAmount(bankTotal)}',
-                      style: const TextStyle(fontSize: 12, color: _textSecondary),
-                    ),
-                  ],
-                  if (cashTotal == 0 && bankTotal == 0) ...[
-                    Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Số dư: 0 đ',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildLayer2() {
+  Widget _buildLayer2(BuildContext context, WidgetRef ref) {
     return Consumer(
       builder: (ctx, ref, _) {
         final d = ref.watch(homeProvider).dashboardData;
         final unpaidBills = d?.unpaidBills ?? 0;
         final protectedMoney = d?.protectedMoney ?? 0;
         final layer2Total = unpaidBills + protectedMoney;
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: _layer2Bg,
+        return Material(
+          color: _layer2Bg,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: () => showCalculationBreakdownSheet(context, ref),
             borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -691,10 +777,12 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
-  }
+  },
+);
+}
 
   Widget _buildLayer3() {
     return Consumer(

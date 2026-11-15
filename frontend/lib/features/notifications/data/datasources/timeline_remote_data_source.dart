@@ -36,9 +36,9 @@ abstract class TimelineRemoteDataSource {
   // Challenges
   Future<List<Map<String, dynamic>>> getChallenges();
   Future<Map<String, dynamic>> createChallenge({
-    required String categoryId,
-    required String challengeType, // 'silence_48h' | 'habit_change'
-    int? targetReduction,
+    required String type, // 'cooldown_48h' | 'reduce_habit'
+    String? purchaseIntentId,
+    int? durationDays,
   });
   Future<void> cancelChallenge(String id);
 
@@ -241,15 +241,16 @@ class TimelineRemoteDataSourceImpl implements TimelineRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> createChallenge({
-    required String categoryId,
-    required String challengeType,
-    int? targetReduction,
+    required String type,
+    String? purchaseIntentId,
+    int? durationDays,
   }) async {
     final data = <String, dynamic>{
-      'categoryId': categoryId,
-      'challengeType': challengeType,
+      'type': type,
+      if (purchaseIntentId != null && purchaseIntentId.isNotEmpty)
+        'purchaseIntentId': purchaseIntentId,
+      if (durationDays != null) 'durationDays': durationDays,
     };
-    if (targetReduction != null) data['targetReduction'] = targetReduction;
 
     final result = await _apiClient.post('/challenges', data: data);
     return result.fold(

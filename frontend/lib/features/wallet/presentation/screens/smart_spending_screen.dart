@@ -4,6 +4,8 @@ import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/currency_text_field.dart';
+import '../../../transaction/domain/models/transaction.dart';
+import '../../../transaction/presentation/providers/transaction_provider.dart';
 import '../providers/wallet_provider.dart';
 import '../widgets/buy_now_card.dart';
 import '../widgets/cash_flow_impact_card.dart';
@@ -87,7 +89,13 @@ class SmartSpendingScreen extends ConsumerWidget {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => context.go(AppConstants.splashRoute),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppConstants.homeRoute);
+            }
+          },
           tooltip: 'Quay lại',
         ),
         title: const Text(
@@ -101,7 +109,13 @@ class SmartSpendingScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.close, color: Colors.black87),
-            onPressed: () => context.go(AppConstants.splashRoute),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(AppConstants.homeRoute);
+              }
+            },
             tooltip: 'Đóng',
           ),
         ],
@@ -211,28 +225,35 @@ class SmartSpendingScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Card 4: Mua ngay hôm nay
+            // Card 4: Mua ngay hôm nay -> Chuyển đến form ghi giao dịch điền sẵn thông tin
             BuyNowCard(
               itemPrice: state.itemPrice,
               onBuyPressed: () {
-                AppSnackBar.showSuccess(
-                  context,
-                  'Mở form giao dịch ${state.itemName} (${state.itemPrice.toInt()} ₫)!',
-                );
+                ref.read(transactionFormProvider.notifier).setType(TransactionType.expense);
+                ref.read(transactionFormProvider.notifier).setAmount(state.itemPrice);
+                ref.read(transactionFormProvider.notifier).setNote(state.itemName);
+                context.push(AppConstants.addTransactionRoute);
               },
             ),
             const SizedBox(height: 12),
 
-            // Card 5: Khuyến dùng chánh niệm (Chờ & Tích lũy)
+            // Card 5: Khuyến dùng chánh niệm (Chờ & Tích lũy) -> Lưu vào danh sách mong muốn
             MindfulDelayCard(
               dailySavingGoal: state.dailySavingGoal,
               savingDays: state.savingDaysGoal,
-              reminderDate: '17/10/2026',
-              onCreatePlanPressed: () {
-                AppSnackBar.showSuccess(
-                  context,
-                  'Đã tạo lộ trình tích lũy ${state.dailySavingGoal.toInt()} ₫/ngày!',
-                );
+              reminderDate: state.salaryDateText != '--' ? state.salaryDateText : 'Chu kỳ tới',
+              onCreatePlanPressed: () async {
+                final err = await ref.read(walletProvider.notifier).savePurchaseWishlist();
+                if (context.mounted) {
+                  if (err == null) {
+                    AppSnackBar.showSuccess(
+                      context,
+                      'Đã lưu "${state.itemName}" vào danh sách cân nhắc mua sau (nhắc lại sau 7 ngày)!',
+                    );
+                  } else {
+                    AppSnackBar.showError(context, 'Không thể lưu: $err');
+                  }
+                }
               },
             ),
             const SizedBox(height: 20),

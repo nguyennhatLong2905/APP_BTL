@@ -227,9 +227,16 @@ class TimelineScreen extends ConsumerWidget {
                         onAdjustBudget: () {
                           context.go(AppConstants.budgetPlanningRoute);
                         },
-                        onActivateChallenge: () {
-                          AppSnackBar.showSuccess(
-                              context, 'Đã kích hoạt thử thách khoảng lặng 48h!');
+                        onActivateChallenge: () async {
+                          final err = await notifier.activateCooldown48h();
+                          if (context.mounted) {
+                            if (err != null) {
+                              AppSnackBar.showError(context, err);
+                            } else {
+                              AppSnackBar.showSuccess(context,
+                                  'Đã kích hoạt thử thách khoảng lặng 48h!');
+                            }
+                          }
                         },
                       ),
                       const SizedBox(height: 20),

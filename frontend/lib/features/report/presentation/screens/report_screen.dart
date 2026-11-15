@@ -50,7 +50,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     ));
 
     // Đảm bảo reportProvider được khởi tạo ngay khi vào trang
-    final reportState = ref.watch(reportProvider);
+    ref.watch(reportProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -133,7 +133,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           const SizedBox(width: 8),
           // Avatar
           GestureDetector(
-            onTap: () => context.go(AppConstants.settingsRoute),
+            onTap: () => context.push(AppConstants.settingsRoute),
             child: Container(
               width: 40,
               height: 40,

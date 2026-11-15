@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -8,6 +7,7 @@ import '../../../../core/widgets/currency_text_field.dart';
 import '../../domain/models/category_budget.dart';
 import '../providers/budget_provider.dart';
 import '../widgets/add_category_button.dart';
+import '../widgets/bills_tab_view.dart';
 import '../widgets/budget_bottom_nav.dart';
 import '../widgets/budget_category_card.dart';
 import '../widgets/budget_control_tabs.dart';
@@ -146,7 +146,9 @@ class BudgetPlanningScreen extends ConsumerWidget {
         elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => context.go(AppConstants.splashRoute),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go(AppConstants.homeRoute),
           tooltip: 'Quay lại',
         ),
         title: Column(
@@ -225,7 +227,7 @@ class BudgetPlanningScreen extends ConsumerWidget {
             if (state.activeTab == 'Mục tiêu')
               const GoalsTabView()
             else if (state.activeTab == 'Hóa đơn')
-              _buildBillsPlaceholder(state)
+              const BillsTabView()
             else ...[
               // Section Header: Danh mục chi tiêu
               Row(
@@ -266,65 +268,6 @@ class BudgetPlanningScreen extends ConsumerWidget {
         ),
       ),
       bottomNavigationBar: const BudgetBottomNav(),
-    );
-  }
-
-  /// Tab Hóa đơn — danh sách hóa đơn chưa trả
-  Widget _buildBillsPlaceholder(BudgetState state) {
-    final bills = state.upcomingBills;
-    if (bills.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Column(
-            children: [
-              Icon(Icons.receipt_long_outlined,
-                  size: 40, color: Color(0xFFBDBDBD)),
-              SizedBox(height: 10),
-              Text('Không có hóa đơn chưa trả',
-                  style: TextStyle(fontSize: 13.5, color: Color(0xFF6B7280))),
-            ],
-          ),
-        ),
-      );
-    }
-    final fmt = NumberFormat('#,###', 'vi_VN');
-    return Column(
-      children: [
-        for (final b in bills)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.receipt_long, size: 18, color: Color(0xFF0F5B47)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    b['nameTemplate'] as String? ??
-                        b['name'] as String? ??
-                        'Hóa đơn',
-                    style: const TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Text(
-                  '${fmt.format(num.tryParse('${b['amount'] ?? 0}') ?? 0)} ₫',
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }

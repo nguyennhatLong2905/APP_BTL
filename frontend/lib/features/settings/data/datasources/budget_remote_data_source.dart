@@ -79,10 +79,12 @@ abstract class BudgetRemoteDataSource {
   Future<List<Map<String, dynamic>>> getBillTemplates();
   Future<Map<String, dynamic>> createBillTemplate({
     required String name,
-    required String amount,
+    required String estimatedAmount,
     required String categoryId,
-    required String frequency, // 'monthly' | 'weekly'
-    required int dayOfPeriod,
+    required String frequency, // 'once' | 'monthly' | 'yearly'
+    required String startAt, // ISO8601 có timezone
+    String? preferredWalletId,
+    int? reminderDaysBefore,
   });
   Future<Map<String, dynamic>> updateBillTemplate({
     required String id,
@@ -94,7 +96,7 @@ abstract class BudgetRemoteDataSource {
     String? amount,
     String? dueAt,
     String? status,
-    required int expectedVersion,
+    int? expectedVersion,
   });
   Future<Map<String, dynamic>> payBill({
     required String id,
@@ -408,18 +410,25 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
   @override
   Future<Map<String, dynamic>> createBillTemplate({
     required String name,
-    required String amount,
+    required String estimatedAmount,
     required String categoryId,
     required String frequency,
-    required int dayOfPeriod,
+    required String startAt,
+    String? preferredWalletId,
+    int? reminderDaysBefore,
   }) async {
-    final result = await _apiClient.post('/bill-templates', data: {
+    final data = <String, dynamic>{
       'name': name,
-      'amount': amount,
+      'estimatedAmount': estimatedAmount,
       'categoryId': categoryId,
       'frequency': frequency,
-      'dayOfPeriod': dayOfPeriod,
-    });
+      'startAt': startAt,
+      if (preferredWalletId != null && preferredWalletId.isNotEmpty)
+        'preferredWalletId': preferredWalletId,
+      if (reminderDaysBefore != null)
+        'reminderDaysBefore': reminderDaysBefore,
+    };
+    final result = await _apiClient.post('/bill-templates', data: data);
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
@@ -457,11 +466,12 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
     String? amount,
     String? dueAt,
     String? status,
-    required int expectedVersion,
+    int? expectedVersion,
   }) async {
-    final data = <String, dynamic>{
-      'expectedVersion': expectedVersion,
-    };
+    final data = <String, dynamic>{};
+    if (expectedVersion != null) {
+      data['expectedVersion'] = expectedVersion;
+    }
     if (amount != null) data['amount'] = amount;
     if (dueAt != null) data['dueAt'] = dueAt;
     if (status != null) data['status'] = status;

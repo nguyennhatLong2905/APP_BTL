@@ -108,22 +108,47 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     final state = ref.watch(transactionFormProvider);
     final notifier = ref.read(transactionFormProvider.notifier);
 
-    // Success snackbar
+    // Success snackbar kèm nút Hoàn tác theo luồng nghiệp vụ
     ref.listen<TransactionFormState>(transactionFormProvider, (prev, next) {
       if (next.isSuccess && !(prev?.isSuccess ?? false)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 8),
                 Text('Đã lưu giao dịch thành công!'),
               ],
             ),
             backgroundColor: _kPrimary,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'HOÀN TÁC',
+              textColor: const Color(0xFFC2F0E6),
+              onPressed: () async {
+                final ok = await notifier.undoLastTransaction();
+                if (context.mounted) {
+                  if (ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đã hoàn tác giao dịch thành công!'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Không thể hoàn tác giao dịch'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
           ),
         );
         notifier.reset();
