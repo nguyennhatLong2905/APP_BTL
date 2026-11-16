@@ -108,6 +108,18 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       const WeeklySpending(dayLabel: 'CN', income: 0, expense: 0),
     ];
 
+    // Lớp 1 hiển thị chi tiết từng ví đang hoạt động (balance thật).
+    final walletBreakdown = wallets
+        .map((w) {
+          final map = w as Map<String, dynamic>;
+          return WalletBalance(
+            id: map['_id']?.toString() ?? '',
+            name: map['name']?.toString() ?? 'Ví',
+            balance: _toDouble(map['balance']),
+          );
+        })
+        .toList();
+
     return DashboardData(
       totalBalance: totalBalance,
       totalIncome: totalIncome,
@@ -124,6 +136,7 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       recentTransactions: recentTransactions,
       upcomingBills: upcomingBills,
       weeklyData: weeklyData,
+      walletBreakdown: walletBreakdown,
     );
   }
 

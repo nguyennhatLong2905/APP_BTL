@@ -5,23 +5,34 @@ import '../../domain/models/category_budget.dart';
 class BudgetCategoryCard extends StatelessWidget {
   final CategoryBudget category;
   final VoidCallback? onEditPressed;
+  final VoidCallback? onDeletePressed;
 
   const BudgetCategoryCard({
     super.key,
     required this.category,
     this.onEditPressed,
+    this.onDeletePressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final currencyFormatter = NumberFormat('#,###', 'vi_VN');
     final isNearLimit = category.isNearLimit;
+    final isOver = category.isOverBudget;
+    final isExhausted = category.isExhausted;
     final percentageInt = category.percentageInt;
 
-    final progressColor =
-        isNearLimit ? Colors.brown.shade700 : const Color(0xFF0F5B47);
-    final percentTextColor =
-        isNearLimit ? Colors.brown.shade800 : Colors.black87;
+    // Màu theo trạng thái: bình thường → sắp hết → hết/vượt hạn mức.
+    final progressColor = isOver
+        ? const Color(0xFFDC2626)
+        : isExhausted || isNearLimit
+            ? Colors.brown.shade700
+            : const Color(0xFF0F5B47);
+    final percentTextColor = isOver
+        ? const Color(0xFFDC2626)
+        : isNearLimit || isExhausted
+            ? Colors.brown.shade800
+            : Colors.black87;
 
     return Card(
       elevation: 0,
@@ -38,16 +49,20 @@ class BudgetCategoryCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isNearLimit
-                        ? Colors.orange.shade100
-                        : category.iconBgColor,
+                    color: isOver
+                        ? const Color(0xFFFEE2E2)
+                        : isNearLimit || isExhausted
+                            ? Colors.orange.shade100
+                            : category.iconBgColor,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     category.icon,
-                    color: isNearLimit
-                        ? Colors.brown.shade800
-                        : const Color(0xFF0F5B47),
+                    color: isOver
+                        ? const Color(0xFFDC2626)
+                        : isNearLimit || isExhausted
+                            ? Colors.brown.shade800
+                            : const Color(0xFF0F5B47),
                     size: 20,
                   ),
                 ),
@@ -65,9 +80,10 @@ class BudgetCategoryCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Đã tiêu ${currencyFormatter.format(category.spentAmount)} ₫',
+                        'Hạn mức ${currencyFormatter.format(category.allocatedAmount)} ₫ • '
+                        'Đã chi ${currencyFormatter.format(category.spentAmount)} ₫',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -81,21 +97,35 @@ class BudgetCategoryCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${currencyFormatter.format(category.allocatedAmount)} ₫',
+                          isOver
+                              ? '-${currencyFormatter.format(category.overAmount)} ₫'
+                              : '${currencyFormatter.format(category.remainingAmount)} ₫',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: percentTextColor,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 16),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: onEditPressed,
                           color: Colors.grey.shade600,
+                          tooltip: 'Sửa hạn mức',
                         ),
+                        if (onDeletePressed != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: onDeletePressed,
+                            color: Colors.red.shade400,
+                            tooltip: 'Xóa ngân sách',
+                          ),
+                        ],
                       ],
                     ),
                     Text(
@@ -112,7 +142,7 @@ class BudgetCategoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Progress bar
+            // Progress bar: đầy 100% khi vượt hạn mức, đổi màu theo trạng thái.
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
@@ -122,6 +152,47 @@ class BudgetCategoryCard extends StatelessWidget {
                 color: progressColor,
               ),
             ),
+            const SizedBox(height: 8),
+
+            // Dòng còn lại / vượt hạn mức + trạng thái.
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isOver
+                        ? 'Vượt hạn mức ${currencyFormatter.format(category.overAmount)} ₫'
+                        : isExhausted
+                            ? 'Đã dùng hết hạn mức'
+                            : 'Còn lại ${currencyFormatter.format(category.remainingAmount)} ₫',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: percentTextColor,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isOver
+                        ? const Color(0xFFFEE2E2)
+                        : isExhausted || isNearLimit
+                            ? Colors.orange.shade50
+                            : const Color(0xFFEAF8F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    category.statusLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: percentTextColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
             // Warning Box if any
             if (category.warningMessage != null) ...[
@@ -130,14 +201,23 @@ class BudgetCategoryCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: isOver ? const Color(0xFFFEF2F2) : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange.shade200),
+                  border: Border.all(
+                    color: isOver
+                        ? const Color(0xFFFECACA)
+                        : Colors.orange.shade200,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: Colors.brown.shade800),
+                    Icon(
+                      isOver ? Icons.error_outline : Icons.info_outline,
+                      size: 14,
+                      color: isOver
+                          ? const Color(0xFFDC2626)
+                          : Colors.brown.shade800,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -145,7 +225,9 @@ class BudgetCategoryCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Colors.brown.shade900,
+                          color: isOver
+                              ? const Color(0xFF991B1B)
+                              : Colors.brown.shade900,
                         ),
                       ),
                     ),

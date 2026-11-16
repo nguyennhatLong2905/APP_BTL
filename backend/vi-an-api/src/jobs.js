@@ -24,15 +24,22 @@ export async function generateBills(db, userId, session, at = new Date()) {
     const origin = DateTime.fromJSDate(t.startAt || first?.dueAt || at, {
       zone,
     }).startOf("day");
+    const endAt = t.endAt ? DateTime.fromJSDate(t.endAt, { zone }).endOf("day") : null;
     for (let n = 0; n < 1200; n++) {
       let date =
         t.frequency === "once"
           ? origin
-          : t.frequency === "monthly"
-            ? origin.plus({ months: n })
-            : origin.plus({ years: n });
+          : t.frequency === "weekly"
+            ? origin.plus({ weeks: n })
+            : t.frequency === "quarterly"
+              ? origin.plus({ months: n * 3 })
+              : t.frequency === "monthly"
+                ? origin.plus({ months: n })
+                : origin.plus({ years: n });
       if (t.frequency === "monthly" && t.dueDay)
         date = date.set({ day: Math.min(Number(t.dueDay), date.daysInMonth) });
+      // Kỳ ngoài thời hạn (endAt) thì dừng, không sinh thêm.
+      if (endAt && date > endAt) break;
       if (date > horizon) break;
       const dueAt = date.toJSDate();
       const existing = await db

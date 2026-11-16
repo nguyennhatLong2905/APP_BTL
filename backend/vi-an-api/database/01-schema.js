@@ -27,10 +27,11 @@ define('transactions',['type','amount','currency','occurredAt','status','idempot
  {required:['walletId','adjustmentDirection'],properties:{type:en('adjustment')},not:{anyOf:[{required:['fromWalletId']},{required:['toWalletId']},{required:['categoryId']}]}}
 ]});
 define('budget_plans',['name','periodType','startAt','endAt','limits','status'],{name:str,periodType:en('month','pay_cycle'),startAt:date,endAt:date,status:en('active','closed'),warningPercent:{bsonType:'int',minimum:1,maximum:100},limits:{bsonType:'array',items:{bsonType:'object',required:['categoryId','limit'],properties:{categoryId:id,limit:money}}}});
+define('budget_spend',['planId','categoryId','used'],{planId:id,categoryId:id,used:{bsonType:'long'},version:{bsonType:'int',minimum:0},lockToken:str,lockedUntil:date});
 define('goals',['name','targetAmount','protect','status'],{name:str,targetAmount:positive,targetAt:date,protect:{bsonType:'bool'},status:en('active','completed','archived'),icon:str});
 define('goal_allocations',['goalId','walletId','amount'],{goalId:id,walletId:id,amount:money});
-define('bill_templates',['name','estimatedAmount','categoryId','frequency','active'],{name:str,estimatedAmount:positive,categoryId:id,preferredWalletId:id,frequency:en('once','monthly','yearly'),dueDay:{bsonType:'int',minimum:1,maximum:31},active:{bsonType:'bool'},reminderDaysBefore:{bsonType:'int',minimum:0}});
-define('bill_occurrences',['templateId','name','amount','categoryId','dueAt','status'],{templateId:id,name:str,amount:positive,categoryId:id,dueAt:date,status:en('unpaid','paid','cancelled'),transactionId:id,paidAt:date});
+define('bill_templates',['name','estimatedAmount','categoryId','frequency','active'],{name:str,estimatedAmount:positive,categoryId:id,preferredWalletId:id,frequency:en('once','weekly','monthly','quarterly','yearly'),startAt:date,endAt:date,dueDay:{bsonType:'int',minimum:1,maximum:31},active:{bsonType:'bool'},reminderDaysBefore:{bsonType:'int',minimum:0},note:str});
+define('bill_occurrences',['templateId','name','amount','categoryId','dueAt','status'],{templateId:id,name:str,amount:positive,categoryId:id,dueAt:date,scheduledFor:date,status:en('unpaid','paid','cancelled'),transactionId:id,paidAt:date,paidAmount:money,paymentMethod:en('new_transaction','linked_transaction'),note:str});
 define('purchase_intents',['name','price','categoryId','status'],{name:str,price:positive,categoryId:id,status:en('draft','waiting','purchased','cancelled'),remindAt:date,dailySaving:money,transactionId:id,snapshot:{bsonType:'object',required:['calculatedAt','nextPayday','availableBefore','daysRemaining'],properties:{calculatedAt:date,nextPayday:date,availableBefore:{bsonType:'long'},daysRemaining:{bsonType:'int',minimum:0}}}});
 define('reflections',['transactionId','dueAt','status'],{transactionId:id,dueAt:date,status:en('pending','rated','skipped'),rating:en('worth_it','neutral','reconsider'),note:str,ratedAt:date});
 define('insights',['type','title','evidenceTransactionIds','status','generatedAt'],{type:en('spending_pattern','budget_suggestion','cooldown_suggestion','ai_recommendation'),title:str,body:str,evidenceTransactionIds:{bsonType:'array',maxItems:100,items:id},status:en('new','accepted','dismissed'),generatedAt:date,action:{bsonType:'object'},modelVersion:str,expiresAt:date});
@@ -45,6 +46,7 @@ for(const field of ['walletId','fromWalletId','toWalletId','categoryId']) idx('t
 idx('transactions',{userId:1,billOccurrenceId:1},{unique:true,partialFilterExpression:{status:'posted',billOccurrenceId:{$type:'objectId'}}});
 idx('transactions',{userId:1,purchaseIntentId:1},{unique:true,partialFilterExpression:{status:'posted',purchaseIntentId:{$type:'objectId'}}});
 idx('budget_plans',{userId:1,periodType:1,startAt:1},{unique:true});
+idx('budget_spend',{userId:1,planId:1,categoryId:1},{unique:true});
 idx('goals',{userId:1,status:1});
 idx('goal_allocations',{userId:1,goalId:1,walletId:1},{unique:true});
 idx('goal_allocations',{userId:1,walletId:1});

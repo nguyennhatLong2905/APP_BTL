@@ -34,12 +34,12 @@ class BudgetBottomNav extends StatelessWidget {
             context,
             icon: Icons.receipt_long_outlined,
             label: 'Giao dịch',
-            route: AppConstants.smartSpendingRoute,
+            route: AppConstants.reportRoute,
             isSelected: false,
           ),
           // Center Floating Plus
           InkWell(
-            onTap: () => context.go(AppConstants.smartSpendingRoute),
+            onTap: () => context.go(AppConstants.addTransactionRoute),
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(

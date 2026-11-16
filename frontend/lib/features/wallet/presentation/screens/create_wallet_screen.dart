@@ -20,12 +20,47 @@ class _CreateWalletScreenState extends ConsumerState<CreateWalletScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  /// Tên các ví đang hoạt động (chữ thường) để kiểm tra trùng ngay trên form.
+  Set<String> _existingNames = {};
+
   final Map<String, String> _walletTypes = {
     'cash': '💵 Tiền mặt',
     'bank': '🏦 Ngân hàng',
     'ewallet': '💳 Ví điện tử',
     'savings': '🏛️ Tiết kiệm',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingNames();
+  }
+
+  Future<void> _loadExistingNames() async {
+    try {
+      final wallets = await ref.read(walletRemoteDataSourceProvider).getWallets();
+      if (!mounted) return;
+      setState(() {
+        _existingNames = wallets
+            .where((w) => (w['status']?.toString() ?? 'active') == 'active')
+            .map((w) => w['name']?.toString().trim().toLowerCase() ?? '')
+            .where((n) => n.isNotEmpty)
+            .toSet();
+      });
+    } catch (_) {
+      // Không chặn màn tạo ví nếu tải danh sách lỗi; backend vẫn kiểm tra.
+    }
+  }
+
+  /// Kiểm tra trùng tên (không phân biệt hoa/thường, bỏ khoảng trắng thừa).
+  String? _validateName(String? value) {
+    final name = (value ?? '').trim();
+    if (name.isEmpty) return 'Vui lòng nhập tên ví';
+    if (_existingNames.contains(name.toLowerCase())) {
+      return 'Bạn đã có ví tên "$name". Vui lòng chọn tên khác.';
+    }
+    return null;
+  }
 
   @override
   void dispose() {
@@ -44,13 +79,30 @@ class _CreateWalletScreenState extends ConsumerState<CreateWalletScreen> {
 
     try {
       final ds = ref.read(walletRemoteDataSourceProvider);
-      
+
+      // Kiểm tra trùng tên trước để báo ngay cho người dùng; backend vẫn là
+      // nơi chặn cuối cùng (kể cả khi tạo từ màn khác).
+      final existing = await ds.getWallets();
+      final name = _nameController.text.trim();
+      final duplicated = existing.any(
+        (w) =>
+            (w['status']?.toString() ?? 'active') == 'active' &&
+            w['name']?.toString().trim().toLowerCase() == name.toLowerCase(),
+      );
+      if (duplicated) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Bạn đã có ví tên "$name". Vui lòng chọn tên khác.';
+        });
+        return;
+      }
+
       // Format datetime cho backend
       final now = DateTime.now().toUtc();
       final openingAt = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}T${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}.${now.millisecond.toString().padLeft(3, '0')}Z';
       
       await ds.createWallet(
-        name: _nameController.text,
+        name: name,
         type: _selectedType,
         openingBalance: _balanceController.text.replaceAll('.', '').replaceAll(',', ''),
         openingAt: openingAt,
@@ -129,12 +181,8 @@ class _CreateWalletScreenState extends ConsumerState<CreateWalletScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Vui lòng nhập tên ví';
-                }
-                return null;
-              },
+              validator: _validateName,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
             ),
             
             const SizedBox(height: 16),

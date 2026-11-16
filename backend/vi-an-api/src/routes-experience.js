@@ -23,7 +23,18 @@ import {
   listEntries,
   entryMatch,
 } from "./views.js";
-import { createEntry, trackReview, notify } from "./ledger.js";
+import { createEntry, notify, autoTrackReview } from "./ledger.js";
+import {
+  reviewWindow,
+  weekStats,
+  weekNarrative,
+  selfInsight,
+  budgetSuggestions,
+  evidenceTransactions,
+  reviewWeeks,
+  journal,
+  journalSummary,
+} from "./review.js";
 
 export function experienceRoutes(app, ctx, r) {
   const db = ctx.db;
@@ -102,6 +113,11 @@ export function experienceRoutes(app, ctx, r) {
     };
   }
   const period = S.obj({ startAt: S.timestamp, endAt: S.timestamp });
+  // Màn Nhìn lại mặc định tuần hiện tại nên hai mốc đều không bắt buộc.
+  const optionalPeriod = S.obj({
+    startAt: S.timestamp.optional(),
+    endAt: S.timestamp.optional(),
+  });
   r(
     "GET",
     "/dashboard",
@@ -273,27 +289,132 @@ export function experienceRoutes(app, ctx, r) {
     "GET",
     "/screens/review",
     {
-      query: period,
+      query: optionalPeriod,
       tag: "Screens",
-      summary: "Báo cáo tuần, nhật ký đáng tiền và gợi ý",
+      summary: "Báo cáo tuần, nhật ký đáng tiền, thấu hiểu bản thân và gợi ý",
     },
     async (req) => {
-      const { a, b } = bounds(req.filters.startAt, req.filters.endAt);
+      const user = await db
+        .collection("users")
+        .findOne({ _id: req.owner }, { projection: { timezone: 1 } });
+      const zone = user?.timezone || "Asia/Ho_Chi_Minh";
+      const wins = reviewWindow(
+        { startAt: req.filters.startAt, endAt: req.filters.endAt },
+        zone,
+      );
+
+      const [stats, reflections, insight, suggestions, weeks, categories, entries] =
+        await Promise.all([
+          weekStats(db, req.owner, wins, zone),
+          reviews(req.owner),
+          selfInsight(db, req.owner),
+          budgetSuggestions(db, req.owner, zone),
+          reviewWeeks(db, req.owner, zone),
+          db.collection("categories").find({ userId: req.owner }).toArray(),
+          journal(db, req.owner),
+        ]);
+
       return {
-        report: await report(db, req.owner, a, b),
-        reflections: await reviews(req.owner),
+        // Hình dạng cũ (report) vẫn giữ để không phá hợp đồng hiện có.
+        report: await report(db, req.owner, wins.start, wins.end),
+        week: {
+          ...stats,
+          narrative: weekNarrative(stats),
+        },
+        reflections,
+        // Nhật ký tự động: mọi giao dịch chi đều có bản ghi, kèm trạng thái
+        // suy ra (tracking / awaiting_review / rated / skipped) và số ngày còn
+        // lại trước khi được mời đánh giá.
+        journal: entries,
+        journalSummary: journalSummary(entries),
         patterns: await patterns(req.owner),
+        selfInsight: insight,
+        budgetSuggestions: suggestions,
+        weeks,
+        hasData: stats.hasData,
+        minimumSamples: insight.minimumSamples,
         insights: await db
           .collection("insights")
           .find({ userId: req.owner, status: "new" })
           .limit(50)
           .toArray(),
-        categories: await db
-          .collection("categories")
-          .find({ userId: req.owner })
-          .toArray(),
+        categories,
       };
     },
+  );
+  r(
+    "GET",
+    "/screens/review/weeks",
+    {
+      query: S.obj({ limit: S.z.coerce.number().int().min(1).max(52).default(12) }),
+      tag: "Screens",
+      summary: "Danh sách tuần có giao dịch để chọn xem báo cáo",
+    },
+    async (req) => {
+      const user = await db
+        .collection("users")
+        .findOne({ _id: req.owner }, { projection: { timezone: 1 } });
+      return reviewWeeks(
+        db,
+        req.owner,
+        user?.timezone || "Asia/Ho_Chi_Minh",
+        req.filters.limit,
+      );
+    },
+  );
+  r(
+    "GET",
+    "/reflections",
+    {
+      query: S.obj({
+        status: S.z
+          .enum(["tracking", "awaiting_review", "rated", "skipped", "all"])
+          .default("all"),
+        limit: S.z.coerce.number().int().min(1).max(500).default(200),
+      }),
+      tag: "Reflection",
+      summary: "Nhật ký Đáng tiền (tự động ghi nhận mọi khoản chi)",
+    },
+    async (req) => {
+      const items = await journal(db, req.owner);
+      const status = req.filters.status;
+      const filtered =
+        status === "all" ? items : items.filter((x) => x.state === status);
+      return filtered.slice(0, req.filters.limit);
+    },
+  );
+  r(
+    "GET",
+    "/reflections/history",
+    {
+      query: S.obj({
+        status: S.z
+          .enum(["tracking", "awaiting_review", "rated", "skipped", "all"])
+          .default("rated"),
+        limit: S.z.coerce.number().int().min(1).max(200).default(50),
+      }),
+      tag: "Reflection",
+      summary: "Lịch sử đánh giá nhật ký (đã đánh giá / bỏ qua / đang chờ)",
+    },
+    async (req) => {
+      const items = await journal(db, req.owner);
+      const status = req.filters.status;
+      const filtered =
+        status === "all" ? items : items.filter((x) => x.state === status);
+      return filtered.slice(0, req.filters.limit);
+    },
+  );
+  r(
+    "POST",
+    "/insights/evidence",
+    {
+      body: S.obj({
+        transactionIds: S.z.array(S.id).min(1).max(50),
+      }),
+      tag: "Reflection",
+      summary: "Chi tiết các giao dịch làm căn cứ cho một nhận xét",
+    },
+    (req) => evidenceTransactions(db, req.owner, req.input.transactionIds),
   );
   r(
     "POST",
@@ -630,21 +751,14 @@ export function experienceRoutes(app, ctx, r) {
   );
   r(
     "GET",
-    "/reflections",
-    { tag: "Reflection", summary: "Các khoản chi được theo dõi" },
-    (req) => reviews(req.owner),
-  );
-  r(
-    "POST",
-    "/reflections",
-    {
-      write: true,
-      body: S.obj({ transactionId: S.id }),
-      tag: "Reflection",
-      summary: "Theo dõi khoản chi để đánh giá sau 7 ngày",
+    "/reflections/:id",
+    { tag: "Reflection", summary: "Chi tiết một mục nhật ký" },
+    async (req) => {
+      const items = await journal(db, req.owner);
+      const found = items.find((x) => x._id.toHexString() === req.params.id);
+      fail(found, "NOT_FOUND", "Không tìm thấy nhật ký.", 404);
+      return found;
     },
-    (req, reply, session) =>
-      trackReview(db, req.owner, req.input.transactionId, session),
   );
   r(
     "PUT",
@@ -660,20 +774,36 @@ export function experienceRoutes(app, ctx, r) {
       summary: "Lưu đánh giá hoặc bỏ qua",
     },
     async (req, reply, session) => {
-      const ref = await owned(
-          db,
-          "reflections",
-          req.owner,
-          req.params.id,
-          session,
-        ),
-        t = await owned(
+      // Nhật ký được tạo tự động nên client có thể gửi id bản ghi nhật ký hoặc
+      // id giao dịch. Chuẩn hoá về bản ghi hiện có, tạo nếu dữ liệu cũ thiếu.
+      let ref = await db
+        .collection("reflections")
+        .findOne(
+          { userId: req.owner, _id: oid(req.params.id) },
+          { session },
+        );
+      if (!ref) {
+        const t0 = await owned(
           db,
           "transactions",
           req.owner,
-          ref.transactionId,
+          req.params.id,
           session,
         );
+        fail(
+          t0.type === "expense" && t0.status === "posted",
+          "INVALID_REFLECTION",
+          "Chỉ đánh giá khoản chi đang có hiệu lực.",
+        );
+        ref = await autoTrackReview(db, req.owner, t0, session);
+      }
+      const t = await owned(
+        db,
+        "transactions",
+        req.owner,
+        ref.transactionId,
+        session,
+      );
       fail(
         t.status === "posted" && t.type === "expense",
         "VOIDED_TRANSACTION",

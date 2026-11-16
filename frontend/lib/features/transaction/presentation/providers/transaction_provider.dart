@@ -254,6 +254,15 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         final occurredAtUtc = state.selectedDate.toUtc();
         final occurredAt = '${occurredAtUtc.year.toString().padLeft(4, '0')}-${occurredAtUtc.month.toString().padLeft(2, '0')}-${occurredAtUtc.day.toString().padLeft(2, '0')}T${occurredAtUtc.hour.toString().padLeft(2, '0')}:${occurredAtUtc.minute.toString().padLeft(2, '0')}:${occurredAtUtc.second.toString().padLeft(2, '0')}.${occurredAtUtc.millisecond.toString().padLeft(3, '0')}Z';
         
+        // Chặn sớm trên client khi danh mục đã hết hạn mức ngân sách trong kỳ
+        // bao phủ ngày giao dịch. Backend vẫn là nơi chặn cuối cùng và an toàn
+        // khi có nhiều request đồng thời.
+        await _assertBudgetAllowance(
+          categoryId: categoryId,
+          amount: state.amount!,
+          occurredAt: state.selectedDate,
+        );
+
         await ds.createTransaction(
           type: state.type.name,
           amount: state.amount!.toInt().toString(), // Convert to string
@@ -273,9 +282,61 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Không thể lưu giao dịch: ${e.toString()}',
+        error: 'Không thể lưu giao dịch: '
+            '${e.toString().replaceAll('Exception: ', '')}',
       );
     }
+  }
+
+  /// Kiểm tra hạn mức ngân sách trên client (backend vẫn kiểm tra lại).
+  ///
+  /// Chỉ áp dụng cho danh mục có hạn mức trong kỳ đang mở chứa ngày giao dịch;
+  /// danh mục khác hoặc giao dịch thu nhập/chuyển ví không bị ảnh hưởng.
+  Future<void> _assertBudgetAllowance({
+    required String categoryId,
+    required double amount,
+    required DateTime occurredAt,
+  }) async {
+    final budgets = await ref
+        .read(transactionRemoteDataSourceProvider)
+        .getBudgets()
+        .catchError((_) => <Map<String, dynamic>>[]);
+    for (final plan in budgets) {
+      final start = DateTime.tryParse(plan['startAt'] as String? ?? '');
+      final end = DateTime.tryParse(plan['endAt'] as String? ?? '');
+      if (start == null || end == null) continue;
+      if (occurredAt.isBefore(start) || !occurredAt.isBefore(end)) continue;
+      final limits = (plan['limits'] as List?) ?? const [];
+      final line = limits.cast<Map<String, dynamic>>().firstWhere(
+            (l) => l['categoryId']?.toString() == categoryId,
+            orElse: () => <String, dynamic>{},
+          );
+      if (line.isEmpty) continue;
+      final limit = double.tryParse(line['limit']?.toString() ?? '') ?? 0;
+      final spent = double.tryParse(line['spent']?.toString() ?? '') ?? 0;
+      final remaining = limit - spent;
+      if (amount > remaining) {
+        final name = line['categoryName']?.toString() ?? 'danh mục này';
+        final over = amount - (remaining > 0 ? remaining : 0);
+        throw Exception(
+          remaining <= 0
+              ? 'Danh mục "$name" đã hết hạn mức ngân sách trong kỳ này. '
+                  'Tăng hạn mức trong Kế hoạch hoặc chọn danh mục khác.'
+              : 'Khoản chi vượt hạn mức còn lại ${_vnd(remaining)} ₫ của danh mục '
+                  '"$name" (vượt ${_vnd(over)} ₫). Tăng hạn mức hoặc chọn danh mục khác.',
+        );
+      }
+    }
+  }
+
+  static String _vnd(double v) {
+    final s = v.abs().toInt().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 
   /// Reset form

@@ -1,64 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/refresh_financial_data.dart';
 import '../../data/datasources/timeline_remote_data_source.dart';
+import '../../domain/models/review_analytics.dart';
 import '../../domain/models/timeline_item.dart';
 
-class CategoryExpense {
-  final String name;
-  final double amount;
-  final int percentage;
-  final String? tag;
+String emotionRatingApiValue(EmotionRating rating) {
+  switch (rating) {
+    case EmotionRating.worthIt:
+      return 'worth_it';
+    case EmotionRating.normal:
+      return 'neutral';
+    case EmotionRating.considerAgain:
+      return 'reconsider';
+  }
+}
 
-  const CategoryExpense({
-    required this.name,
-    required this.amount,
-    required this.percentage,
-    this.tag,
-  });
+String emotionRatingLabel(EmotionRating? rating) {
+  switch (rating) {
+    case EmotionRating.worthIt:
+      return 'Đáng tiền';
+    case EmotionRating.normal:
+      return 'Bình thường';
+    case EmotionRating.considerAgain:
+      return 'Muốn cân nhắc lại';
+    default:
+      return 'Chưa đánh giá';
+  }
 }
 
 class TimelineState {
-  final String dateRangeText;
-  final double totalWeeklySpent;
-  final double lastWeekSpent;
-  final int percentDecrease;
-  final List<CategoryExpense> categoryExpenses;
-  final List<TimelineItem> reflectionItems;
+  // Tuần đang xem
+  final DateTime? weekStart;
+  final DateTime? weekEnd;
+  final String weekLabel;
+  final List<ReviewWeek> weeks;
+  final String? selectedWeekStartIso;
+
+  // Số liệu thật
+  final WeekStats week;
+  final SelfInsight selfInsight;
+  final BudgetSuggestionSet budgetSuggestions;
+
+  // Nhật ký tự động
+  final List<JournalEntry> journal;
+  final JournalSummary summary;
+
   final bool isLoading;
+  final bool isBusy;
   final String? errorMessage;
 
   const TimelineState({
-    this.dateRangeText = '--',
-    this.totalWeeklySpent = 0,
-    this.lastWeekSpent = 0,
-    this.percentDecrease = 0,
-    this.categoryExpenses = const [],
-    this.reflectionItems = const [],
+    this.weekStart,
+    this.weekEnd,
+    this.weekLabel = '--',
+    this.weeks = const [],
+    this.selectedWeekStartIso,
+    this.week = const WeekStats(),
+    this.selfInsight = const SelfInsight(),
+    this.budgetSuggestions = const BudgetSuggestionSet(),
+    this.journal = const [],
+    this.summary = const JournalSummary(),
     this.isLoading = false,
+    this.isBusy = false,
     this.errorMessage,
   });
 
-  /// Số lượng giao dịch đã được đánh giá cảm xúc
-  int get totalRated => reflectionItems.where((i) => i.rating != null).length;
+  /// Khoản đã đủ ngày chờ, cần người dùng đánh giá hoặc bỏ qua.
+  List<JournalEntry> get awaitingReview =>
+      journal.where((e) => e.isAwaitingReview).toList();
+
+  /// Khoản mới ghi nhận, còn đếm ngược tới hạn đánh giá.
+  List<JournalEntry> get tracking =>
+      journal.where((e) => e.isTracking).toList();
+
+  int get ratedCount => journal.where((e) => e.isRated).length;
+  int get skippedCount => journal.where((e) => e.isSkipped).length;
+
+  /// Không còn khoản nào chưa xử lý (đã đánh giá/bỏ qua hết).
+  bool get allJournalHandled => !summary.hasUnresolved;
 
   TimelineState copyWith({
-    String? dateRangeText,
-    double? totalWeeklySpent,
-    double? lastWeekSpent,
-    int? percentDecrease,
-    List<CategoryExpense>? categoryExpenses,
-    List<TimelineItem>? reflectionItems,
+    DateTime? weekStart,
+    DateTime? weekEnd,
+    String? weekLabel,
+    List<ReviewWeek>? weeks,
+    String? selectedWeekStartIso,
+    WeekStats? week,
+    SelfInsight? selfInsight,
+    BudgetSuggestionSet? budgetSuggestions,
+    List<JournalEntry>? journal,
+    JournalSummary? summary,
     bool? isLoading,
+    bool? isBusy,
     String? errorMessage,
   }) {
     return TimelineState(
-      dateRangeText: dateRangeText ?? this.dateRangeText,
-      totalWeeklySpent: totalWeeklySpent ?? this.totalWeeklySpent,
-      lastWeekSpent: lastWeekSpent ?? this.lastWeekSpent,
-      percentDecrease: percentDecrease ?? this.percentDecrease,
-      categoryExpenses: categoryExpenses ?? this.categoryExpenses,
-      reflectionItems: reflectionItems ?? this.reflectionItems,
+      weekStart: weekStart ?? this.weekStart,
+      weekEnd: weekEnd ?? this.weekEnd,
+      weekLabel: weekLabel ?? this.weekLabel,
+      weeks: weeks ?? this.weeks,
+      selectedWeekStartIso: selectedWeekStartIso ?? this.selectedWeekStartIso,
+      week: week ?? this.week,
+      selfInsight: selfInsight ?? this.selfInsight,
+      budgetSuggestions: budgetSuggestions ?? this.budgetSuggestions,
+      journal: journal ?? this.journal,
+      summary: summary ?? this.summary,
       isLoading: isLoading ?? this.isLoading,
+      isBusy: isBusy ?? this.isBusy,
       errorMessage: errorMessage,
     );
   }
@@ -71,57 +120,46 @@ class TimelineNotifier extends Notifier<TimelineState> {
     return const TimelineState(isLoading: true);
   }
 
-  Future<void> loadAll() async {
+  Future<void> loadAll({String? weekStartIso, String? weekEndIso}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final ds = ref.read(timelineRemoteDataSourceProvider);
       final results = await Future.wait([
-        ds.getReviewScreen(),
-        ds.getReflections(limit: 20),
+        ds.getReviewScreen(startAt: weekStartIso, endAt: weekEndIso),
+        ds.getJournal(),
       ]);
 
       final review = results[0] as Map<String, dynamic>;
-      final reflections = (results[1] as List).cast<Map<String, dynamic>>();
+      final journalRows = (results[1] as List).cast<Map<String, dynamic>>();
 
-      // Parse review screen data
-      final weekStats = review['weekStats'] as Map<String, dynamic>? ?? review;
-      final totalSpent = _toDouble(weekStats['totalSpent'] ?? weekStats['totalWeeklySpent'] ?? 0);
-      final lastSpent = _toDouble(weekStats['lastWeekSpent'] ?? weekStats['previousWeekSpent'] ?? 0);
-      final pctDecrease = lastSpent > 0
-          ? (((lastSpent - totalSpent) / lastSpent) * 100).round()
-          : 0;
-
-      // Date range text
-      final now = DateTime.now();
-      final weekStart = now.subtract(Duration(days: now.weekday - 1));
-      final dateRangeText =
-          '${_fmtDay(weekStart)} – ${_fmtDay(now)}/${now.month.toString().padLeft(2, '0')}/${now.year}';
-
-      // Parse categories
-      final catRaw = weekStats['categories'] as List<dynamic>? ?? [];
-      final totalForPct = totalSpent > 0 ? totalSpent : 1;
-      final categories = catRaw.map((c) {
-        final m = c as Map<String, dynamic>;
-        final amt = _toDouble(m['amount'] ?? m['totalSpent'] ?? 0);
-        return CategoryExpense(
-          name: m['name'] as String? ?? 'Khác',
-          amount: amt,
-          percentage: ((amt / totalForPct) * 100).round(),
-          tag: m['tag'] as String?,
-        );
-      }).toList();
-
-      // Parse reflections → TimelineItems
-      final items = reflections.map(_parseReflection).toList();
+      final week = WeekStats.fromJson(
+        review['week'] as Map<String, dynamic>?,
+      );
+      final weeksRaw = (review['weeks'] as List?) ?? const [];
+      final weeks = weeksRaw
+          .whereType<Map<String, dynamic>>()
+          .map(ReviewWeek.fromJson)
+          .toList();
+      final journal = journalRows.map(JournalEntry.fromJson).toList();
 
       state = state.copyWith(
         isLoading: false,
-        dateRangeText: dateRangeText,
-        totalWeeklySpent: totalSpent,
-        lastWeekSpent: lastSpent,
-        percentDecrease: pctDecrease,
-        categoryExpenses: categories,
-        reflectionItems: items,
+        weekStart: week.startAt,
+        weekEnd: week.endAt,
+        weekLabel: _weekLabel(week),
+        week: week,
+        selfInsight: SelfInsight.fromJson(
+          review['selfInsight'] as Map<String, dynamic>?,
+        ),
+        budgetSuggestions: BudgetSuggestionSet.fromJson(
+          review['budgetSuggestions'] as Map<String, dynamic>?,
+        ),
+        weeks: weeks,
+        selectedWeekStartIso: weekStartIso,
+        journal: journal,
+        summary: JournalSummary.fromJson(
+          review['journalSummary'] as Map<String, dynamic>?,
+        ),
       );
     } catch (e) {
       state = state.copyWith(
@@ -131,60 +169,81 @@ class TimelineNotifier extends Notifier<TimelineState> {
     }
   }
 
-  void updateItemRating(String id, EmotionRating rating) {
-    final updated = state.reflectionItems.map((item) {
-      if (item.id == id) return item.copyWith(rating: rating);
-      return item;
-    }).toList();
-    state = state.copyWith(reflectionItems: updated);
+  /// Chọn tuần khác để xem báo cáo.
+  Future<void> selectWeek(ReviewWeek week) =>
+      loadAll(weekStartIso: week.isoStart, weekEndIso: week.isoEnd);
+
+  /// Bỏ chọn tuần (về tuần hiện tại).
+  Future<void> clearWeekSelection() => loadAll();
+
+  /// Lưu đánh giá (kèm ghi chú) rồi đồng bộ lại toàn bộ dữ liệu phân tích.
+  Future<String?> rateReflection(
+    String entryId,
+    EmotionRating rating, {
+    String? note,
+  }) async {
+    try {
+      final ds = ref.read(timelineRemoteDataSourceProvider);
+      await ds.rateReflection(
+        id: entryId,
+        rating: emotionRatingApiValue(rating),
+        note: note,
+      );
+      await _reloadForCurrentWeek();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
   }
 
-  void saveComment(String id, String comment) {
-    final updated = state.reflectionItems.map((item) {
-      if (item.id == id) return item.copyWith(comment: comment, isSaved: true);
-      return item;
-    }).toList();
-    state = state.copyWith(reflectionItems: updated);
+  /// Bỏ qua không đánh giá — không tự gán mức đánh giá nào.
+  Future<String?> skipReflection(String entryId) async {
+    try {
+      final ds = ref.read(timelineRemoteDataSourceProvider);
+      await ds.skipReflection(entryId);
+      await _reloadForCurrentWeek();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  Future<void> _reloadForCurrentWeek() async {
+    await loadAll(
+      weekStartIso: state.selectedWeekStartIso,
+      weekEndIso: state.selectedWeekStartIso == null
+          ? null
+          : state.weekEnd?.toUtc().toIso8601String(),
+    );
+    // Đồng bộ Tổng quan / Giao dịch / Kế hoạch sau khi đổi đánh giá.
+    invalidateFinancialData(ref);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────
 
-  double _toDouble(dynamic v) {
-    if (v is String) return double.tryParse(v) ?? 0;
-    if (v is num) return v.toDouble();
-    return 0;
-  }
-
-  String _fmtDay(DateTime d) => d.day.toString().padLeft(2, '0');
-
-  TimelineItem _parseReflection(Map<String, dynamic> raw) {
-    final tx = raw['transaction'] as Map<String, dynamic>? ?? raw;
-    final cat = tx['category'] as Map<String, dynamic>? ?? {};
-    final catName = cat['name'] as String? ?? 'Chi Tiêu';
-    final amount = _toDouble(tx['amountVnd'] ?? tx['amount'] ?? raw['amount'] ?? 0);
-    final occurredAt = tx['occurredAt'] as String? ?? raw['periodStart'] as String?;
-    final dateTime = occurredAt != null
-        ? DateTime.tryParse(occurredAt)
-        : null;
-    final fmtDate = dateTime != null
-        ? '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}'
-        : '';
-
-    return TimelineItem(
-      id: raw['_id'] as String? ?? raw['id'] as String? ?? '',
-      title: tx['memo'] as String? ?? catName,
-      amount: amount,
-      type: TransactionType.expense,
-      categoryName: catName,
-      dateTime: dateTime,
-      dateText: fmtDate,
-      paymentType: 'Chuyển khoản',
-      icon: Icons.shopping_bag_outlined,
-      iconBgColor: const Color(0xFFC2F0E6),
-    );
+  String _weekLabel(WeekStats w) {
+    final a = w.startAt;
+    final b = w.endAt;
+    if (a == null || b == null) return '--';
+    final last = b.subtract(const Duration(days: 1));
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(a.day)}/${two(a.month)} – ${two(last.day)}/${two(last.month)}/${last.year}';
   }
 }
 
 final timelineProvider = NotifierProvider<TimelineNotifier, TimelineState>(
   TimelineNotifier.new,
 );
+
+// ── dùng chung ───────────────────────────────────────────────────────
+
+/// Icon/màu theo tên danh mục — chỉ dùng để hiển thị, không phải dữ liệu.
+IconData billCategoryIcon(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('ăn') || n.contains('cà phê')) return Icons.restaurant_outlined;
+  if (n.contains('học')) return Icons.school_outlined;
+  if (n.contains('mua')) return Icons.shopping_bag_outlined;
+  if (n.contains('đi lại') || n.contains('xe')) return Icons.directions_car_outlined;
+  if (n.contains('hóa đơn')) return Icons.receipt_long_outlined;
+  return Icons.category_outlined;
+}

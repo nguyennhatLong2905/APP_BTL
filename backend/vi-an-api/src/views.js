@@ -41,16 +41,17 @@ export async function overview(
   if (!nextPayday) missing.push("nextPayday");
   const days = nextPayday ? daysBetween(at, nextPayday, user.timezone) : null;
   if (days !== null && days <= 0) missing.push("nextPaydayInFuture");
-  const bills = nextPayday
-    ? await db
-        .collection("bill_occurrences")
-        .find(
-          { userId, status: "unpaid", dueAt: { $lt: new Date(nextPayday) } },
-          { session },
-        )
-        .sort({ dueAt: 1 })
-        .toArray()
-    : [];
+  const cutoff = nextPayday
+    ? new Date(nextPayday)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // fallback 30 days
+  const bills = await db
+    .collection("bill_occurrences")
+    .find(
+      { userId, status: "unpaid", dueAt: { $lte: cutoff } },
+      { session },
+    )
+    .sort({ dueAt: 1 })
+    .toArray();
   const total = wallets.reduce((s, w) => s + B(w.balance), 0n);
   const protectedMoney = allocations.reduce((s, a) => s + B(a.amount), 0n);
   const unpaid = bills.reduce((s, b) => s + B(b.amount), 0n);
@@ -65,7 +66,23 @@ export async function overview(
     unpaidBills: unpaid,
     protectedMoney,
     available,
-    dailyReference: days > 0 ? available / BigInt(days) : null,
+    // Ba lớp tiền minh bạch — một nguồn sự thật duy nhất, không tính trùng:
+    //   Lớp 1 = tổng số dư ví đang hoạt động
+    //   Lớp 2 = hóa đơn chưa trả + quỹ bảo vệ
+    //   Lớp 3 = Lớp 1 − Lớp 2 (null khi chưa có ngày lương kế tiếp)
+    layers: {
+      total,
+      protectedMoney,
+      unpaidBills: unpaid,
+      obligations: protectedMoney + unpaid,
+      available,
+      walletCount: wallets.length,
+      unpaidBillCount: bills.length,
+      protectedGoalCount: goals.length,
+    },
+    dailyReference: days !== null && days > 0 && available !== null
+      ? available / BigInt(days)
+      : null,
     wallets,
     bills,
   };
@@ -92,13 +109,30 @@ export async function budgetView(db, userId, plan, session) {
   const limits = plan.limits.map((l) => {
     const spent = amounts.get(l.categoryId.toHexString()) || 0n,
       limit = B(l.limit);
+    const remaining = limit - spent;
+    const percent = fraction(spent, limit);
+    // Trạng thái khóa chi tiêu: chỉ những danh mục có hạn mức mới bị khóa, và
+    // chỉ khóa khi đã dùng hết hạn mức (remaining <= 0). Đây là kế hoạch kiểm
+    // soát chi, không phải tiền bị giữ.
+    const locked = remaining <= 0n;
+    const status =
+      remaining < 0n
+        ? "over"
+        : locked
+          ? "exhausted"
+          : percent !== null && percent >= Number(plan.warningPercent || 80)
+            ? "near"
+            : "normal";
     return {
       ...l,
       spent,
-      remaining: limit - spent,
-      percent: fraction(spent, limit),
+      remaining: remaining > 0n ? remaining : 0n,
+      rawRemaining: remaining,
+      percent,
+      status,
+      locked,
       warning:
-        spent * 100n >= limit * BigInt(Number(plan.warningPercent || 80)),
+        percent !== null && percent >= Number(plan.warningPercent || 80),
     };
   });
   return {
@@ -106,6 +140,11 @@ export async function budgetView(db, userId, plan, session) {
     limits,
     totalLimit: limits.reduce((s, l) => s + B(l.limit), 0n),
     totalSpent: limits.reduce((s, l) => s + l.spent, 0n),
+    totalRemaining: limits.reduce(
+      (s, l) => s + (B(l.remaining) > 0n ? B(l.remaining) : 0n),
+      0n,
+    ),
+    lockedCategories: limits.filter((l) => l.locked).map((l) => l.categoryId),
   };
 }
 export async function goalView(db, userId, goal, session) {

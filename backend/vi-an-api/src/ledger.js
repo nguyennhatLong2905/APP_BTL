@@ -1,4 +1,5 @@
 import { budgetAlerts } from "./signals.js";
+import { withBudgetLimit, syncBudgetCounters } from "./budget-limit.js";
 import { B, L, I, base, now, fail, owned, oid, hash } from "./common.js";
 
 export async function validateEntry(db, userId, input, session) {
@@ -257,6 +258,149 @@ async function unlink(db, userId, t, session) {
         { session },
       );
 }
+/**
+ * Nhật ký Đáng tiền được ghi nhận TỰ ĐỘNG.
+ *
+ * Mọi giao dịch chi tiêu `posted` đều có đúng một bản ghi `reflections` liên
+ * kết bằng `transactionId` (unique index). Giao dịch thu nhập, chuyển ví nội bộ
+ * và điều chỉnh số dư không bao giờ vào nhật ký.
+ */
+export const DEFAULT_REVIEW_DELAY_DAYS = 7;
+
+export function reviewDelayDays(user) {
+  const n = Number(user?.settings?.reviewDelayDays ?? DEFAULT_REVIEW_DELAY_DAYS);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_REVIEW_DELAY_DAYS;
+}
+
+/** Hạn đánh giá = ngày chi thực tế + số ngày chờ (mặc định 7). */
+export function reviewDueAt(transaction, delayDays) {
+  return new Date(transaction.occurredAt.getTime() + delayDays * 86400000);
+}
+
+/**
+ * Tạo hoặc cập nhật bản ghi nhật ký cho một giao dịch chi.
+ *
+ * - Không tạo trùng (khoá `transactionId`, upsert theo khoá đó).
+ * - Giữ nguyên đánh giá người dùng đã lưu; chỉ đồng bộ lại số tiền/danh mục
+ *   thông qua giao dịch mà bản ghi trỏ tới, và hạn đánh giá theo ngày chi mới.
+ * - Nhắc đánh giá dùng `dedupeKey = review:<transactionId>` nên không nhân bản.
+ */
+export async function autoTrackReview(db, userId, t, session) {
+  const user = await db
+    .collection("users")
+    .findOne({ _id: userId }, { session });
+  const dueAt = reviewDueAt(t, reviewDelayDays(user));
+
+  // Upsert theo khoá duy nhất (userId, transactionId): chạy song song hay lặp
+  // lại đều chỉ có đúng một bản ghi. Không ghi đè status/rating đã có.
+  const r = await db
+    .collection("reflections")
+    .findOneAndUpdate(
+      { userId, transactionId: t._id },
+      {
+        $set: { dueAt, updatedAt: now() },
+        $setOnInsert: {
+          _id: base(userId)._id,
+          userId,
+          transactionId: t._id,
+          createdAt: now(),
+          status: "pending",
+        },
+      },
+      { upsert: true, returnDocument: "after", session },
+    );
+  if (!r) return null;
+  if (r.status === "pending")
+    await notify(
+      db,
+      userId,
+      "review_due",
+      r._id,
+      dueAt,
+      "review:" + t._id,
+      session,
+    );
+  return r;
+}
+
+/**
+ * Gỡ bản ghi nhật ký khi giao dịch bị hủy hoặc không còn là khoản chi.
+ *
+ * - Bản ghi chưa có đánh giá (pending/skipped) bị xóa cùng lời nhắc.
+ * - Bản ghi đã đánh giá được giữ lại để không mất dữ liệu người dùng; nó tự
+ *   ẩn khỏi nhật ký vì mọi truy vấn chỉ lấy giao dịch `posted`. Khi giao dịch
+ *   được khôi phục, bản ghi cũ được dùng lại, không sinh bản trùng.
+ */
+export async function removeReflection(db, userId, transactionId, session) {
+  const r = await db
+    .collection("reflections")
+    .findOne({ userId, transactionId }, { session });
+  if (!r) return null;
+  await db
+    .collection("notifications")
+    .deleteMany({ userId, entityId: r._id, type: "review_due" }, { session });
+  if (r.status !== "rated")
+    await db
+      .collection("reflections")
+      .deleteOne({ _id: r._id, userId }, { session });
+  return r;
+}
+
+/**
+ * Đồng bộ nhật ký theo trạng thái hiện tại của giao dịch.
+ * Dùng sau mỗi lần tạo/sửa/hủy/khôi phục giao dịch.
+ */
+export async function syncReflection(db, userId, t, session) {
+  if (t.type === "expense" && t.status === "posted")
+    return autoTrackReview(db, userId, t, session);
+  await removeReflection(db, userId, t._id, session);
+  return null;
+}
+
+/**
+ * Bổ sung nhật ký cho các giao dịch chi đã tồn tại trước khi bật cơ chế tự động
+ * (dữ liệu cũ, dữ liệu nhập CSV/khôi phục). Chạy lại nhiều lần vẫn an toàn vì
+ * khoá duy nhất là `transactionId`.
+ */
+export async function backfillReflections(db, userId, session) {
+  const user = await db
+    .collection("users")
+    .findOne({ _id: userId }, { session });
+  const delay = reviewDelayDays(user);
+  const existing = await db
+    .collection("reflections")
+    .find({ userId }, { session })
+    .project({ transactionId: 1, dueAt: 1 })
+    .toArray();
+  const known = new Map(
+    existing.map((r) => [r.transactionId.toHexString(), r]),
+  );
+  const rows = await db
+    .collection("transactions")
+    .find({ userId, status: "posted", type: "expense" }, { session })
+    .project({ amount: 1, occurredAt: 1, categoryId: 1, note: 1, type: 1 })
+    .toArray();
+  let created = 0;
+  for (const t of rows) {
+    if (known.has(t._id.toHexString())) {
+      const dueAt = reviewDueAt(t, delay);
+      const prev = known.get(t._id.toHexString());
+      if (prev.dueAt?.getTime?.() !== dueAt.getTime())
+        await db
+          .collection("reflections")
+          .updateOne(
+            { userId, transactionId: t._id },
+            { $set: { dueAt, updatedAt: now() } },
+            { session },
+          );
+      continue;
+    }
+    await autoTrackReview(db, userId, t, session);
+    created++;
+  }
+  return { created, scanned: rows.length };
+}
+
 export async function createEntry(db, userId, input, key, session) {
   const t = {
     ...base(userId),
@@ -266,42 +410,35 @@ export async function createEntry(db, userId, input, key, session) {
     version: I(1),
     source: input.source || "manual",
   };
-  await link(db, userId, t, session);
-  await applyImpacts(db, userId, impacts(t), session);
-  await db.collection("transactions").insertOne(t, { session });
-  if (t.type === "expense") await budgetAlerts(db, userId, session);
-  if (input.trackReview && t.type === "expense")
-    await trackReview(db, userId, t._id, session);
-  return t;
-}
-export async function trackReview(db, userId, transactionId, session) {
-  const t = await owned(db, "transactions", userId, transactionId, session);
-  fail(
-    t.type === "expense" && t.status === "posted",
-    "INVALID_REFLECTION",
-    "Chỉ đánh giá khoản chi đang có hiệu lực.",
-  );
-  const user = await db
-    .collection("users")
-    .findOne({ _id: userId }, { session });
-  const delay = user.settings?.reviewDelayDays ?? 7;
-  const dueAt = new Date(t.occurredAt.getTime() + Number(delay) * 86400000);
-  const existing = await db
-    .collection("reflections")
-    .findOne({ userId, transactionId: t._id }, { session });
-  if (existing) return existing;
-  const r = { ...base(userId), transactionId: t._id, dueAt, status: "pending" };
-  await db.collection("reflections").insertOne(r, { session });
-  await notify(
-    db,
-    userId,
-    "review_due",
-    r._id,
-    dueAt,
-    "review:" + t._id,
-    session,
-  );
-  return r;
+  // Khóa chi tiêu cứng: kiểm tra hạn mức và ghi giao dịch trong cùng một khoá
+  // của (kỳ, danh mục), nên nhiều request đồng thời không thể cùng vượt hạn mức.
+  // Danh mục không có hạn mức / không có kỳ bao phủ thì ghi bình thường.
+  const persist = async () => {
+    await link(db, userId, t, session);
+    await applyImpacts(db, userId, impacts(t), session);
+    await db.collection("transactions").insertOne(t, { session });
+    return t;
+  };
+  const created =
+    t.type === "expense"
+      ? await withBudgetLimit(
+          db,
+          userId,
+          {
+            categoryId: t.categoryId,
+            amount: B(t.amount),
+            occurredAt: t.occurredAt,
+            session,
+          },
+          persist,
+        )
+      : await persist();
+  if (t.type === "expense") {
+    await budgetAlerts(db, userId, session);
+    // Tự động vào Nhật ký Đáng tiền — không cần thao tác của người dùng.
+    await autoTrackReview(db, userId, t, session);
+  }
+  return created;
 }
 export async function notify(
   db,
@@ -357,14 +494,6 @@ export async function changeEntry(db, userId, id, input, mode, session) {
       idempotencyKey: old.idempotencyKey,
       version: I(Number(old.version) + 1),
     };
-    await unlink(db, userId, old, session);
-    await link(db, userId, t, session);
-    await applyImpacts(
-      db,
-      userId,
-      [...impacts(old, -1n), ...impacts(t)],
-      session,
-    );
   } else if (mode === "void") {
     fail(old.status === "posted", "ALREADY_VOIDED", "Giao dịch đã hủy.");
     t = {
@@ -374,8 +503,6 @@ export async function changeEntry(db, userId, id, input, mode, session) {
       updatedAt: now(),
       version: I(Number(old.version) + 1),
     };
-    await unlink(db, userId, old, session);
-    await applyImpacts(db, userId, impacts(old, -1n), session);
   } else {
     fail(old.status === "voided", "NOT_VOIDED", "Giao dịch đang có hiệu lực.");
     t = {
@@ -408,12 +535,46 @@ export async function changeEntry(db, userId, id, input, mode, session) {
       },
       session,
     );
-    await link(db, userId, t, session);
-    await applyImpacts(db, userId, impacts(t), session);
   }
-  await db
-    .collection("transactions")
-    .replaceOne({ _id: old._id, userId }, t, { session });
+
+  // Ghi thay đổi. Sửa/khôi phục một khoản chi phải qua kiểm tra hạn mức với số
+  // liệu mới, bỏ qua tác động cũ của chính giao dịch (tránh tính trùng).
+  const commit = async () => {
+    if (mode === "edit") {
+      await unlink(db, userId, old, session);
+      await link(db, userId, t, session);
+      await applyImpacts(
+        db,
+        userId,
+        [...impacts(old, -1n), ...impacts(t)],
+        session,
+      );
+    } else if (mode === "void") {
+      await unlink(db, userId, old, session);
+      await applyImpacts(db, userId, impacts(old, -1n), session);
+    } else {
+      await link(db, userId, t, session);
+      await applyImpacts(db, userId, impacts(t), session);
+    }
+    await db
+      .collection("transactions")
+      .replaceOne({ _id: old._id, userId }, t, { session });
+    return t;
+  };
+  if (mode !== "void" && t.type === "expense")
+    await withBudgetLimit(
+      db,
+      userId,
+      {
+        categoryId: t.categoryId,
+        amount: B(t.amount),
+        occurredAt: t.occurredAt,
+        excludeTransactionId: old._id,
+        session,
+      },
+      commit,
+    );
+  else await commit();
   await db
     .collection("audit_events")
     .insertOne(
@@ -428,51 +589,15 @@ export async function changeEntry(db, userId, id, input, mode, session) {
     );
   if (old.type === "expense" || t.type === "expense")
     await budgetAlerts(db, userId, session);
-  const r = await db
-    .collection("reflections")
-    .findOne({ userId, transactionId: old._id }, { session });
-  if (input.trackReview && t.type === "expense" && mode !== "void")
-    await trackReview(db, userId, t._id, session);
-  if (r) {
-    if (mode === "void" || t.type !== "expense")
-      await db
-        .collection("notifications")
-        .updateMany(
-          { userId, entityId: r._id, status: "pending" },
-          { $set: { status: "cancelled", updatedAt: now() } },
-          { session },
-        );
-    else {
-      const u = await db
-        .collection("users")
-        .findOne({ _id: userId }, { session });
-      const dueAt = new Date(
-        t.occurredAt.getTime() +
-          Number(u.settings?.reviewDelayDays ?? 7) * 86400000,
-      );
-      await db
-        .collection("reflections")
-        .updateOne(
-          { _id: r._id, userId },
-          { $set: { dueAt, updatedAt: now() } },
-          { session },
-        );
-      if (r.status === "pending")
-        await db
-          .collection("notifications")
-          .updateMany(
-            {
-              userId,
-              entityId: r._id,
-              status: { $in: ["pending", "cancelled"] },
-            },
-            {
-              $set: { status: "pending", scheduledAt: dueAt, updatedAt: now() },
-            },
-            { session },
-          );
-    }
-  }
+  // Đồng bộ bộ đếm quan sát được sau khi hủy/sửa: danh mục được mở khóa ngay
+  // vì hạn mức được tính lại từ giao dịch thật đang có hiệu lực.
+  await syncBudgetCounters(db, userId, [old, t], session);
+  // Đồng bộ nhật ký: giữ đúng một bản ghi khoá theo transactionId.
+  // - Sửa số tiền/danh mục/ngày: bản ghi giữ nguyên _id và đánh giá cũ, dữ liệu
+  //   hiển thị lấy từ giao dịch nên tự khớp; hạn đánh giá tính lại theo ngày chi.
+  // - Hủy giao dịch hoặc đổi sang loại không phải chi: gỡ khỏi nhật ký.
+  // - Khôi phục giao dịch chi: dùng lại bản ghi cũ nếu còn, nếu không thì tạo.
+  await syncReflection(db, userId, t, session);
   await db
     .collection("insights")
     .updateMany(

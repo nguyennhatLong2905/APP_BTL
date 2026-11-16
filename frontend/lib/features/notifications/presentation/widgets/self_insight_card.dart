@@ -1,7 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/models/review_analytics.dart';
+
+/// Card "Thấu hiểu bản thân".
+///
+/// Mọi nhận xét đến từ `SelfInsight.statements`, mỗi câu kèm tỷ lệ + số mẫu
+/// và nút xem căn cứ (các giao dịch thật). Nếu chưa đủ mẫu, hiển thị tiến độ
+/// thay vì kết luận.
 class SelfInsightCard extends StatelessWidget {
-  const SelfInsightCard({super.key});
+  final SelfInsight insight;
+  final void Function(InsightStatement statement)? onShowEvidence;
+  final VoidCallback? onViewHistory;
+
+  const SelfInsightCard({
+    super.key,
+    required this.insight,
+    this.onShowEvidence,
+    this.onViewHistory,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +54,9 @@ class SelfInsightCard extends StatelessWidget {
                     color: const Color(0xFFE2F6F0),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Dựa trên 12 đánh giá',
-                    style: TextStyle(
+                  child: Text(
+                    'Dựa trên ${insight.sampleCount} đánh giá',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF0F5B47),
@@ -51,116 +67,23 @@ class SelfInsightCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Box 1
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF8F5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC2F0E6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.location_on,
-                        size: 14, color: Color(0xFF0F5B47)),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                          height: 1.35,
-                        ),
-                        children: [
-                          TextSpan(text: 'Bạn thường đánh giá rất cao ('),
-                          TextSpan(
-                            text: '90% Đáng tiền',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F5B47),
-                            ),
-                          ),
-                          TextSpan(text: ') cho các khoản chi về '),
-                          TextSpan(
-                            text: 'Học tập & Sức khỏe',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                              text:
-                                  '. Đây là vùng đầu tư mang lại bình an lớn nhất.'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
+            if (!insight.hasEnoughData)
+              _NotEnoughData(insight: insight)
+            else
+              for (final s in insight.statements) ...[
+                _StatementBox(
+                  statement: s,
+                  onShowEvidence: onShowEvidence == null
+                      ? null
+                      : () => onShowEvidence!(s),
+                ),
+                const SizedBox(height: 10),
+              ],
 
-            // Box 2
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF8F5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade100,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.nightlight_round,
-                        size: 14, color: Colors.orange.shade900),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                          height: 1.35,
-                        ),
-                        children: [
-                          TextSpan(text: 'Khoản mua sắm ngẫu hứng sau 22h đêm có '),
-                          TextSpan(
-                            text: '66%',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          TextSpan(text: ' rơi vào nhóm '),
-                          TextSpan(
-                            text: 'Muốn cân nhắc lại',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: ' sau 7 ngày.'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Link action
+            const SizedBox(height: 4),
             Center(
               child: TextButton.icon(
-                onPressed: () {},
+                onPressed: onViewHistory,
                 icon: const Icon(Icons.visibility_outlined,
                     size: 16, color: Color(0xFF0F5B47)),
                 label: const Text(
@@ -175,6 +98,151 @@ class SelfInsightCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NotEnoughData extends StatelessWidget {
+  final SelfInsight insight;
+
+  const _NotEnoughData({required this.insight});
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = (insight.minimumSamples - insight.sampleCount)
+        .clamp(0, insight.minimumSamples);
+    final progress = insight.minimumSamples == 0
+        ? 0.0
+        : (insight.sampleCount / insight.minimumSamples).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF8F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            insight.sampleCount == 0
+                ? 'Chưa có đánh giá nào. Hãy theo dõi vài khoản chi rồi đánh giá sau 7 ngày để Ví An hiểu bạn hơn.'
+                : 'Cần thêm $remaining đánh giá nữa để có nhận xét đáng tin cậy.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black87,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFD3EFE8),
+              color: const Color(0xFF0F5B47),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${insight.sampleCount}/${insight.minimumSamples} đánh giá tối thiểu',
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF6B7280)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatementBox extends StatelessWidget {
+  final InsightStatement statement;
+  final VoidCallback? onShowEvidence;
+
+  const _StatementBox({required this.statement, this.onShowEvidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = statement.isPositive;
+    final accent = positive ? const Color(0xFF0F5B47) : Colors.orange.shade900;
+    final bg = positive ? const Color(0xFFEAF8F5) : Colors.orange.shade50;
+
+    // Câu nhận xét đã có sẵn nội dung; chèn tỷ lệ + số mẫu làm căn cứ.
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: positive
+                      ? const Color(0xFFC2F0E6)
+                      : Colors.orange.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  positive ? Icons.favorite_border : Icons.nightlight_round,
+                  size: 14,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black87,
+                      height: 1.35,
+                    ),
+                    children: [
+                      TextSpan(text: statement.text),
+                      TextSpan(
+                        text:
+                            ' ${statement.count}/${statement.sampleCount} mẫu (${statement.percent}%).',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (onShowEvidence != null &&
+              statement.evidenceTransactionIds.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onShowEvidence,
+                style: TextButton.styleFrom(
+                  foregroundColor: accent,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 26),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Xem ${statement.evidenceTransactionIds.length} giao dịch căn cứ',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -6,12 +6,15 @@ import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasourc
 /// Datasource cho màn "Nhìn Lại Nhật Ký" — kết nối /reflections, /screens/review, /insights, /challenges
 abstract class TimelineRemoteDataSource {
   // Review Screen
-  Future<Map<String, dynamic>> getReviewScreen();
+  Future<Map<String, dynamic>> getReviewScreen({String? startAt, String? endAt});
+  Future<List<Map<String, dynamic>>> getReviewWeeks({int limit = 12});
 
   // Reflections
-  Future<List<Map<String, dynamic>>> getReflections({int limit = 20});
-  Future<Map<String, dynamic>> createReflection({
-    required String transactionId,
+  /// Nhật ký Đáng tiền. Backend tự tạo bản ghi cho mọi giao dịch chi nên
+  /// không còn endpoint "thêm vào nhật ký" — chỉ đọc và đánh giá.
+  Future<List<Map<String, dynamic>>> getJournal({
+    String status = 'all',
+    int limit = 200,
   });
   Future<Map<String, dynamic>> rateReflection({
     required String id,
@@ -19,6 +22,22 @@ abstract class TimelineRemoteDataSource {
     String? note,
   });
   Future<void> skipReflection(String id);
+  Future<List<Map<String, dynamic>>> getReflectionHistory({
+    String status = 'rated',
+    int limit = 50,
+  });
+  Future<List<Map<String, dynamic>>> getEvidence(List<String> transactionIds);
+
+  /// Giao dịch chi của một danh mục trong khoảng thời gian (drill-down).
+  Future<List<Map<String, dynamic>>> getCategoryTransactions({
+    required String categoryId,
+    required DateTime startAt,
+    required DateTime endAt,
+  });
+
+  /// Đọc kỳ ngân sách để cập nhật hạn mức (chỉ khi người dùng xác nhận).
+  Future<Map<String, dynamic>> getBudgetPlan(String budgetId);
+  Future<void> updateBudgetPlan(String budgetId, Map<String, dynamic> data);
 
   // Insights
   Future<List<Map<String, dynamic>>> getInsights();
@@ -50,8 +69,17 @@ class TimelineRemoteDataSourceImpl implements TimelineRemoteDataSource {
   TimelineRemoteDataSourceImpl(this._apiClient);
 
   @override
-  Future<Map<String, dynamic>> getReviewScreen() async {
-    final result = await _apiClient.get('/screens/review');
+  Future<Map<String, dynamic>> getReviewScreen({
+    String? startAt,
+    String? endAt,
+  }) async {
+    final params = <String, dynamic>{};
+    if (startAt != null) params['startAt'] = startAt;
+    if (endAt != null) params['endAt'] = endAt;
+    final result = await _apiClient.get(
+      '/screens/review',
+      queryParameters: params.isEmpty ? null : params,
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (data) {
@@ -61,37 +89,40 @@ class TimelineRemoteDataSourceImpl implements TimelineRemoteDataSource {
     );
   }
 
-  // Reflections Implementation
   @override
-  Future<List<Map<String, dynamic>>> getReflections({int limit = 20}) async {
-    final result =
-        await _apiClient.get('/reflections', queryParameters: {'limit': limit});
+  Future<List<Map<String, dynamic>>> getReviewWeeks({int limit = 12}) async {
+    final result = await _apiClient.get(
+      '/screens/review/weeks',
+      queryParameters: {'limit': limit},
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (data) {
         final body = data as Map<String, dynamic>;
         final d = body['data'];
         if (d is List) return d.cast<Map<String, dynamic>>();
-        if (d is Map && d['items'] is List) {
-          return (d['items'] as List).cast<Map<String, dynamic>>();
-        }
         return [];
       },
     );
   }
 
+  // Reflections Implementation
   @override
-  Future<Map<String, dynamic>> createReflection({
-    required String transactionId,
+  Future<List<Map<String, dynamic>>> getJournal({
+    String status = 'all',
+    int limit = 200,
   }) async {
-    final result = await _apiClient.post('/reflections', data: {
-      'transactionId': transactionId,
-    });
+    final result = await _apiClient.get(
+      '/reflections',
+      queryParameters: {'status': status, 'limit': limit},
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
-      (body) {
-        final res = body as Map<String, dynamic>;
-        return res['data'] as Map<String, dynamic>? ?? res;
+      (data) {
+        final body = data as Map<String, dynamic>;
+        final d = body['data'];
+        if (d is List) return d.cast<Map<String, dynamic>>();
+        return [];
       },
     );
   }
@@ -123,6 +154,106 @@ class TimelineRemoteDataSourceImpl implements TimelineRemoteDataSource {
     final result = await _apiClient.put('/reflections/$id', data: {
       'status': 'skipped',
     });
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getReflectionHistory({
+    String status = 'rated',
+    int limit = 50,
+  }) async {
+    final result = await _apiClient.get(
+      '/reflections/history',
+      queryParameters: {'status': status, 'limit': limit},
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        final d = body['data'];
+        if (d is List) return d.cast<Map<String, dynamic>>();
+        return [];
+      },
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getEvidence(
+    List<String> transactionIds,
+  ) async {
+    if (transactionIds.isEmpty) return const [];
+    final result = await _apiClient.post('/insights/evidence', data: {
+      'transactionIds': transactionIds,
+    });
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        final d = body['data'];
+        if (d is List) return d.cast<Map<String, dynamic>>();
+        return [];
+      },
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getCategoryTransactions({
+    required String categoryId,
+    required DateTime startAt,
+    required DateTime endAt,
+  }) async {
+    final result = await _apiClient.get(
+      '/screens/transactions',
+      queryParameters: {
+        'categoryId': categoryId,
+        'startAt': startAt.toUtc().toIso8601String(),
+        'endAt': endAt.toUtc().toIso8601String(),
+        'limit': 100,
+      },
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        final d = body['data'];
+        if (d is Map && d['items'] is List) {
+          return (d['items'] as List).cast<Map<String, dynamic>>();
+        }
+        if (d is List) return d.cast<Map<String, dynamic>>();
+        return [];
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getBudgetPlan(String budgetId) async {
+    final result = await _apiClient.get('/budgets');
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        final rows = (body['data'] as List?) ?? const [];
+        final match = rows
+            .cast<Map<String, dynamic>>()
+            .firstWhere((b) => b['_id']?.toString() == budgetId,
+                orElse: () => <String, dynamic>{});
+        if (match.isEmpty) {
+          throw ServerException(message: 'Không tìm thấy kỳ ngân sách.');
+        }
+        return match;
+      },
+    );
+  }
+
+  @override
+  Future<void> updateBudgetPlan(
+    String budgetId,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _apiClient.put('/budgets/$budgetId', data: data);
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,

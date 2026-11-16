@@ -72,8 +72,10 @@ export const template = obj({
   estimatedAmount: positive,
   categoryId: id,
   preferredWalletId: id.optional(),
-  frequency: z.enum(["once", "monthly", "yearly"]),
+  frequency: z.enum(["once", "weekly", "monthly", "quarterly", "yearly"]),
   startAt: timestamp,
+  endAt: timestamp.optional(),
+  note: note.optional(),
   reminderDaysBefore: z.number().int().min(0).max(30).default(3),
 });
 export const purchase = obj({

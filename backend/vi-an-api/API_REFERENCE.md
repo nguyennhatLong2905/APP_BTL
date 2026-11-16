@@ -1,6 +1,6 @@
 # Danh mục API Ví An
 
-75 operations. Header Authorization cần cho mọi API trừ /auth/register, /auth/login, /auth/demo. Cột Key là Idempotency-Key. Body, query, các model response chính và ví dụ nằm trong openapi.json hoặc Swagger /docs.
+89 operations. Header Authorization cần cho mọi API trừ /auth/register, /auth/login, /auth/demo. Cột Key là Idempotency-Key. Body, query, các model response chính và ví dụ nằm trong openapi.json hoặc Swagger /docs.
 
 ## Auth
 
@@ -53,6 +53,7 @@
 | GET | `/api/v1/budgets` | Các ngân sách và số đã chi | Không |
 | POST | `/api/v1/budgets` | Tạo kỳ ngân sách | Có |
 | PUT | `/api/v1/budgets/{id}` | Thay đổi hạn mức ngân sách | Có |
+| DELETE | `/api/v1/budgets/{id}` | Xóa kỳ ngân sách (không ảnh hưởng ví hay giao dịch) | Có |
 | POST | `/api/v1/budgets/{id}/close` | Đóng kỳ ngân sách | Có |
 
 ## Goals
@@ -72,10 +73,20 @@
 | GET | `/api/v1/bill-templates` | Lịch hóa đơn định kỳ | Không |
 | POST | `/api/v1/bill-templates` | Tạo lịch hóa đơn và sinh các kỳ | Có |
 | PATCH | `/api/v1/bill-templates/{id}` | Bật/tắt lịch lặp; tùy chọn hủy hóa đơn tương lai chưa trả | Có |
+| PUT | `/api/v1/bill-templates/{id}` | Chỉnh sửa toàn bộ thông tin hóa đơn định kỳ | Có |
 | GET | `/api/v1/bills` | Hóa đơn từng kỳ và trạng thái quá hạn | Không |
 | PATCH | `/api/v1/bills/{id}` | Điều chỉnh hoặc hủy hóa đơn chưa trả | Có |
+| GET | `/api/v1/bills/{id}` | Chi tiết hóa đơn và lịch sử thanh toán | Không |
+| DELETE | `/api/v1/bills/{id}` | Xóa hóa đơn chưa thanh toán | Không |
 | POST | `/api/v1/bills/{id}/pay` | Thanh toán hóa đơn và trừ ví cùng một transaction | Có |
 | POST | `/api/v1/bills/{id}/link-transaction` | Liên kết khoản chi đã ghi, không trừ ví lần nữa | Có |
+| GET | `/api/v1/screens/bills` | Tab Hóa đơn: tổng quan, danh sách và phân nhóm trạng thái | Không |
+| GET | `/api/v1/bills/{id}/candidate-transactions` | Giao dịch chi phù hợp để liên kết với hóa đơn | Không |
+| POST | `/api/v1/bills/{id}/pay-preview` | Tác động lên 3 lớp tiền nếu thanh toán hóa đơn | Không |
+| POST | `/api/v1/bills/{id}/cancel` | Hủy hóa đơn chưa thanh toán | Có |
+| POST | `/api/v1/bill-templates/{id}/stop` | Ngừng hóa đơn định kỳ và hủy các kỳ tương lai chưa trả | Có |
+| POST | `/api/v1/bills/{id}/settle` | Xác nhận thanh toán hóa đơn (idempotent, chống trả trùng) | Có |
+| POST | `/api/v1/bills/{id}/link` | Liên kết giao dịch chi đã có và đánh dấu hóa đơn đã trả | Có |
 
 ## Notifications
 
@@ -93,13 +104,31 @@
 | GET | `/api/v1/screens/add-transaction` | Dữ liệu form thêm giao dịch | Không |
 | GET | `/api/v1/screens/transactions` | Giao dịch với tên ví/danh mục và nhóm theo ngày | Không |
 | GET | `/api/v1/screens/plans` | Ba tab ngân sách, mục tiêu, hóa đơn | Không |
-| GET | `/api/v1/screens/review` | Báo cáo tuần, nhật ký đáng tiền và gợi ý | Không |
+| GET | `/api/v1/screens/review` | Báo cáo tuần, nhật ký đáng tiền, thấu hiểu bản thân và gợi ý | Không |
+| GET | `/api/v1/screens/review/weeks` | Danh sách tuần có giao dịch để chọn xem báo cáo | Không |
 
 ## Reports
 
 | Method | Endpoint | Chức năng | Key |
 |---|---|---|---|
 | GET | `/api/v1/reports` | Thu chi theo kỳ và so sánh kỳ trước | Không |
+
+## Reflection
+
+| Method | Endpoint | Chức năng | Key |
+|---|---|---|---|
+| GET | `/api/v1/reflections` | Nhật ký Đáng tiền (tự động ghi nhận mọi khoản chi) | Không |
+| GET | `/api/v1/reflections/history` | Lịch sử đánh giá nhật ký (đã đánh giá / bỏ qua / đang chờ) | Không |
+| POST | `/api/v1/insights/evidence` | Chi tiết các giao dịch làm căn cứ cho một nhận xét | Không |
+| GET | `/api/v1/reflections/{id}` | Chi tiết một mục nhật ký | Không |
+| PUT | `/api/v1/reflections/{id}` | Lưu đánh giá hoặc bỏ qua | Có |
+| GET | `/api/v1/insights` | Gợi ý đã lưu và căn cứ | Không |
+| POST | `/api/v1/insights/{id}/dismiss` | Ẩn gợi ý | Có |
+| GET | `/api/v1/challenges` | Các thử thách đang theo dõi | Không |
+| POST | `/api/v1/challenges` | Kích hoạt khoảng lặng 48h hoặc thay đổi thói quen | Có |
+| POST | `/api/v1/challenges/{id}/cancel` | Dừng thử thách | Có |
+| POST | `/api/v1/insights/generate` | Sinh gợi ý từ tối thiểu 5 đánh giá thực tế mỗi danh mục | Có |
+| POST | `/api/v1/insights/{id}/apply` | Xác nhận gợi ý: đổi hạn mức đã chọn hoặc tạo thử thách 48h | Có |
 
 ## Simulation
 
@@ -120,21 +149,6 @@
 | PATCH | `/api/v1/purchases/{id}` | Sửa giá hoặc nhắc lại khoản mua | Có |
 | POST | `/api/v1/purchases/{id}/buy` | Xác nhận mua và tạo giao dịch thực tế | Có |
 | POST | `/api/v1/purchases/{id}/saving-plan` | Để dành mua sau: tạo mục tiêu, chưa phân bổ tiền | Có |
-
-## Reflection
-
-| Method | Endpoint | Chức năng | Key |
-|---|---|---|---|
-| GET | `/api/v1/reflections` | Các khoản chi được theo dõi | Không |
-| POST | `/api/v1/reflections` | Theo dõi khoản chi để đánh giá sau 7 ngày | Có |
-| PUT | `/api/v1/reflections/{id}` | Lưu đánh giá hoặc bỏ qua | Có |
-| GET | `/api/v1/insights` | Gợi ý đã lưu và căn cứ | Không |
-| POST | `/api/v1/insights/{id}/dismiss` | Ẩn gợi ý | Có |
-| GET | `/api/v1/challenges` | Các thử thách đang theo dõi | Không |
-| POST | `/api/v1/challenges` | Kích hoạt khoảng lặng 48h hoặc thay đổi thói quen | Có |
-| POST | `/api/v1/challenges/{id}/cancel` | Dừng thử thách | Có |
-| POST | `/api/v1/insights/generate` | Sinh gợi ý từ tối thiểu 5 đánh giá thực tế mỗi danh mục | Có |
-| POST | `/api/v1/insights/{id}/apply` | Xác nhận gợi ý: đổi hạn mức đã chọn hoặc tạo thử thách 48h | Có |
 
 ## Advice
 

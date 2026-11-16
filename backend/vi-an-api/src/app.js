@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ApiError, atomic, oid, json, fail } from "./common.js";
 import { authRoutes } from "./routes-auth.js";
 import { financeRoutes } from "./routes-finance.js";
+import { billRoutes } from "./routes-bills.js";
 import { experienceRoutes } from "./routes-experience.js";
 import { signalRoutes } from "./signals.js";
 import { dataRoutes } from "./routes-data.js";
@@ -215,6 +216,7 @@ export async function buildApp(ctx, config = {}) {
   app.get("/openapi.json", async () => app.swagger());
   authRoutes(app, ctx, config, route);
   financeRoutes(app, ctx, route);
+  billRoutes(app, ctx, route);
   experienceRoutes(app, ctx, route);
   dataRoutes(app, ctx, route);
   signalRoutes(ctx, route);
