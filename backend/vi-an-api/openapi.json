@@ -338,6 +338,19 @@
               "cancelled"
             ]
           },
+          "derivedStatus": {
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "due",
+              "overdue",
+              "paid",
+              "cancelled"
+            ]
+          },
+          "daysUntilDue": {
+            "type": "integer"
+          },
           "transactionId": {
             "type": "string",
             "pattern": "^[a-fA-F0-9]{24}$"
@@ -345,6 +358,63 @@
           "paidAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "paidAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "new_transaction",
+              "linked_transaction"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "once",
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ]
+          },
+          "templateActive": {
+            "type": "boolean"
+          },
+          "templateStartAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "templateEndAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reminderDaysBefore": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          },
+          "payment": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "transactionId": {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              "amount": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "method": {
+                "type": "string"
+              }
+            }
           },
           "overdue": {
             "type": "boolean"
@@ -357,6 +427,154 @@
           "dueAt",
           "status"
         ],
+        "additionalProperties": true
+      },
+      "BillsSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "unpaidCount": {
+            "type": "integer"
+          },
+          "upcomingCount": {
+            "type": "integer"
+          },
+          "dueCount": {
+            "type": "integer"
+          },
+          "overdueCount": {
+            "type": "integer"
+          },
+          "paidCount": {
+            "type": "integer"
+          },
+          "cancelledCount": {
+            "type": "integer"
+          },
+          "unpaidTotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "overdueTotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "dueTotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paidTotal": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "total",
+          "unpaidCount",
+          "unpaidTotal"
+        ],
+        "additionalProperties": true
+      },
+      "BillsScreen": {
+        "type": "object",
+        "properties": {
+          "overview": {
+            "$ref": "#/components/schemas/Overview"
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bill"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/BillsSummary"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            }
+          },
+          "wallets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Wallet"
+            }
+          },
+          "payday": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "BillPayPreview": {
+        "type": "object",
+        "properties": {
+          "billId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "reservedAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "releasedReservation": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "excessOverReserved": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "before": {
+            "$ref": "#/components/schemas/Overview"
+          },
+          "after": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "protectedMoney": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "unpaidBills": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "available": {
+                "type": "string",
+                "pattern": "^-?[0-9]+$",
+                "nullable": true
+              }
+            },
+            "additionalProperties": true
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "BillSettleResult": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/BillPayPreview"
+          },
+          "bill": {
+            "$ref": "#/components/schemas/Bill"
+          }
+        },
         "additionalProperties": true
       },
       "Overview": {
@@ -402,6 +620,48 @@
             "type": "string",
             "pattern": "^-?[0-9]+$",
             "nullable": true
+          },
+          "layers": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "protectedMoney": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "unpaidBills": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "obligations": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "available": {
+                "type": "string",
+                "pattern": "^-?[0-9]+$",
+                "nullable": true
+              },
+              "walletCount": {
+                "type": "integer"
+              },
+              "unpaidBillCount": {
+                "type": "integer"
+              },
+              "protectedGoalCount": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "protectedMoney",
+              "unpaidBills",
+              "obligations",
+              "available",
+              "walletCount",
+              "unpaidBillCount",
+              "protectedGoalCount"
+            ],
+            "additionalProperties": true
           },
           "wallets": {
             "type": "array",
@@ -492,9 +752,25 @@
                 "remaining": {
                   "$ref": "#/components/schemas/Money"
                 },
+                "rawRemaining": {
+                  "$ref": "#/components/schemas/Money"
+                },
                 "percent": {
                   "type": "number",
                   "nullable": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "near",
+                    "exhausted",
+                    "over"
+                  ],
+                  "description": "normal: dưới ngưỡng; near: chạm ngưỡng cảnh báo; exhausted: đã dùng hết hạn mức; over: đã vượt hạn mức."
+                },
+                "locked": {
+                  "type": "boolean"
                 },
                 "warning": {
                   "type": "boolean"
@@ -514,6 +790,16 @@
           },
           "totalSpent": {
             "$ref": "#/components/schemas/Money"
+          },
+          "totalRemaining": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "lockedCategories": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
           }
         },
         "additionalProperties": true
@@ -636,6 +922,25 @@
               "rated",
               "skipped"
             ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "tracking",
+              "awaiting_review",
+              "rated",
+              "skipped"
+            ],
+            "description": "tracking: mới ghi nhận; awaiting_review: đã đủ số ngày chờ (mặc định 7); rated/skipped: người dùng đã xử lý."
+          },
+          "daysRemaining": {
+            "type": "integer"
+          },
+          "isDue": {
+            "type": "boolean"
+          },
+          "hasReflectionRecord": {
+            "type": "boolean"
           },
           "rating": {
             "type": "string",
@@ -3303,6 +3608,80 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "delete_budgets__id",
+        "summary": "Xóa kỳ ngân sách (không ảnh hưởng ví hay giao dịch)",
+        "tags": [
+          "Plans"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/budgets/{id}/close": {
@@ -3856,7 +4235,9 @@
                     "type": "string",
                     "enum": [
                       "once",
+                      "weekly",
                       "monthly",
+                      "quarterly",
                       "yearly"
                     ]
                   },
@@ -3864,6 +4245,15 @@
                     "type": "string",
                     "format": "date-time",
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
                   },
                   "reminderDaysBefore": {
                     "default": 3,
@@ -3969,6 +4359,143 @@
                 "required": [
                   "active"
                 ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_bill_templates__id",
+        "summary": "Chỉnh sửa toàn bộ thông tin hóa đơn định kỳ",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "estimatedAmount": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,15})$"
+                  },
+                  "categoryId": {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  "preferredWalletId": {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  "frequency": {
+                    "type": "string",
+                    "enum": [
+                      "once",
+                      "weekly",
+                      "monthly",
+                      "quarterly",
+                      "yearly"
+                    ]
+                  },
+                  "startAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                    "nullable": true
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "reminderDaysBefore": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                },
                 "additionalProperties": false
               }
             }
@@ -4182,6 +4709,136 @@
             },
             "in": "header",
             "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_bills__id",
+        "summary": "Chi tiết hóa đơn và lịch sử thanh toán",
+        "tags": [
+          "Bills"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bill"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_bills__id",
+        "summary": "Xóa hóa đơn chưa thanh toán",
+        "tags": [
+          "Bills"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ],
@@ -4526,6 +5183,635 @@
         }
       }
     },
+    "/api/v1/screens/bills": {
+      "get": {
+        "operationId": "get_screens_bills",
+        "summary": "Tab Hóa đơn: tổng quan, danh sách và phân nhóm trạng thái",
+        "tags": [
+          "Bills"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BillsScreen"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/candidate-transactions": {
+      "get": {
+        "operationId": "get_bills__id_candidate_transactions",
+        "summary": "Giao dịch chi phù hợp để liên kết với hóa đơn",
+        "tags": [
+          "Bills"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/pay-preview": {
+      "post": {
+        "operationId": "post_bills__id_pay_preview",
+        "summary": "Tác động lên 3 lớp tiền nếu thanh toán hóa đơn",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,15})$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BillPayPreview"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/cancel": {
+      "post": {
+        "operationId": "post_bills__id_cancel",
+        "summary": "Hủy hóa đơn chưa thanh toán",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bill"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bill-templates/{id}/stop": {
+      "post": {
+        "operationId": "post_bill_templates__id_stop",
+        "summary": "Ngừng hóa đơn định kỳ và hủy các kỳ tương lai chưa trả",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cancelFutureUnpaid": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/settle": {
+      "post": {
+        "operationId": "post_bills__id_settle",
+        "summary": "Xác nhận thanh toán hóa đơn (idempotent, chống trả trùng)",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "walletId": {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,15})$"
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "allowNegativeAvailable": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "walletId",
+                  "occurredAt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BillSettleResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{id}/link": {
+      "post": {
+        "operationId": "post_bills__id_link",
+        "summary": "Liên kết giao dịch chi đã có và đánh dấu hóa đơn đã trả",
+        "tags": [
+          "Bills"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "transactionId": {
+                    "type": "string",
+                    "pattern": "^[a-f\\d]{24}$"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "transactionId",
+                  "expectedVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bill"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "operationId": "get_dashboard",
@@ -4557,16 +5843,18 @@
                 },
                 "example": {
                   "data": {
-                    "asOf": "2026-10-03T09:18:25.276Z",
+                    "asOf": "2026-11-14T08:14:28.192Z",
                     "nextPayday": "2026-10-15T17:00:00.000Z",
-                    "daysRemaining": 13,
-                    "missingData": [],
+                    "daysRemaining": -29,
+                    "missingData": [
+                      "nextPaydayInFuture"
+                    ],
                     "currency": "VND",
                     "total": "8000000",
                     "unpaidBills": "3500000",
                     "protectedMoney": "2400000",
                     "available": "2100000",
-                    "dailyReference": "161538",
+                    "dailyReference": null,
                     "wallets": [
                       {
                         "_id": "000000000000000000000002",
@@ -4921,23 +6209,25 @@
                       }
                     ],
                     "defaultWalletId": "000000000000000000000002",
-                    "defaultOccurredAt": "2026-10-03T09:18:25.314Z",
+                    "defaultOccurredAt": "2026-11-14T08:14:28.281Z",
                     "quickAmounts": [
                       "10000",
                       "50000",
                       "100000"
                     ],
                     "overview": {
-                      "asOf": "2026-10-03T09:18:25.314Z",
+                      "asOf": "2026-11-14T08:14:28.281Z",
                       "nextPayday": "2026-10-15T17:00:00.000Z",
-                      "daysRemaining": 13,
-                      "missingData": [],
+                      "daysRemaining": -29,
+                      "missingData": [
+                        "nextPaydayInFuture"
+                      ],
                       "currency": "VND",
                       "total": "8000000",
                       "unpaidBills": "3500000",
                       "protectedMoney": "2400000",
                       "available": "2100000",
-                      "dailyReference": "161538",
+                      "dailyReference": null,
                       "wallets": [
                         {
                           "_id": "000000000000000000000002",
@@ -5595,16 +6885,18 @@
                 "example": {
                   "data": {
                     "overview": {
-                      "asOf": "2026-10-03T09:18:25.339Z",
+                      "asOf": "2026-11-14T08:14:28.326Z",
                       "nextPayday": "2026-10-15T17:00:00.000Z",
-                      "daysRemaining": 13,
-                      "missingData": [],
+                      "daysRemaining": -29,
+                      "missingData": [
+                        "nextPaydayInFuture"
+                      ],
                       "currency": "VND",
                       "total": "8000000",
                       "unpaidBills": "3500000",
                       "protectedMoney": "2400000",
                       "available": "2100000",
-                      "dailyReference": "161538",
+                      "dailyReference": null,
                       "wallets": [
                         {
                           "_id": "000000000000000000000002",
@@ -5947,7 +7239,7 @@
     "/api/v1/screens/review": {
       "get": {
         "operationId": "get_screens_review",
-        "summary": "Báo cáo tuần, nhật ký đáng tiền và gợi ý",
+        "summary": "Báo cáo tuần, nhật ký đáng tiền, thấu hiểu bản thân và gợi ý",
         "tags": [
           "Screens"
         ],
@@ -5960,7 +7252,7 @@
             },
             "in": "query",
             "name": "startAt",
-            "required": true
+            "required": false
           },
           {
             "schema": {
@@ -5970,7 +7262,7 @@
             },
             "in": "query",
             "name": "endAt",
-            "required": true
+            "required": false
           }
         ],
         "security": [
@@ -6200,6 +7492,321 @@
         }
       }
     },
+    "/api/v1/screens/review/weeks": {
+      "get": {
+        "operationId": "get_screens_review_weeks",
+        "summary": "Danh sách tuần có giao dịch để chọn xem báo cáo",
+        "tags": [
+          "Screens"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reflections": {
+      "get": {
+        "operationId": "get_reflections",
+        "summary": "Nhật ký Đáng tiền (tự động ghi nhận mọi khoản chi)",
+        "tags": [
+          "Reflection"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "tracking",
+                "awaiting_review",
+                "rated",
+                "skipped",
+                "all"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Reflection"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reflections/history": {
+      "get": {
+        "operationId": "get_reflections_history",
+        "summary": "Lịch sử đánh giá nhật ký (đã đánh giá / bỏ qua / đang chờ)",
+        "tags": [
+          "Reflection"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "rated",
+              "type": "string",
+              "enum": [
+                "tracking",
+                "awaiting_review",
+                "rated",
+                "skipped",
+                "all"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/evidence": {
+      "post": {
+        "operationId": "post_insights_evidence",
+        "summary": "Chi tiết các giao dịch làm căn cứ cho một nhận xét",
+        "tags": [
+          "Reflection"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "transactionIds": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-f\\d]{24}$"
+                    }
+                  }
+                },
+                "required": [
+                  "transactionIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "5XX": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/simulations/purchase": {
       "post": {
         "operationId": "post_simulations_purchase",
@@ -6257,16 +7864,18 @@
                   "data": {
                     "isSimulation": true,
                     "before": {
-                      "asOf": "2026-10-03T09:18:25.364Z",
+                      "asOf": "2026-11-14T08:14:28.377Z",
                       "nextPayday": "2026-10-15T17:00:00.000Z",
-                      "daysRemaining": 13,
-                      "missingData": [],
+                      "daysRemaining": -29,
+                      "missingData": [
+                        "nextPaydayInFuture"
+                      ],
                       "currency": "VND",
                       "total": "8000000",
                       "unpaidBills": "3500000",
                       "protectedMoney": "2400000",
                       "available": "2100000",
-                      "dailyReference": "161538",
+                      "dailyReference": null,
                       "wallets": [
                         {
                           "_id": "000000000000000000000002",
@@ -6327,7 +7936,7 @@
                     "price": "900000",
                     "releasedReservation": "0",
                     "availableAfter": "1200000",
-                    "dailyAfter": "92307",
+                    "dailyAfter": null,
                     "assumptions": [
                       "Chưa cộng thu nhập chưa nhận.",
                       "Hóa đơn và quỹ bảo vệ đã được giữ riêng."
@@ -7253,100 +8862,21 @@
         }
       }
     },
-    "/api/v1/reflections": {
+    "/api/v1/reflections/{id}": {
       "get": {
-        "operationId": "get_reflections",
-        "summary": "Các khoản chi được theo dõi",
+        "operationId": "get_reflections__id",
+        "summary": "Chi tiết một mục nhật ký",
         "tags": [
           "Reflection"
         ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Thành công. Ví dụ minh họa lấy từ database kiểm thử.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Reflection"
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "4XX": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "5XX": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "post_reflections",
-        "summary": "Theo dõi khoản chi để đánh giá sau 7 ngày",
-        "tags": [
-          "Reflection"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "transactionId": {
-                    "type": "string",
-                    "pattern": "^[a-f\\d]{24}$"
-                  }
-                },
-                "required": [
-                  "transactionId"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "minLength": 8,
-              "maxLength": 128
+              "pattern": "^[a-fA-F0-9]{24}$"
             },
-            "in": "header",
-            "name": "idempotency-key",
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ],
@@ -7396,9 +8926,7 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/reflections/{id}": {
+      },
       "put": {
         "operationId": "put_reflections__id",
         "summary": "Lưu đánh giá hoặc bỏ qua",

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/currency_text_field.dart';
+import '../../../transaction/domain/models/transaction_category.dart';
 import '../../domain/models/category_budget.dart';
 import '../providers/budget_provider.dart';
 import '../widgets/add_category_button.dart';
@@ -12,6 +12,7 @@ import '../widgets/budget_bottom_nav.dart';
 import '../widgets/budget_category_card.dart';
 import '../widgets/budget_control_tabs.dart';
 import '../widgets/budget_summary_overview_card.dart';
+import '../widgets/bills_tab_view.dart';
 import '../widgets/goals_tab_view.dart';
 import '../widgets/salary_cycle_card.dart';
 
@@ -30,9 +31,21 @@ class BudgetPlanningScreen extends ConsumerWidget {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Điều Chỉnh Ngân Sách "${cat.name}"'),
-          content: CurrencyTextField(
-            controller: controller,
-            labelText: 'Ngân sách phân bổ',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CurrencyTextField(
+                controller: controller,
+                labelText: 'Hạn mức ngân sách',
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Đã chi ${_money(cat.spentAmount)} ₫ • '
+                'Còn lại ${_money(cat.remainingAmount)} ₫',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -68,55 +81,175 @@ class BudgetPlanningScreen extends ConsumerWidget {
         context, 'Đã cập nhật ngân sách cho "${cat.name}"!');
   }
 
+  /// Xác nhận xóa một dòng ngân sách danh mục.
+  Future<void> _confirmDeleteCategory(
+      BuildContext context, WidgetRef ref, CategoryBudget cat) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Xóa ngân sách?'),
+        content: Text(
+          'Xóa ngân sách "${cat.name}" khỏi kế hoạch chi tiêu?\n\n'
+          'Số dư ví và các giao dịch đã ghi không bị ảnh hưởng.',
+          style: const TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final error = await ref.read(budgetProvider.notifier).removeCategory(cat.id);
+    if (!context.mounted) return;
+    if (error != null) {
+      AppSnackBar.showError(context, error);
+      return;
+    }
+    AppSnackBar.showSuccess(context, 'Đã xóa ngân sách "${cat.name}"');
+  }
+
+  /// Quy trình tạo ngân sách: chọn danh mục → nhập hạn mức → lưu.
+  ///
+  /// Danh mục dùng lại đúng danh sách + icon của màn Thêm Giao Dịch
+  /// (`DefaultCategories.expenseCategories`); backend tự map sang danh mục
+  /// expense tương ứng nên không sinh danh mục mới.
   Future<void> _showAddCategoryDialog(
       BuildContext context, WidgetRef ref) async {
+    final existingNames =
+        ref.read(budgetProvider).categories.map((c) => c.name).toSet();
+    final available = DefaultCategories.expenseCategories
+        .where((c) => !existingNames.contains(c.name))
+        .toList();
+
+    if (available.isEmpty) {
+      AppSnackBar.showWarning(
+        context,
+        'Mọi danh mục chi tiêu đã có ngân sách. Chỉnh hạn mức ở từng thẻ.',
+      );
+      return;
+    }
+
     final nameController = TextEditingController();
     final amountController = TextEditingController();
+    var selected = available.first;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Thêm Danh Mục Ngân Sách Mới'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên danh mục',
-                  border: OutlineInputBorder(),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Thêm Ngân Sách Danh Mục'),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              content: SizedBox(
+                width: 340,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Chọn danh mục',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final cat in available)
+                            InkWell(
+                              onTap: () => setLocal(() => selected = cat),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: selected.id == cat.id
+                                      ? const Color(0xFF0F5B47)
+                                      : const Color(0xFFEAF8F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      cat.icon,
+                                      size: 16,
+                                      color: selected.id == cat.id
+                                          ? Colors.white
+                                          : cat.color,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      cat.name,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: selected.id == cat.id
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      CurrencyTextField(
+                        controller: amountController,
+                        labelText: 'Hạn mức cho ${selected.name}',
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              CurrencyTextField(
-                controller: amountController,
-                labelText: 'Ngân sách dự kiến',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final amount =
-                    CurrencyTextField.getRawAmount(amountController);
-                Navigator.pop(context, name.isNotEmpty && amount > 0);
-              },
-              child: const Text('Thêm mới'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F5B47),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    final amount =
+                        CurrencyTextField.getRawAmount(amountController);
+                    Navigator.pop(ctx, amount > 0);
+                  },
+                  child: const Text('Lưu ngân sách'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
-    final name = nameController.text.trim();
+    final name = selected.name;
     final amount = CurrencyTextField.getRawAmount(amountController);
     nameController.dispose();
     amountController.dispose();
@@ -131,7 +264,97 @@ class BudgetPlanningScreen extends ConsumerWidget {
       AppSnackBar.showError(context, error);
       return;
     }
-    AppSnackBar.showSuccess(context, 'Đã thêm danh mục "$name"!');
+    AppSnackBar.showSuccess(context, 'Đã thêm ngân sách cho "$name"!');
+  }
+
+  /// Chọn ngưỡng cảnh báo cho cả kỳ ngân sách.
+  Future<void> _showWarningThresholdDialog(
+      BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(budgetProvider.notifier);
+    final current = ref.read(budgetProvider).planWarningPercent;
+    var selected = current;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Ngưỡng cảnh báo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ví An cảnh báo khi chi tiêu chạm ngưỡng này của hạn mức.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final p in [50, 70, 80, 90, 100])
+                    InkWell(
+                      onTap: () => setLocal(() => selected = p),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: selected == p
+                              ? const Color(0xFF0F5B47)
+                              : const Color(0xFFEAF8F5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$p%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: selected == p
+                                ? Colors.white
+                                : const Color(0xFF0F5B47),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final error = await notifier.setWarningPercent(selected);
+    if (!context.mounted) return;
+    if (error != null) {
+      AppSnackBar.showError(context, error);
+      return;
+    }
+    AppSnackBar.showSuccess(context, 'Đã đặt ngưỡng cảnh báo $selected%');
+  }
+
+  static String _money(double v) {
+    final s = v.abs().toInt().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 
   @override
@@ -210,7 +433,7 @@ class BudgetPlanningScreen extends ConsumerWidget {
 
             // Card 2: Còn để chi thực tế & Tổng ngân sách
             // "Còn để chi" ưu tiên available từ backend (đã trừ quỹ bảo vệ
-            // và hóa đơn chưa trả), tránh tính trùng tiền tiết kiệm.
+            // và hóa đơn chưa trả); tạo ngân sách KHÔNG trừ vào con số này.
             BudgetSummaryOverviewCard(
               freeRemaining: state.spendableNow,
               totalBudget: state.totalBudget,
@@ -225,9 +448,9 @@ class BudgetPlanningScreen extends ConsumerWidget {
             if (state.activeTab == 'Mục tiêu')
               const GoalsTabView()
             else if (state.activeTab == 'Hóa đơn')
-              _buildBillsPlaceholder(state)
+              const BillsTabView()
             else ...[
-              // Section Header: Danh mục chi tiêu
+              // Section Header: Danh mục chi tiêu + ngưỡng cảnh báo
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -238,29 +461,56 @@ class BudgetPlanningScreen extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    '${state.categories.length} danh mục',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                  InkWell(
+                    onTap: () => _showWarningThresholdDialog(context, ref),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.notifications_active_outlined,
+                              size: 12, color: Color(0xFF0F5B47)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Cảnh báo ${state.planWarningPercent}%',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F5B47),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Category Cards List
-            for (final cat in state.categories)
-              BudgetCategoryCard(
-                category: cat,
-                onEditPressed: () =>
-                    _showEditCategoryDialog(context, ref, cat),
-              ),
-
-            // Add Category Button
-            AddCategoryButton(
-              onPressed: () => _showAddCategoryDialog(context, ref),
-            ),
+              if (state.categories.isEmpty)
+                _EmptyBudgetHint(
+                  onCreate: () => _showAddCategoryDialog(context, ref),
+                )
+              else ...[
+                for (final cat in state.categories)
+                  BudgetCategoryCard(
+                    category: cat,
+                    onEditPressed: () =>
+                        _showEditCategoryDialog(context, ref, cat),
+                    onDeletePressed: () =>
+                        _confirmDeleteCategory(context, ref, cat),
+                  ),
+                // Add Category Button
+                AddCategoryButton(
+                  onPressed: () => _showAddCategoryDialog(context, ref),
+                ),
+              ],
             ],
           ],
         ),
@@ -268,63 +518,64 @@ class BudgetPlanningScreen extends ConsumerWidget {
       bottomNavigationBar: const BudgetBottomNav(),
     );
   }
+}
 
-  /// Tab Hóa đơn — danh sách hóa đơn chưa trả
-  Widget _buildBillsPlaceholder(BudgetState state) {
-    final bills = state.upcomingBills;
-    if (bills.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Column(
-            children: [
-              Icon(Icons.receipt_long_outlined,
-                  size: 40, color: Color(0xFFBDBDBD)),
-              SizedBox(height: 10),
-              Text('Không có hóa đơn chưa trả',
-                  style: TextStyle(fontSize: 13.5, color: Color(0xFF6B7280))),
-            ],
-          ),
-        ),
-      );
-    }
-    final fmt = NumberFormat('#,###', 'vi_VN');
-    return Column(
-      children: [
-        for (final b in bills)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.receipt_long, size: 18, color: Color(0xFF0F5B47)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    b['nameTemplate'] as String? ??
-                        b['name'] as String? ??
-                        'Hóa đơn',
-                    style: const TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Text(
-                  '${fmt.format(num.tryParse('${b['amount'] ?? 0}') ?? 0)} ₫',
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-              ],
+/// Trạng thái rỗng: hướng dẫn tạo ngân sách đầu tiên.
+class _EmptyBudgetHint extends StatelessWidget {
+  final VoidCallback onCreate;
+
+  const _EmptyBudgetHint({required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.savings_outlined,
+              size: 34, color: Color(0xFFBDBDBD)),
+          const SizedBox(height: 8),
+          const Text(
+            'Chưa có ngân sách nào',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF374151),
             ),
           ),
-      ],
+          const SizedBox(height: 4),
+          const Text(
+            'Đặt hạn mức theo danh mục để Ví An theo dõi chi tiêu và cảnh báo '
+            'khi sắp chạm ngưỡng. Tạo ngân sách không trừ tiền trong ví.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.4,
+              color: Color(0xFF9CA3AF),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Tạo ngân sách đầu tiên'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F5B47),
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

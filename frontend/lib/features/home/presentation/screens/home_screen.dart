@@ -30,13 +30,11 @@ class HomeScreen extends ConsumerWidget {
   static const Color _layer2Amount = Color(0xFFD32F2F);
   static const Color _layer3Bg = Color(0xFFFEFDE8);
 
-
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final homeState = ref.watch(homeProvider);
     final notifier = ref.read(homeProvider.notifier);
-    
+
     // Load dữ liệu nếu chưa có hoặc cũ
     if (homeState.dashboardData == null && !homeState.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -44,10 +42,12 @@ class HomeScreen extends ConsumerWidget {
       });
     }
 
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
 
     // Loading skeleton khi chờ API
     if (homeState.isLoading && homeState.dashboardData == null) {
@@ -68,56 +68,62 @@ class HomeScreen extends ConsumerWidget {
             _buildAppBar(context),
             // ── Scrollable Content ──────────────────────────────────
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header: ngày + lời chào
-                    _buildHeader(context, ref),
+              child: RefreshIndicator(
+                color: _teal,
+                onRefresh: () => notifier.loadDashboard(force: true),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: ngày + lời chào
+                      _buildHeader(context, ref),
 
-                    // Warning banner (nếu còn hiện)
-                    if (homeState.showWarningBanner)
-                      _buildWarningBanner(context, notifier),
+                      // Warning banner (nếu còn hiện)
+                      if (homeState.showWarningBanner)
+                        _buildWarningBanner(context, notifier),
 
-                    const SizedBox(height: 4),
+                      const SizedBox(height: 4),
 
-                    // Card "Còn để chi" — số liệu thật từ /dashboard
-                    Builder(
-                      builder: (context) {
-                        final d = homeState.dashboardData;
-                        final days = d?.daysRemaining ?? 0;
-                        final payday = d?.nextPayday;
-                        return BalanceCard(
-                          remainingAmount: d?.spendable ?? 0,
-                          dailyRate: d?.dailyLimit ?? 0,
-                          daysLeft: days < 0 ? 0 : days,
-                          nextPaydayLabel: payday == null
-                              ? '--'
-                              : DateFormat('dd/MM').format(payday),
-                          progressPercent: 0,
-                          startDateLabel: '--',
-                        );
-                      },
-                    ),
+                      // Card "Còn để chi" — số liệu thật từ /dashboard
+                      Builder(
+                        builder: (context) {
+                          final d = homeState.dashboardData;
+                          final days = d?.daysRemaining ?? 0;
+                          final payday = d?.nextPayday;
+                          return BalanceCard(
+                            remainingAmount: d?.spendable ?? 0,
+                            dailyRate: d?.dailyLimit ?? 0,
+                            daysLeft: days < 0 ? 0 : days,
+                            nextPaydayLabel: payday == null
+                                ? '--'
+                                : DateFormat('dd/MM').format(payday),
+                            progressPercent: 0,
+                            startDateLabel: '--',
+                          );
+                        },
+                      ),
 
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                    // Section "3 Lớp Tiền Minh Bạch"
-                    _buildThreeLayerSection(context),
+                      // Section "3 Lớp Tiền Minh Bạch"
+                      _buildThreeLayerSection(context),
 
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    // Card "Mua hay chờ?"
-                    _buildMuaHayCho(context),
+                      // Card "Mua hay chờ?"
+                      _buildMuaHayCho(context),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Hóa đơn sắp tới + Giao dịch gần đây
-                    const RecentTransactionsSection(),
+                      // Hóa đơn sắp tới + Giao dịch gần đây
+                      const RecentTransactionsSection(),
 
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -149,7 +155,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const Text(
-                'Tong Quan',
+                'Tổng Quan',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -218,10 +224,7 @@ class HomeScreen extends ConsumerWidget {
             children: [
               Text(
                 _formatDate(DateTime.now()),
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: _textSecondary,
-                ),
+                style: const TextStyle(fontSize: 12, color: _textSecondary),
               ),
               const SizedBox(width: 6),
               Container(
@@ -235,10 +238,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(width: 5),
               const Text(
                 'Khoảng lặng tài chính',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: _textSecondary),
               ),
             ],
           ),
@@ -274,8 +274,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ── Warning Banner ────────────────────────────────────────────────
-  Widget _buildWarningBanner(
-      BuildContext context, HomeNotifier notifier) {
+  Widget _buildWarningBanner(BuildContext context, HomeNotifier notifier) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       padding: const EdgeInsets.all(12),
@@ -310,22 +309,14 @@ class HomeScreen extends ConsumerWidget {
               ),
               GestureDetector(
                 onTap: notifier.dismissWarning,
-                child: const Icon(
-                  Icons.close,
-                  size: 16,
-                  color: _textSecondary,
-                ),
+                child: const Icon(Icons.close, size: 16, color: _textSecondary),
               ),
             ],
           ),
           const SizedBox(height: 6),
           const Text(
             'Chưa ghi nhận ngày nhận lương chu kỳ tới. Hãy cập nhật để số tiền "Còn để chi" phản ánh chính xác nhất từng ngày.',
-            style: TextStyle(
-              fontSize: 12,
-              color: _textSecondary,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 12, color: _textSecondary, height: 1.4),
           ),
           const SizedBox(height: 10),
           Row(
@@ -392,8 +383,11 @@ class HomeScreen extends ConsumerWidget {
                   color: _tealBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.account_balance_wallet_outlined,
-                    color: _teal, size: 16),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: _teal,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 8),
               const Text(
@@ -457,12 +451,15 @@ class HomeScreen extends ConsumerWidget {
           Consumer(
             builder: (ctx, ref, _) {
               final d = ref.watch(homeProvider).dashboardData;
+              // LỚP 1 = tổng số dư thật của các ví đang hoạt động (backend
+              // cộng `balance` của collection wallets).
               final bal = d?.totalBalance ?? 0;
               return Row(
                 children: [
-                  const Text(
-                    'LỚP 1: SỐ TIỀN HIỆN CÓ',
-                    style: TextStyle(
+                  Text(
+                    'LỚP 1: SỐ TIỀN HIỆN CÓ'
+                    '${(d?.walletCount ?? 0) > 0 ? ' · ${d!.walletCount} ví' : ''}',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: _textHint,
@@ -482,25 +479,23 @@ class HomeScreen extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.account_balance_wallet_outlined,
-                  size: 14, color: _textSecondary),
-              const SizedBox(width: 4),
-              const Text(
-                'Tiền mặt: 600k',
-                style: TextStyle(fontSize: 12, color: _textSecondary),
-              ),
-              const SizedBox(width: 16),
-              const Icon(Icons.account_balance_outlined,
-                  size: 14, color: _textSecondary),
-              const SizedBox(width: 4),
-              const Text(
-                'Tài khoản: 7.4M',
-                style: TextStyle(fontSize: 12, color: _textSecondary),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Consumer(
+            builder: (ctx, ref, _) {
+              final d = ref.watch(homeProvider).dashboardData;
+              final wallets = d?.walletBreakdown ?? const [];
+              if (wallets.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Text(
+                wallets
+                    .map((w) => '${w.name}: ${_fmtAmount(w.balance)}')
+                    .join(' • '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: _textSecondary),
+              );
+            },
           ),
         ],
       ),
@@ -514,99 +509,111 @@ class HomeScreen extends ConsumerWidget {
         color: _layer2Bg,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Consumer(
+        builder: (ctx, ref, _) {
+          final d = ref.watch(homeProvider).dashboardData;
+          // LỚP 2 = hóa đơn chưa trả (collection bill_occurrences)
+          //        + tiền quỹ bảo vệ (goal_allocations của goal protect=true).
+          // Backend tính cùng một nguồn với `available`, nên không trùng lặp.
+          final protectedMoney = d?.protectedMoney ?? 0;
+          final unpaidBills = d?.unpaidBills ?? 0;
+          final layer2Total = protectedMoney + unpaidBills;
+
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _textHint,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                '5.900.000 đ',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _layer2Amount,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Hóa đơn cố định:',
-                      style: TextStyle(fontSize: 11, color: _textSecondary),
-                    ),
-                    Text(
-                      '3.500.000 đ',
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'LỚP 2: KHOẢN ĐÃ BẢO VỆ & NGHĨA VỤ',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: _textPrimary,
+                        color: _textHint,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Quỹ dự phòng:',
-                      style: TextStyle(fontSize: 11, color: _textSecondary),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _fmtAmount(layer2Total),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _layer2Amount,
                     ),
-                    Text(
-                      '2.400.000 đ',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Hóa đơn cố định:',
+                          style: TextStyle(fontSize: 11, color: _textSecondary),
+                        ),
+                        Text(
+                          _fmtAmount(unpaidBills),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Quỹ dự phòng:',
+                          style: TextStyle(fontSize: 11, color: _textSecondary),
+                        ),
+                        Text(
+                          _fmtAmount(protectedMoney),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 13,
+                    color: _layer2Amount.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 5),
+                  const Expanded(
+                    child: Text(
+                      'Được khóa bảo vệ an toàn, không tính vào tiền tiêu',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _textPrimary,
+                        fontSize: 11,
+                        color: _textSecondary,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.lock_outline,
-                size: 13,
-                color: _layer2Amount.withValues(alpha: 0.7),
-              ),
-              const SizedBox(width: 5),
-              const Expanded(
-                child: Text(
-                  'Được khóa bảo vệ an toàn, không tính vào tiền tiêu',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _textSecondary,
-                    fontStyle: FontStyle.italic,
                   ),
-                ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -618,10 +625,17 @@ class HomeScreen extends ConsumerWidget {
         color: _layer3Bg,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Consumer(
+        builder: (ctx, ref, _) {
+          final d = ref.watch(homeProvider).dashboardData;
+          // LỚP 3 = Lớp 1 − Lớp 2. `available` do backend trả về theo đúng công
+          // thức total − protectedMoney − unpaidBills; fallback `spendable`
+          // dùng cùng công thức khi chưa có ngày lương kế tiếp.
+          final spendable = d?.spendable ?? 0;
+          final daily = d?.dailyLimit ?? 0;
+          final days = d?.daysRemaining;
+
+          return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Expanded(
@@ -640,10 +654,7 @@ class HomeScreen extends ConsumerWidget {
                     SizedBox(height: 4),
                     Text(
                       'Số tiền thực còn tự do sử dụng',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: _textSecondary),
                     ),
                   ],
                 ),
@@ -651,27 +662,26 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: const [
+                children: [
                   Text(
-                    '2.100.000 đ',
+                    _fmtAmount(spendable),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: _teal,
+                      color: spendable < 0 ? _layer2Amount : _teal,
                     ),
                   ),
                   Text(
-                    '≈ -150.000 đ/ngày',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _textSecondary,
-                    ),
+                    days != null && days > 0
+                        ? '≈ ${_fmtAmount(daily)}/ngày · $days ngày'
+                        : 'Chưa có ngày lương kế tiếp',
+                    style: const TextStyle(fontSize: 11, color: _textSecondary),
                   ),
                 ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -718,10 +728,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 Text(
                   'Xem khoản mua ảnh hưởng',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: _textSecondary),
                 ),
               ],
             ),
@@ -731,8 +738,7 @@ class HomeScreen extends ConsumerWidget {
           GestureDetector(
             onTap: () => context.go(AppConstants.smartSpendingRoute),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               decoration: BoxDecoration(
                 color: _tealDark,
                 borderRadius: BorderRadius.circular(10),
@@ -754,7 +760,15 @@ class HomeScreen extends ConsumerWidget {
 
   // ── Helpers ───────────────────────────────────────────────────────
   String _formatDate(DateTime d) {
-    const days = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+    const days = [
+      'Chủ nhật',
+      'Thứ hai',
+      'Thứ ba',
+      'Thứ tư',
+      'Thứ năm',
+      'Thứ sáu',
+      'Thứ bảy',
+    ];
     return '${days[d.weekday % 7]}, ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
@@ -766,12 +780,14 @@ class HomeScreen extends ConsumerWidget {
   }
 
   String _fmtAmount(double v) {
+    // Giữ dấu âm để Lớp 3 hiển thị đúng khi đã chi vượt khả năng.
+    final negative = v < 0;
     final str = v.abs().toInt().toString();
     final buf = StringBuffer();
     for (int i = 0; i < str.length; i++) {
       if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
       buf.write(str[i]);
     }
-    return '${buf.toString()} đ';
+    return '${negative ? '-' : ''}${buf.toString()} đ';
   }
 }

@@ -43,6 +43,9 @@ abstract class TransactionRemoteDataSource {
 
   /// Lấy danh sách danh mục
   Future<List<Map<String, dynamic>>> getCategories();
+
+  /// Lấy các kỳ ngân sách kèm số đã chi thật (dùng để chặn sớm trên client).
+  Future<List<Map<String, dynamic>>> getBudgets();
 }
 
 class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
@@ -173,6 +176,20 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
         }
+        return [];
+      },
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getBudgets() async {
+    final result = await _apiClient.get('/budgets');
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        final data = res['data'];
+        if (data is List) return data.cast<Map<String, dynamic>>();
         return [];
       },
     );

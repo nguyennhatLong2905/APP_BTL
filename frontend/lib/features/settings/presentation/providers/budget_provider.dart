@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../home/presentation/providers/home_provider.dart';
+import '../../../report/presentation/providers/report_provider.dart';
 import '../../data/datasources/budget_remote_data_source.dart';
 import '../../domain/models/category_budget.dart';
+import '../../domain/models/recurring_bill.dart';
 import '../../domain/models/savings_goal.dart';
 
 // ════════════════════════════════════════════════════════════════════
@@ -42,6 +45,14 @@ class BudgetState {
   final DateTime? planStartAt;
   final DateTime? planEndAt;
 
+  /// Ngưỡng cảnh báo (%) của kỳ ngân sách, người dùng chọn (mặc định 80).
+  final int planWarningPercent;
+
+  /// Hóa đơn định kỳ
+  final List<RecurringBill> bills;
+  final BillsSummary billsSummary;
+  final String billFilter; // 'Tất cả' | 'Chưa trả' | 'Đến hạn' | 'Quá hạn' | 'Đã trả'
+
   const BudgetState({
     this.totalBudget = 0,
     this.totalSpent = 0,
@@ -66,6 +77,10 @@ class BudgetState {
     this.planPeriodType,
     this.planStartAt,
     this.planEndAt,
+    this.planWarningPercent = 80,
+    this.bills = const [],
+    this.billsSummary = const BillsSummary(),
+    this.billFilter = 'Tất cả',
   });
 
   double get freeRemainingBalance => totalBudget - totalSpent;
@@ -101,6 +116,10 @@ class BudgetState {
     String? planPeriodType,
     DateTime? planStartAt,
     DateTime? planEndAt,
+    int? planWarningPercent,
+    List<RecurringBill>? bills,
+    BillsSummary? billsSummary,
+    String? billFilter,
   }) {
     return BudgetState(
       totalBudget: totalBudget ?? this.totalBudget,
@@ -126,6 +145,10 @@ class BudgetState {
       planPeriodType: planPeriodType ?? this.planPeriodType,
       planStartAt: planStartAt ?? this.planStartAt,
       planEndAt: planEndAt ?? this.planEndAt,
+      planWarningPercent: planWarningPercent ?? this.planWarningPercent,
+      bills: bills ?? this.bills,
+      billsSummary: billsSummary ?? this.billsSummary,
+      billFilter: billFilter ?? this.billFilter,
     );
   }
 }
@@ -150,6 +173,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         ds.getBudgets(),
         ds.getGoals(),
         ds.getBills(),
+        ds.getBillsScreen(),
       ]);
 
       final plans = results[0] as Map<String, dynamic>;
@@ -159,6 +183,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
       final goals = (results[2] as List).cast<Map<String, dynamic>>();
       final bills = (results[3] as List).cast<Map<String, dynamic>>();
+      final billsScreen = results[4] as Map<String, dynamic>;
 
       // Parse overview
       final overview = plans['overview'] as Map<String, dynamic>? ?? {};
@@ -203,8 +228,10 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
       final limits =
           (plan?['limits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final warningPercent =
+          ((plan?['warningPercent'] as num?) ?? 80).toInt();
       final cats = limits
-          .map((l) => _parseLimit(l, nameById, daysLeft))
+          .map((l) => _parseLimit(l, nameById, daysLeft, warningPercent))
           .toList();
 
       final totalBudget = cats.fold<double>(0, (s, c) => s + c.allocatedAmount);
@@ -239,6 +266,14 @@ class BudgetNotifier extends Notifier<BudgetState> {
         planPeriodType: plan?['periodType'] as String?,
         planStartAt: DateTime.tryParse(plan?['startAt'] as String? ?? ''),
         planEndAt: DateTime.tryParse(plan?['endAt'] as String? ?? ''),
+        planWarningPercent: warningPercent,
+        bills: ((billsScreen['bills'] as List?) ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map(RecurringBill.fromJson)
+            .toList(),
+        billsSummary: BillsSummary.fromJson(
+          billsScreen['summary'] as Map<String, dynamic>?,
+        ),
       );
     } catch (e) {
       state = state.copyWith(
@@ -250,6 +285,44 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
   void setActiveTab(String tab) => state = state.copyWith(activeTab: tab);
   void setFilterMode(String mode) => state = state.copyWith(filterMode: mode);
+
+  /// Ngưỡng cảnh báo của kỳ ngân sách (%), lưu ngay lên backend.
+  Future<String?> setWarningPercent(int percent) async {
+    final clamped = percent.clamp(1, 100).toInt();
+    state = state.copyWith(planWarningPercent: clamped);
+    if (state.planId == null) return null; // sẽ dùng khi tạo kỳ đầu tiên
+    return _saveToServer(state.categories);
+  }
+
+  /// Xóa một dòng ngân sách danh mục (đặt hạn mức về 0).
+  Future<String?> removeCategory(String id) async {
+    final updated =
+        state.categories.where((c) => c.id != id).toList(growable: false);
+    if (updated.isEmpty) {
+      // Không còn danh mục nào: xóa hẳn kỳ ngân sách.
+      return deleteBudget();
+    }
+    state = state.copyWith(
+      categories: updated,
+      totalBudget: updated.fold<double>(0, (s, c) => s + c.allocatedAmount),
+    );
+    return _saveToServer(updated);
+  }
+
+  /// Xóa kỳ ngân sách hiện tại. Chỉ xóa kế hoạch chi tiêu — không đụng số dư
+  /// ví, quỹ bảo vệ, hóa đơn hay giao dịch.
+  Future<String?> deleteBudget() async {
+    final id = state.planId;
+    if (id == null) return null;
+    try {
+      await ref.read(budgetRemoteDataSourceProvider).deleteBudget(id);
+      await loadAll();
+      return null;
+    } catch (e) {
+      await loadAll();
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
 
   /// Đổi hạn mức của 1 danh mục và lưu ngay lên backend
   Future<String?> updateCategoryAllocated(String id, double newAmount) async {
@@ -343,7 +416,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
       };
       if (targetAt != null) data['targetAt'] = _iso(targetAt);
       await ds.createGoalRaw(data);
-      await loadAll();
+      await _reloadAfterGoalChange();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -369,7 +442,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
       if (protect != null) data['protect'] = protect;
       if (data.isEmpty) return null;
       await ds.updateGoalPatch(goalId, data);
-      await loadAll();
+      await _reloadAfterGoalChange();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -393,7 +466,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         walletId: walletId,
         amount: amount.toInt().toString(),
       );
-      await loadAll();
+      await _reloadAfterGoalChange();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -447,6 +520,233 @@ class BudgetNotifier extends Notifier<BudgetState> {
     }).toList();
   }
 
+  // ── Hóa đơn định kỳ ────────────────────────────────────────────────
+
+  void setBillFilter(String filter) => state = state.copyWith(billFilter: filter);
+
+  /// Danh sách hóa đơn theo bộ lọc trạng thái đang chọn.
+  List<RecurringBill> get filteredBills {
+    switch (state.billFilter) {
+      case 'Chưa trả':
+        return state.bills.where((b) => b.status.isUnpaid).toList();
+      case 'Đến hạn':
+        return state.bills.where((b) => b.status == BillStatus.due).toList();
+      case 'Quá hạn':
+        return state.bills.where((b) => b.status == BillStatus.overdue).toList();
+      case 'Đã trả':
+        return state.bills.where((b) => b.status == BillStatus.paid).toList();
+      default:
+        return state.bills;
+    }
+  }
+
+  /// Tìm danh mục chi phù hợp từ tên gợi ý (tái sử dụng logic addCategory).
+  Future<String> _resolveExpenseCategoryId(String name) async {
+    final ds = ref.read(budgetRemoteDataSourceProvider);
+    final existing = await ds.getCategories();
+    final matched = existing.firstWhere(
+      (c) =>
+          (c['name'] as String?)?.toLowerCase().trim() ==
+              name.toLowerCase().trim() &&
+          c['kind'] == 'expense',
+      orElse: () => <String, dynamic>{},
+    );
+    if (matched.isNotEmpty) return matched['_id'] as String;
+    final created = await ds.createCategory(name: name, kind: 'expense');
+    return created['_id'] as String;
+  }
+
+  /// Tạo hóa đơn định kỳ. Trả về thông báo lỗi hoặc null nếu thành công.
+  Future<String?> createBill({
+    required String name,
+    required double amount,
+    required DateTime dueDate,
+    required BillFrequency frequency,
+    DateTime? startAt,
+    DateTime? endAt,
+    String? note,
+    int reminderDaysBefore = 3,
+    String? categoryName,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final categoryId = await _resolveExpenseCategoryId(
+        (categoryName == null || categoryName.trim().isEmpty)
+            ? name
+            : categoryName,
+      );
+      final start = startAt ?? dueDate;
+      final data = <String, dynamic>{
+        'name': name.trim(),
+        'estimatedAmount': amount.toInt().toString(),
+        'categoryId': categoryId,
+        'frequency': frequency.apiValue,
+        'startAt': _iso(start),
+        'reminderDaysBefore': reminderDaysBefore,
+      };
+      if (endAt != null) data['endAt'] = _iso(endAt);
+      if (note != null && note.trim().isNotEmpty) data['note'] = note.trim();
+      if (state.walletOptions.isNotEmpty) {
+        data['preferredWalletId'] = state.walletOptions.first.id;
+      }
+      await ds.createRecurringBill(data);
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Cập nhật hóa đơn định kỳ.
+  Future<String?> updateBill({
+    required String id,
+    String? name,
+    double? amount,
+    DateTime? dueDate,
+    BillFrequency? frequency,
+    DateTime? startAt,
+    DateTime? endAt,
+    bool clearEndAt = false,
+    String? note,
+    int? reminderDaysBefore,
+    String? categoryName,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final data = <String, dynamic>{};
+      if (name != null) data['name'] = name.trim();
+      if (amount != null) data['estimatedAmount'] = amount.toInt().toString();
+      if (frequency != null) data['frequency'] = frequency.apiValue;
+      if (categoryName != null && categoryName.trim().isNotEmpty) {
+        data['categoryId'] = await _resolveExpenseCategoryId(categoryName);
+      }
+      if (startAt != null || dueDate != null) {
+        data['startAt'] = _iso(startAt ?? dueDate!);
+      }
+      if (clearEndAt) {
+        // Backend dùng $set với endAt; gửi null để bỏ hạn.
+        data['endAt'] = null;
+      } else if (endAt != null) {
+        data['endAt'] = _iso(endAt);
+      }
+      if (note != null) data['note'] = note.trim();
+      if (reminderDaysBefore != null) {
+        data['reminderDaysBefore'] = reminderDaysBefore;
+      }
+      if (data.isEmpty) return null;
+      await ds.updateRecurringBill(id, data);
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Xóa một kỳ hóa đơn chưa thanh toán.
+  Future<String?> deleteBill(String billId) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.deleteBill(billId);
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Ngừng hóa đơn định kỳ (hủy các kỳ tương lai chưa trả).
+  Future<String?> stopBillTemplate(String templateId) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.stopRecurringBill(templateId);
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Xem trước tác động thanh toán lên 3 lớp.
+  Future<BillPayPreview?> previewBillPayment(
+    String billId, {
+    String? amount,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final data = await ds.previewBillPayment(billId, amount: amount);
+      return BillPayPreview.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Lấy giao dịch chi có thể liên kết.
+  Future<List<BillCandidateTransaction>> billCandidates(
+    String billId, {
+    String? search,
+  }) async {
+    final ds = ref.read(budgetRemoteDataSourceProvider);
+    final rows = await ds.getBillCandidateTransactions(billId, search: search);
+    return rows.map(BillCandidateTransaction.fromJson).toList();
+  }
+
+  /// Thanh toán hóa đơn bằng một giao dịch chi mới.
+  Future<String?> settleBill({
+    required String billId,
+    required String walletId,
+    required String occurredAt,
+    String? amount,
+    String? note,
+    bool allowNegativeAvailable = false,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.settleBill(
+        id: billId,
+        walletId: walletId,
+        occurredAt: occurredAt,
+        amount: amount,
+        note: note,
+        allowNegativeAvailable: allowNegativeAvailable,
+      );
+      _invalidateFinancialData();
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  /// Liên kết hóa đơn với giao dịch chi đã có (không tạo giao dịch mới).
+  Future<String?> linkBillToTransaction({
+    required String billId,
+    required String transactionId,
+    required int expectedVersion,
+  }) async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      await ds.linkBill(billId: billId, transactionId: transactionId, expectedVersion: expectedVersion);
+      _invalidateFinancialData();
+      await loadAll();
+      return null;
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+  }
+
+  void _invalidateFinancialData() {
+    // loadAll() đã làm mới budget; cần làm mới Tổng quan và Giao dịch.
+    ref.invalidate(homeProvider);
+    ref.invalidate(reportProvider);
+  }
+
+  /// Mọi thay đổi mục tiêu (tạo/sửa/bảo vệ/phân bổ) đều ảnh hưởng quỹ bảo vệ
+  /// nên Tổng quan phải được tính lại ngay.
+  Future<void> _reloadAfterGoalChange() async {
+    _invalidateFinancialData();
+    await loadAll();
+  }
+
   // ── Persist ────────────────────────────────────────────────────────
 
   /// Ghi toàn bộ danh mục ngân sách lên backend.
@@ -474,6 +774,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
           startAt: range.$1,
           endAt: range.$2,
           limits: limits,
+          warningPercent: state.planWarningPercent,
         );
       } else {
         final start =
@@ -488,6 +789,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
           startAt: _iso(start),
           endAt: _iso(end),
           limits: limits,
+          warningPercent: state.planWarningPercent,
         );
       }
 
@@ -563,21 +865,33 @@ class BudgetNotifier extends Notifier<BudgetState> {
     Map<String, dynamic> raw,
     Map<String, String> nameById,
     int daysLeft,
+    int warningPercent,
   ) {
     final categoryId =
         raw['categoryId'] as String? ?? raw['_id'] as String? ?? '';
     final name = nameById[categoryId] ?? (raw['name'] as String? ?? 'Khác');
+    // Số đã chi lấy trực tiếp từ backend (tổng giao dịch chi thật trong kỳ).
     final limitAmount = _toDouble(raw['limit'] ?? raw['limitAmount'] ?? 0);
-    final spentAmount =
-        _toDouble(raw['spent'] ?? raw['spentAmount'] ?? 0);
-
-    final isNear = limitAmount > 0 && (spentAmount / limitAmount) >= 0.8;
+    final spentAmount = _toDouble(raw['spent'] ?? raw['spentAmount'] ?? 0);
+    final percentRaw = raw['percent'];
+    final percent = percentRaw is num
+        ? percentRaw.round()
+        : (limitAmount > 0
+            ? ((spentAmount / limitAmount) * 100).round()
+            : 0);
+    final locked = raw['locked'] as bool? ?? spentAmount >= limitAmount;
     final remaining = limitAmount - spentAmount;
-    final warning = isNear && daysLeft > 0
-        ? 'Gần chạm mức: còn ${_fmt(remaining)} cho $daysLeft ngày'
-        : isNear
-            ? 'Gần chạm mức: còn ${_fmt(remaining)}'
-            : null;
+
+    String? warning;
+    if (spentAmount > limitAmount) {
+      warning = 'Đã vượt hạn mức ${_fmt(spentAmount - limitAmount)}';
+    } else if (spentAmount >= limitAmount) {
+      warning = 'Đã dùng hết hạn mức danh mục này';
+    } else if (percent >= warningPercent) {
+      warning = daysLeft > 0
+          ? 'Sắp chạm ngưỡng $warningPercent%: còn ${_fmt(remaining)} cho $daysLeft ngày'
+          : 'Sắp chạm ngưỡng $warningPercent%: còn ${_fmt(remaining)}';
+    }
 
     return CategoryBudget(
       id: categoryId,
@@ -587,6 +901,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       allocatedAmount: limitAmount,
       spentAmount: spentAmount,
       warningMessage: warning,
+      warningPercent: warningPercent,
+      locked: locked,
+      percent: percent,
     );
   }
 

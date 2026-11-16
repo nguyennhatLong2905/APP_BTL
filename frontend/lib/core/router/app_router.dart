@@ -10,10 +10,12 @@ import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/s
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/splash_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/screens/home_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/timeline_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/reflection_history_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/report/presentation/screens/report_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/budget_planning_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/language_settings_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/settings_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/settings/presentation/screens/data_management_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/transaction/presentation/screens/add_transaction_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/screens/create_wallet_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/wallet/presentation/screens/smart_spending_screen.dart';
@@ -117,6 +119,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'timeline',
         builder: (context, state) => const TimelineScreen(),
       ),
+      GoRoute(
+        path: AppConstants.reflectionHistoryRoute,
+        name: 'reflectionHistory',
+        builder: (context, state) => const ReflectionHistoryScreen(),
+      ),
 
       // ============================================================
       // Auth & Settings routes
@@ -140,6 +147,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppConstants.languageSettingsRoute,
         name: 'language_settings',
         builder: (context, state) => const LanguageSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/data-management',
+        name: 'data_management',
+        builder: (context, state) => const DataManagementScreen(),
       ),
       GoRoute(
         path: AppConstants.profileRoute,

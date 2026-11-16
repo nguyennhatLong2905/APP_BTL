@@ -11,6 +11,7 @@ import {
   bounds,
   daysBetween,
   json,
+  escapeRegex,
 } from "./common.js";
 import * as S from "./schemas.js";
 import { createEntry, changeEntry, applyImpacts, notify } from "./ledger.js";
@@ -22,12 +23,36 @@ import {
   listEntries,
 } from "./views.js";
 import { budgetAlerts } from "./signals.js";
+import { reconcilePlanSpend } from "./budget-limit.js";
 import { generateBills } from "./jobs.js";
 
 export function financeRoutes(app, ctx, r) {
   const db = ctx.db;
   const ownedList = (col, userId, session) =>
     db.collection(col).find({ userId }, { session }).toArray();
+  /**
+   * Không cho hai ví cùng người dùng trùng tên (không phân biệt hoa/thường,
+   * bỏ khoảng trắng thừa). Bỏ qua ví đã lưu trữ và chính ví đang sửa.
+   */
+  async function assertWalletNameFree(userId, name, exceptId, session) {
+    const value = String(name ?? "").trim();
+    fail(value.length > 0, "INVALID_NAME", "Tên ví không được để trống.", 422);
+    const duplicate = await db.collection("wallets").findOne(
+      {
+        userId,
+        status: "active",
+        ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+        name: { $regex: "^" + escapeRegex(value) + "$", $options: "i" },
+      },
+      { session },
+    );
+    fail(
+      !duplicate,
+      "DUPLICATE_WALLET_NAME",
+      `Bạn đã có ví tên "${duplicate?.name ?? value}". Chọn tên khác.`,
+      409,
+    );
+  }
   r("GET", "/wallets", { tag: "Wallets", summary: "Danh sách ví" }, (req) =>
     ownedList("wallets", req.owner),
   );
@@ -48,9 +73,11 @@ export function financeRoutes(app, ctx, r) {
         "Ngày bắt đầu không được ở tương lai.",
         422,
       );
+      await assertWalletNameFree(req.owner, b.name, null, session);
       const w = {
         ...base(req.owner),
         ...b,
+        name: b.name.trim(),
         openingAt: new Date(b.openingAt),
         openingBalance: L(b.openingBalance),
         balance: L(b.openingBalance),
@@ -76,6 +103,10 @@ export function financeRoutes(app, ctx, r) {
     },
     async (req, reply, session) => {
       const w = await owned(db, "wallets", req.owner, req.params.id, session);
+      if (req.input.name !== undefined) {
+        await assertWalletNameFree(req.owner, req.input.name, w._id, session);
+        req.input.name = req.input.name.trim();
+      }
       if (req.input.status === "archived") {
         fail(
           B(w.balance) === 0n,
@@ -360,6 +391,8 @@ export function financeRoutes(app, ctx, r) {
       await db
         .collection("budget_plans")
         .replaceOne({ _id: p._id, userId: req.owner }, updated, { session });
+      // Tăng hạn mức phải mở khóa ngay: đồng bộ bộ đếm theo số đã chi thực tế.
+      await reconcilePlanSpend(db, req.owner, updated, session);
       await budgetAlerts(db, req.owner, session);
       return budgetView(db, req.owner, updated, session);
     },
@@ -396,6 +429,41 @@ export function financeRoutes(app, ctx, r) {
           { session },
         );
       return { closed: true };
+    },
+  );
+  r(
+    "DELETE",
+    "/budgets/:id",
+    {
+      write: true,
+      tag: "Plans",
+      summary: "Xóa kỳ ngân sách (không ảnh hưởng ví hay giao dịch)",
+    },
+    async (req, reply, session) => {
+      const p = await owned(
+        db,
+        "budget_plans",
+        req.owner,
+        req.params.id,
+        session,
+      );
+      // Xóa kế hoạch chi tiêu. Đây chỉ là kế hoạch kiểm soát chi, không phải
+      // tiền: không đụng số dư ví, quỹ bảo vệ, hóa đơn hay giao dịch.
+      await db
+        .collection("budget_plans")
+        .deleteOne({ _id: p._id, userId: req.owner }, { session });
+      await db
+        .collection("budget_spend")
+        .deleteMany({ userId: req.owner, planId: p._id }, { session });
+      await db.collection("notifications").deleteMany(
+        {
+          userId: req.owner,
+          entityId: p._id,
+          type: "budget_warning",
+        },
+        { session },
+      );
+      return { deleted: true };
     },
   );
   r(
@@ -567,6 +635,7 @@ export function financeRoutes(app, ctx, r) {
         reminderDaysBefore: I(b.reminderDaysBefore),
         active: true,
       };
+      if (b.endAt) t.endAt = new Date(b.endAt);
       if (b.preferredWalletId) t.preferredWalletId = oid(b.preferredWalletId);
       await db.collection("bill_templates").insertOne(t, { session });
       await generateBills(db, req.owner, session);
@@ -742,7 +811,7 @@ export function financeRoutes(app, ctx, r) {
         req.params.id,
         session,
       );
-      return createEntry(
+      const t = await createEntry(
         db,
         req.owner,
         {
@@ -757,6 +826,19 @@ export function financeRoutes(app, ctx, r) {
         req.headers["idempotency-key"],
         session,
       );
+      await db.collection("bill_occurrences").updateOne(
+        { _id: bill._id, userId: req.owner },
+        {
+          $set: {
+            paidAmount: t.amount,
+            paymentMethod: "new_transaction",
+            updatedAt: now(),
+          },
+        },
+        { session },
+      );
+      await generateBills(db, req.owner, session);
+      return t;
     },
   );
   r(
@@ -820,6 +902,8 @@ export function financeRoutes(app, ctx, r) {
               status: "paid",
               transactionId: t._id,
               paidAt: t.occurredAt,
+              paidAmount: t.amount,
+              paymentMethod: "linked_transaction",
               updatedAt: now(),
             },
           },

@@ -24,14 +24,14 @@ class Transaction {
 
 /// Enum icon cho giao dịch
 enum TransactionIcon {
-  food,       // Ăn uống
-  transport,  // Di chuyển
-  shopping,   // Mua sắm
-  health,     // Sức khỏe
+  food, // Ăn uống
+  transport, // Di chuyển
+  shopping, // Mua sắm
+  health, // Sức khỏe
   entertainment, // Giải trí
-  salary,     // Lương
-  transfer,   // Chuyển khoản
-  other,      // Khác
+  salary, // Lương
+  transfer, // Chuyển khoản
+  other, // Khác
 }
 
 /// Model cho dữ liệu chi tiêu theo tuần (dùng cho chart)
@@ -69,6 +69,19 @@ class UpcomingBill {
   }
 }
 
+/// Số dư một ví — dùng hiển thị chi tiết Lớp 1.
+class WalletBalance {
+  final String id;
+  final String name;
+  final double balance;
+
+  const WalletBalance({
+    required this.id,
+    required this.name,
+    required this.balance,
+  });
+}
+
 /// Model tổng hợp cho Dashboard
 class DashboardData {
   final double totalBalance;
@@ -83,6 +96,9 @@ class DashboardData {
   final List<UpcomingBill> upcomingBills;
   final List<WeeklySpending> weeklyData;
 
+  /// Chi tiết số dư từng ví đang hoạt động (Lớp 1).
+  final List<WalletBalance> walletBreakdown;
+
   const DashboardData({
     required this.totalBalance,
     required this.totalIncome,
@@ -95,12 +111,19 @@ class DashboardData {
     required this.recentTransactions,
     this.upcomingBills = const [],
     required this.weeklyData,
+    this.walletBreakdown = const [],
   });
 
   /// Số tiền còn được chi = available (đã trừ bảo vệ + hóa đơn),
   /// fallback tự tính nếu backend không trả.
   double get spendable =>
       available ?? (totalBalance - protectedMoney - unpaidBills);
+
+  /// Số ví đang hoạt động.
+  int get walletCount => walletBreakdown.length;
+
+  /// Tổng của Lớp 2 = hóa đơn chưa trả + quỹ bảo vệ.
+  double get obligations => protectedMoney + unpaidBills;
 
   /// Hạn mức mỗi ngày
   double get dailyLimit {

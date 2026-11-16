@@ -39,6 +39,9 @@ abstract class BudgetRemoteDataSource {
   });
   Future<void> closeBudget(String id);
 
+  /// Xóa hẳn một kỳ ngân sách (chỉ xóa kế hoạch, không đụng ví/giao dịch).
+  Future<void> deleteBudget(String id);
+
   // Goals
   Future<List<Map<String, dynamic>>> getGoals();
   Future<Map<String, dynamic>> createGoal({
@@ -106,6 +109,55 @@ abstract class BudgetRemoteDataSource {
     required String billId,
     required String transactionId,
     required int expectedVersion,
+  });
+
+  // ── Hóa đơn định kỳ (feature) ──────────────────────────────────────
+
+  /// GET /screens/bills — tổng quan 3 lớp + danh sách hóa đơn + summary.
+  Future<Map<String, dynamic>> getBillsScreen();
+
+  /// POST /bill-templates với payload đầy đủ (chu kỳ, ngày bắt đầu/kết thúc…).
+  Future<Map<String, dynamic>> createRecurringBill(Map<String, dynamic> data);
+
+  /// PUT /bill-templates/:id — cập nhật toàn bộ định nghĩa hóa đơn định kỳ.
+  Future<Map<String, dynamic>> updateRecurringBill(
+    String id,
+    Map<String, dynamic> data,
+  );
+
+  /// POST /bill-templates/:id/stop — ngừng định kỳ.
+  Future<void> stopRecurringBill(String id, {bool cancelFutureUnpaid = true});
+
+  /// DELETE /bills/:id — xóa một kỳ hóa đơn chưa thanh toán.
+  Future<void> deleteBill(String id);
+
+  /// POST /bills/:id/pay-preview — xem tác động 3 lớp trước khi trả.
+  Future<Map<String, dynamic>> previewBillPayment(
+    String id, {
+    String? amount,
+  });
+
+  /// POST /bills/:id/settle — thanh toán bằng giao dịch chi mới (idempotent).
+  Future<Map<String, dynamic>> settleBill({
+    required String id,
+    required String walletId,
+    required String occurredAt,
+    String? amount,
+    String? note,
+    bool allowNegativeAvailable = false,
+  });
+
+  /// POST /bills/:id/link — liên kết giao dịch chi đã có.
+  Future<Map<String, dynamic>> linkBill({
+    required String billId,
+    required String transactionId,
+    required int expectedVersion,
+  });
+
+  /// GET /bills/:id/candidate-transactions — giao dịch chi có thể liên kết.
+  Future<List<Map<String, dynamic>>> getBillCandidateTransactions(
+    String billId, {
+    String? search,
   });
 }
 
@@ -236,6 +288,15 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
   @override
   Future<void> closeBudget(String id) async {
     final result = await _apiClient.post('/budgets/$id/close');
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
+    );
+  }
+
+  @override
+  Future<void> deleteBudget(String id) async {
+    final result = await _apiClient.delete('/budgets/$id');
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,
@@ -513,6 +574,156 @@ class BudgetRemoteDataSourceImpl implements BudgetRemoteDataSource {
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,
+    );
+  }
+
+  // ── Hóa đơn định kỳ ─────────────────────────────────────────────────
+
+  @override
+  Future<Map<String, dynamic>> getBillsScreen() async {
+    final result = await _apiClient.get('/screens/bills');
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        return body['data'] as Map<String, dynamic>? ?? body;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> createRecurringBill(
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _apiClient.post('/bill-templates', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateRecurringBill(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _apiClient.put('/bill-templates/$id', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<void> stopRecurringBill(
+    String id, {
+    bool cancelFutureUnpaid = true,
+  }) async {
+    final result = await _apiClient.post('/bill-templates/$id/stop', data: {
+      'cancelFutureUnpaid': cancelFutureUnpaid,
+    });
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
+    );
+  }
+
+  @override
+  Future<void> deleteBill(String id) async {
+    final result = await _apiClient.delete('/bills/$id');
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> previewBillPayment(
+    String id, {
+    String? amount,
+  }) async {
+    final data = <String, dynamic>{};
+    if (amount != null) data['amount'] = amount;
+    final result = await _apiClient.post('/bills/$id/pay-preview', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> settleBill({
+    required String id,
+    required String walletId,
+    required String occurredAt,
+    String? amount,
+    String? note,
+    bool allowNegativeAvailable = false,
+  }) async {
+    final data = <String, dynamic>{
+      'walletId': walletId,
+      'occurredAt': occurredAt,
+      'allowNegativeAvailable': allowNegativeAvailable,
+    };
+    if (amount != null) data['amount'] = amount;
+    if (note != null && note.isNotEmpty) data['note'] = note;
+    final result = await _apiClient.post('/bills/$id/settle', data: data);
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> linkBill({
+    required String billId,
+    required String transactionId,
+    required int expectedVersion,
+  }) async {
+    final result = await _apiClient.post('/bills/$billId/link', data: {
+      'transactionId': transactionId,
+      'expectedVersion': expectedVersion,
+    });
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        return res['data'] as Map<String, dynamic>? ?? res;
+      },
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getBillCandidateTransactions(
+    String billId, {
+    String? search,
+  }) async {
+    final params = <String, dynamic>{};
+    if (search != null && search.trim().isNotEmpty) params['search'] = search;
+    final result = await _apiClient.get(
+      '/bills/$billId/candidate-transactions',
+      queryParameters: params,
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (body) {
+        final res = body as Map<String, dynamic>;
+        final d = res['data'];
+        if (d is List) return d.cast<Map<String, dynamic>>();
+        return [];
+      },
     );
   }
 }

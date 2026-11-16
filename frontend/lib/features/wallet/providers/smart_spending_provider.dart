@@ -83,8 +83,7 @@ class SmartSpendingNotifier extends Notifier<SmartSpendingState> {
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final result = await ds.simulatePurchase(
-        amount: state.itemAmount,
-        itemName: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
+        price: state.itemAmount.toString(),
       );
       state = state.copyWith(isSimulating: false, simulationResult: result);
     } catch (e) {
@@ -100,8 +99,9 @@ class SmartSpendingNotifier extends Notifier<SmartSpendingState> {
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final result = await ds.getRecommendations(
-        budget: state.itemAmount,
-        itemName: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
+        question: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
+        options: [],
+        minimumDaily: state.itemAmount.toString(),
       );
       state = state.copyWith(isSimulating: false, recommendations: result);
     } catch (e) {

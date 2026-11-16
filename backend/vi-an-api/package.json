@@ -14,6 +14,9 @@
     "db:seed": "node --env-file=.env scripts/init-db.js --seed",
     "test": "node --test test/*.test.js",
     "test:integration": "node --test test/integration.js",
+    "test:bills": "node --test test/bills.integration.js",
+    "test:wallet-name": "node --test test/wallet-name.integration.js",
+    "test:budget": "node --test test/budget-limit.integration.js",
     "docs:export": "node scripts/export-openapi.js",
     "frontend:example": "node scripts/frontend-example.js"
   },

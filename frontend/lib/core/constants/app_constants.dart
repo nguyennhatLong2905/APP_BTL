@@ -39,6 +39,7 @@ class AppConstants {
   static const String smartSpendingRoute = '/smart-spending';   // Mua Hay Chờ
   static const String budgetPlanningRoute = '/budget-planning'; // Kế Hoạch Chi Tiêu
   static const String timelineRoute = '/timeline';       // Nhìn Lại Nhật Ký
+  static const String reflectionHistoryRoute = '/timeline/history'; // Nhật ký đã đánh giá
 
   // Shared/Settings
   static const String settingsRoute = '/settings';

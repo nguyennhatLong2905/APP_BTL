@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../domain/models/timeline_item.dart';
 
+import '../../domain/models/review_analytics.dart';
+import '../../domain/models/timeline_item.dart';
+import '../providers/timeline_provider.dart';
+
+final _money = NumberFormat('#,###', 'vi_VN');
+
+/// Card một khoản chi trong "Nhật ký Đáng tiền".
+///
+/// Nhật ký được ghi nhận tự động từ giao dịch thật, nên card không có thao tác
+/// thêm/xác nhận theo dõi. Người dùng chỉ chọn một trong bốn lựa chọn: Đáng
+/// tiền / Bình thường / Muốn cân nhắc lại / Bỏ qua. Khi chưa đủ 7 ngày, card
+/// hiển thị đếm ngược và vẫn cho phép đánh giá sớm.
 class ReflectionTransactionCard extends StatefulWidget {
-  final TimelineItem item;
+  final JournalEntry entry;
   final ValueChanged<EmotionRating> onRatingSelected;
-  final ValueChanged<String> onSaveComment;
+  final void Function(EmotionRating? rating, String note) onSave;
+  final VoidCallback? onSkip;
+  final bool isSaving;
 
   const ReflectionTransactionCard({
     super.key,
-    required this.item,
+    required this.entry,
     required this.onRatingSelected,
-    required this.onSaveComment,
+    required this.onSave,
+    this.onSkip,
+    this.isSaving = false,
   });
 
   @override
@@ -26,7 +41,18 @@ class _ReflectionTransactionCardState
   @override
   void initState() {
     super.initState();
-    _commentController = TextEditingController(text: widget.item.comment ?? '');
+    _commentController = TextEditingController(text: widget.entry.note ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant ReflectionTransactionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Đồng bộ khi provider nạp lại dữ liệu từ server.
+    final incoming = widget.entry.note ?? '';
+    if (incoming != _commentController.text &&
+        !_commentController.selection.isValid) {
+      _commentController.text = incoming;
+    }
   }
 
   @override
@@ -37,8 +63,9 @@ class _ReflectionTransactionCardState
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat('#,###', 'vi_VN');
-    final selectedRating = widget.item.rating ?? EmotionRating.worthIt;
+    final entry = widget.entry;
+    final selectedRating = _ratingFromApi(entry.rating);
+    final isAwaiting = entry.isAwaitingReview;
 
     return Card(
       elevation: 0,
@@ -54,12 +81,12 @@ class _ReflectionTransactionCardState
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: widget.item.iconBgColor,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC2F0E6),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    widget.item.icon,
+                    billCategoryIcon(entry.categoryLabel),
                     color: const Color(0xFF0F5B47),
                     size: 20,
                   ),
@@ -70,7 +97,7 @@ class _ReflectionTransactionCardState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.item.title,
+                        entry.title,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -78,7 +105,7 @@ class _ReflectionTransactionCardState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        widget.item.dateText,
+                        '${entry.categoryLabel} • ${entry.dateText}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,
@@ -88,7 +115,7 @@ class _ReflectionTransactionCardState
                   ),
                 ),
                 Text(
-                  '-${currencyFormatter.format(widget.item.amount)} ₫',
+                  '-${_money.format(entry.amount)} ₫',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -97,47 +124,76 @@ class _ReflectionTransactionCardState
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isAwaiting
+                    ? const Color(0xFFE2F6F0)
+                    : const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                isAwaiting
+                    ? 'Đã đủ 7 ngày — mời bạn đánh giá trải nghiệm mua sắm.'
+                    : '${entry.countdownLabel}; bạn vẫn có thể ghi cảm nhận sớm.',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: isAwaiting
+                      ? const Color(0xFF0F5B47)
+                      : const Color(0xFFB45309),
+                ),
+              ),
+            ),
             const SizedBox(height: 14),
 
-            // 3 Rating Buttons
             Row(
               children: [
                 Expanded(
-                  child: _buildRatingButton(
-                    rating: EmotionRating.worthIt,
-                    selectedRating: selectedRating,
-                    label: 'Rất đáng tiền',
+                  child: _RatingButton(
+                    selected: selectedRating,
+                    label: 'Đáng tiền',
                     icon: '❤',
+                    onTap: widget.isSaving
+                        ? null
+                        : () => widget.onRatingSelected(EmotionRating.worthIt),
                   ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: _buildRatingButton(
-                    rating: EmotionRating.normal,
-                    selectedRating: selectedRating,
+                  child: _RatingButton(
+                    selected: selectedRating,
                     label: 'Bình thường',
                     icon: '🙂',
+                    onTap: widget.isSaving
+                        ? null
+                        : () => widget.onRatingSelected(EmotionRating.normal),
                   ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: _buildRatingButton(
-                    rating: EmotionRating.considerAgain,
-                    selectedRating: selectedRating,
-                    label: 'Cần cân nhắc',
+                  child: _RatingButton(
+                    selected: selectedRating,
+                    label: 'Muốn cân nhắc lại',
                     icon: '🔴',
+                    onTap: widget.isSaving
+                        ? null
+                        : () => widget.onRatingSelected(
+                            EmotionRating.considerAgain),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
-            // Comment textfield
             TextField(
               controller: _commentController,
+              enabled: !widget.isSaving,
+              maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'Chia sẻ ngắn lý do bạn thấy đáng...',
-                hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                hintStyle:
+                    TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true,
@@ -151,12 +207,11 @@ class _ReflectionTransactionCardState
             ),
             const SizedBox(height: 12),
 
-            // Bottom actions
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
-                  onPressed: () {},
+                  onPressed: widget.isSaving ? null : widget.onSkip,
                   child: Text(
                     'Bỏ qua không đánh giá',
                     style: TextStyle(
@@ -166,26 +221,36 @@ class _ReflectionTransactionCardState
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    widget.onSaveComment(_commentController.text.trim());
-                  },
+                  onPressed: widget.isSaving
+                      ? null
+                      : () => widget.onSave(
+                            selectedRating,
+                            _commentController.text.trim(),
+                          ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F5B47),
                     foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    widget.item.isSaved ? 'Đã lưu' : 'Lưu cảm nhận',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: widget.isSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          selectedRating == null ? 'Lưu cảm nhận' : 'Lưu đánh giá',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -195,16 +260,39 @@ class _ReflectionTransactionCardState
     );
   }
 
-  Widget _buildRatingButton({
-    required EmotionRating rating,
-    required EmotionRating selectedRating,
-    required String label,
-    required String icon,
-  }) {
-    final isSelected = selectedRating == rating;
+  static EmotionRating? _ratingFromApi(String? raw) {
+    switch (raw) {
+      case 'worth_it':
+        return EmotionRating.worthIt;
+      case 'neutral':
+        return EmotionRating.normal;
+      case 'reconsider':
+        return EmotionRating.considerAgain;
+      default:
+        return null;
+    }
+  }
+}
 
+class _RatingButton extends StatelessWidget {
+  final EmotionRating? selected;
+  final String label;
+  final String icon;
+  final VoidCallback? onTap;
+
+  const _RatingButton({
+    required this.selected,
+    required this.label,
+    required this.icon,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = selected != null;
     return InkWell(
-      onTap: () => widget.onRatingSelected(rating),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
@@ -213,13 +301,11 @@ class _ReflectionTransactionCardState
         ),
         child: Column(
           children: [
-            Text(
-              icon,
-              style: const TextStyle(fontSize: 14),
-            ),
+            Text(icon, style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 2),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

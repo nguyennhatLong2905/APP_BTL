@@ -1,6 +1,7 @@
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 import { ObjectId, Long, Int32 } from "mongodb";
+import { backfillReflections } from "./ledger.js";
 export async function initialize(db, { seed = false } = {}) {
   const commands = [];
   const fake = new Proxy(
@@ -99,4 +100,8 @@ export async function initialize(db, { seed = false } = {}) {
     for (const [op, name, docs] of commands)
       if (op === "insert") await db.collection(name).insertMany(docs);
   }
+  // Nhật ký Đáng tiền là cơ chế tự động: bổ sung bản ghi cho mọi giao dịch chi
+  // đã tồn tại (dữ liệu cũ, dữ liệu nhập CSV, khôi phục bản sao). Idempotent.
+  for await (const user of db.collection("users").find({}, { projection: { _id: 1 } }))
+    await backfillReflections(db, user._id);
 }

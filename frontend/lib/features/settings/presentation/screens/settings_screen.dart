@@ -114,6 +114,41 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
+          // ── Quản lý dữ liệu ───────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE3EFEC)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push('/settings/data-management'),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage_rounded, size: 20, color: _teal),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Quản lý dữ liệu',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w500,
+                          color: _textPrimary,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
           // ── Đăng xuất ─────────────────────────────────────────
           Container(
             decoration: BoxDecoration(
