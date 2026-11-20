@@ -25,8 +25,7 @@ Dio dio(Ref ref) {
   dio.options.sendTimeout = const Duration(milliseconds: 10000);
   dio.options.headers = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Accept-Encoding': 'gzip, deflate', // Bật compression
+    'Accept': 'application/json', // Bật compression
   };
   // Connection pooling - tái sử dụng kết nối
   dio.options.persistentConnection = true;

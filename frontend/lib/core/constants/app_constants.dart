@@ -2,7 +2,7 @@ class AppConstants {
   // API constants (will be configured per environment in Stage 3)
   static const String devBaseUrlAndroid = 'http://10.0.2.2:3000/api/v1';
   static const String devBaseUrlIOS = 'http://127.0.0.1:3000/api/v1';
-  static const String prodBaseUrl = 'https://api.expensetracker.com/api/v1';
+  static const String prodBaseUrl = 'https://vi-an-api.vercel.app/api/v1';
 
   // Storage constants
   static const String tokenKey = 'authToken';

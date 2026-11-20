@@ -32,11 +32,23 @@ export async function buildApp(ctx, config = {}) {
     encodings: ['gzip', 'deflate'],
   });
   
-  await app.register(cors, {
-    origin: true, // Cho phép mọi origin để tiện test local web
-    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "Accept"],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  });
+
+await app.register(cors, {
+  origin: [
+    "https://vi-an-web.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5000",
+  ],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Idempotency-Key",
+    "Accept",
+    "retry_attempt",
+  ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+});
+
   await app.register(jwt, {
     secret: config.jwtSecret || "documentation-only-not-for-running-server",
   });
