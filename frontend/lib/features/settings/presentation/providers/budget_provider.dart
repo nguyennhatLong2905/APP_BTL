@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../home/presentation/providers/home_provider.dart';
 import '../../../report/presentation/providers/report_provider.dart';
+import '../../../transaction/providers/transaction_provider.dart';
 import '../../data/datasources/budget_remote_data_source.dart';
 import '../../domain/models/category_budget.dart';
 import '../../domain/models/recurring_bill.dart';
@@ -283,6 +284,138 @@ class BudgetNotifier extends Notifier<BudgetState> {
     }
   }
 
+  /// Chỉ tải lại ngân sách & số đã chi — không reload mục tiêu hay hóa đơn
+  Future<void> loadBudgetsOnly() async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final budgets = await ds.getBudgets();
+      final plan = budgets.isNotEmpty ? budgets.first : null;
+      if (plan == null) {
+        state = state.copyWith(
+          categories: const [],
+          totalBudget: 0,
+          totalSpent: 0,
+          cycleStatus: '--',
+          planId: null,
+        );
+        return;
+      }
+      final limits =
+          (plan['limits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final nameById = {
+        for (final c in state.categories) c.id: c.name,
+      };
+      final warningPercent =
+          ((plan['warningPercent'] as num?) ?? state.planWarningPercent).toInt();
+      final cats = limits
+          .map((l) => _parseLimit(l, nameById, state.daysLeft, warningPercent))
+          .toList();
+
+      final totalBudget = cats.fold<double>(0, (s, c) => s + c.allocatedAmount);
+      final totalSpent = cats.fold<double>(0, (s, c) => s + c.spentAmount);
+
+      final pct = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
+      final cycleStatus = pct < 0.6
+          ? 'Rất an tâm'
+          : pct < 0.8
+              ? 'Cần chú ý'
+              : 'Gần hết ngân sách';
+
+      state = state.copyWith(
+        categories: cats,
+        totalBudget: totalBudget,
+        totalSpent: totalSpent,
+        cycleStatus: cycleStatus,
+        planId: plan['_id'] as String?,
+        planName: plan['name'] as String?,
+        planPeriodType: plan['periodType'] as String?,
+        planStartAt: DateTime.tryParse(plan['startAt'] as String? ?? ''),
+        planEndAt: DateTime.tryParse(plan['endAt'] as String? ?? ''),
+        planWarningPercent: warningPercent,
+      );
+    } catch (_) {}
+  }
+
+  /// Chỉ tải lại mục tiêu tiết kiệm — không reload ngân sách hay hóa đơn
+  Future<void> loadGoalsOnly() async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final goals = await ds.getGoals();
+      final walletNames = {
+        for (final w in state.walletOptions) w.id: w.name,
+      };
+      final parsedGoals = goals.map((g) => _parseGoal(g, walletNames)).toList();
+      final activeGoals = parsedGoals.where((g) => g.isActive).toList();
+
+      final updatedWalletOptions = state.walletOptions.map((w) {
+        final reserved = activeGoals.fold<double>(
+          0,
+          (s, g) => s + (g.allocationIn(w.id) ?? 0),
+        );
+        return GoalWalletOption(
+          id: w.id,
+          name: w.name,
+          type: w.type,
+          balance: w.balance,
+          reservedByOthers: reserved,
+        );
+      }).toList();
+
+      final protectedMoney = activeGoals
+          .where((g) => g.protect)
+          .fold<double>(0, (s, g) => s + g.allocated);
+
+      final available = state.walletTotal > 0
+          ? state.walletTotal - protectedMoney - state.unpaidBills
+          : state.availableToSpend;
+
+      state = state.copyWith(
+        goals: goals,
+        savingsGoals: activeGoals,
+        walletOptions: updatedWalletOptions,
+        protectedMoney: protectedMoney,
+        availableToSpend: available,
+      );
+    } catch (_) {}
+  }
+
+  /// Chỉ tải lại danh sách hóa đơn — không reload ngân sách hay mục tiêu
+  Future<void> loadBillsOnly() async {
+    try {
+      final ds = ref.read(budgetRemoteDataSourceProvider);
+      final results = await Future.wait([
+        ds.getBills(),
+        ds.getBillsScreen(),
+      ]);
+      final upcomingBills = (results[0] as List).cast<Map<String, dynamic>>();
+      final billsScreen = results[1] as Map<String, dynamic>;
+
+      final bills = ((billsScreen['bills'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(RecurringBill.fromJson)
+          .toList();
+      final summary = BillsSummary.fromJson(
+        billsScreen['summary'] as Map<String, dynamic>?,
+      );
+
+      final unpaid = bills
+          .where((b) => b.status.isUnpaid)
+          .fold<double>(0, (s, b) => s + b.amount);
+
+      final available = state.walletTotal > 0
+          ? state.walletTotal - state.protectedMoney - unpaid
+          : state.availableToSpend;
+
+      state = state.copyWith(
+        upcomingBills: upcomingBills,
+        bills: bills,
+        billsSummary: summary,
+        unpaidBills: unpaid,
+        availableToSpend: available,
+      );
+    } catch (_) {}
+  }
+
   void setActiveTab(String tab) => state = state.copyWith(activeTab: tab);
   void setFilterMode(String mode) => state = state.copyWith(filterMode: mode);
 
@@ -316,10 +449,10 @@ class BudgetNotifier extends Notifier<BudgetState> {
     if (id == null) return null;
     try {
       await ref.read(budgetRemoteDataSourceProvider).deleteBudget(id);
-      await loadAll();
+      await loadBudgetsOnly();
       return null;
     } catch (e) {
-      await loadAll();
+      await loadBudgetsOnly();
       return e.toString().replaceAll('Exception: ', '');
     }
   }
@@ -391,7 +524,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
       final err = await _saveToServer(updated);
       if (err != null) return err;
-      await loadAll(); // đồng bộ id/version mới từ server
+      await loadBudgetsOnly(); // đồng bộ id/version mới từ server
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -590,7 +723,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
         data['preferredWalletId'] = state.walletOptions.first.id;
       }
       await ds.createRecurringBill(data);
-      await loadAll();
+      await loadBillsOnly();
+      ref.read(homeProvider.notifier).loadDashboard(force: true);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -635,7 +769,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
       }
       if (data.isEmpty) return null;
       await ds.updateRecurringBill(id, data);
-      await loadAll();
+      await loadBillsOnly();
+      ref.read(homeProvider.notifier).loadDashboard(force: true);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -647,7 +782,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
       await ds.deleteBill(billId);
-      await loadAll();
+      await loadBillsOnly();
+      ref.read(homeProvider.notifier).loadDashboard(force: true);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -659,7 +795,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
       await ds.stopRecurringBill(templateId);
-      await loadAll();
+      await loadBillsOnly();
+      ref.read(homeProvider.notifier).loadDashboard(force: true);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -709,8 +846,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
         note: note,
         allowNegativeAvailable: allowNegativeAvailable,
       );
-      _invalidateFinancialData();
-      await loadAll();
+      await loadBillsOnly();
+      await loadBudgetsOnly();
+      ref.read(homeProvider.notifier).loadDashboard(force: true);
+      ref.read(transactionProvider.notifier).loadTransactions();
+      ref.read(reportProvider.notifier).loadTransactions(force: true);
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -726,25 +866,18 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
       await ds.linkBill(billId: billId, transactionId: transactionId, expectedVersion: expectedVersion);
-      _invalidateFinancialData();
-      await loadAll();
+      await loadBillsOnly();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
     }
   }
 
-  void _invalidateFinancialData() {
-    // loadAll() đã làm mới budget; cần làm mới Tổng quan và Giao dịch.
-    ref.invalidate(homeProvider);
-    ref.invalidate(reportProvider);
-  }
-
-  /// Mọi thay đổi mục tiêu (tạo/sửa/bảo vệ/phân bổ) đều ảnh hưởng quỹ bảo vệ
-  /// nên Tổng quan phải được tính lại ngay.
+  /// Mọi thay đổi mục tiêu (tạo/sửa/bảo vệ/phân bổ) chỉ ảnh hưởng quỹ bảo vệ,
+  /// chỉ cần tải lại mục tiêu và cập nhật số dư khả dụng ở Dashboard.
   Future<void> _reloadAfterGoalChange() async {
-    _invalidateFinancialData();
-    await loadAll();
+    await loadGoalsOnly();
+    ref.read(homeProvider.notifier).loadDashboard(force: true);
   }
 
   // ── Persist ────────────────────────────────────────────────────────
@@ -793,11 +926,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
         );
       }
 
-      await loadAll();
+      await loadBudgetsOnly();
       return null;
     } catch (e) {
       // Hoàn tác UI nếu lưu thất bại
-      await loadAll();
+      await loadBudgetsOnly();
       return e.toString().replaceAll('Exception: ', '');
     }
   }

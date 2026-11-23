@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/utils/refresh_financial_data.dart';
 import '../../data/datasources/timeline_remote_data_source.dart';
 import '../../domain/models/review_analytics.dart';
 import '../../domain/models/timeline_item.dart';
@@ -155,7 +154,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
           review['budgetSuggestions'] as Map<String, dynamic>?,
         ),
         weeks: weeks,
-        selectedWeekStartIso: weekStartIso,
+        selectedWeekStartIso: weekStartIso ?? week.startAt?.toUtc().toIso8601String(),
         journal: journal,
         summary: JournalSummary.fromJson(
           review['journalSummary'] as Map<String, dynamic>?,
@@ -215,8 +214,6 @@ class TimelineNotifier extends Notifier<TimelineState> {
           ? null
           : state.weekEnd?.toUtc().toIso8601String(),
     );
-    // Đồng bộ Tổng quan / Giao dịch / Kế hoạch sau khi đổi đánh giá.
-    invalidateFinancialData(ref);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────

@@ -29,25 +29,38 @@ export async function buildApp(ctx, config = {}) {
   await app.register(compress, {
     global: true,
     threshold: 1024, // Chỉ compress response > 1KB
-    encodings: ['gzip', 'deflate'],
+    encodings: ['br', 'gzip', 'deflate'], // br (brotli) nhỏ hơn gzip ~15-20%
   });
   
 
-await app.register(cors, {
-  origin: [
+  const allowedOrigins = [
     "https://vi-an-web.vercel.app",
     "http://localhost:3000",
     "http://localhost:5000",
-  ],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "Idempotency-Key",
-    "Accept",
-    "retry_attempt",
-  ],
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-});
+    ...(config.origins || []),
+  ];
+  await app.register(cors, {
+    origin: (origin, cb) => {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes("*") ||
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("CORS not allowed"), false);
+    },
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Idempotency-Key",
+      "Accept",
+      "retry_attempt",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
 
   await app.register(jwt, {
     secret: config.jwtSecret || "documentation-only-not-for-running-server",
@@ -106,6 +119,17 @@ await app.register(cors, {
         requestId: req.id,
       });
   });
+  // --- Cache tokenVersion (TTL 30s) ---
+  // Tránh query DB "users" mỗi request được xác thực.
+  // Logout-all tăng tokenVersion trong DB; cache cũ hết hạn sau ≤30s.
+  const _tvCache = new Map(); // userId_hex → { ver: number, exp: number }
+  const _TV_TTL = 30_000;
+  // Dọn cache hết hạn định kỳ (5 phút) để tránh memory leak
+  setInterval(() => {
+    const t = Date.now();
+    for (const [k, v] of _tvCache) if (t > v.exp) _tvCache.delete(k);
+  }, 300_000).unref();
+
   const convert = (s, isQuery = false) => {
     const j = z.toJSONSchema(s, { target: "draft-7", io: "input" });
     delete j.$schema;
@@ -191,15 +215,25 @@ await app.register(cors, {
             401,
           );
           req.owner = oid(req.user.sub);
-          const u = await ctx.db
-            .collection("users")
-            .findOne({ _id: req.owner });
-          fail(
-            u && Number(u.tokenVersion || 0) === Number(req.user.ver || 0),
-            "UNAUTHORIZED",
-            "Phiên đăng nhập đã hết hạn.",
-            401,
-          );
+          const sub = req.user.sub;
+          const jwtVer = Number(req.user.ver || 0);
+          const cached = _tvCache.get(sub);
+          if (cached && Date.now() < cached.exp) {
+            // Cache còn hạn — không cần query DB
+            fail(cached.ver === jwtVer, "UNAUTHORIZED", "Phiên đăng nhập đã hết hạn.", 401);
+          } else {
+            // Cache hết hạn hoặc chưa có — query DB và cập nhật cache
+            const u = await ctx.db
+              .collection("users")
+              .findOne({ _id: req.owner }, { projection: { tokenVersion: 1 } });
+            fail(
+              u && Number(u.tokenVersion || 0) === jwtVer,
+              "UNAUTHORIZED",
+              "Phiên đăng nhập đã hết hạn.",
+              401,
+            );
+            if (u) _tvCache.set(sub, { ver: Number(u.tokenVersion || 0), exp: Date.now() + _TV_TTL });
+          }
         }
       },
       handler: async (req, reply) => {
@@ -217,6 +251,9 @@ await app.register(cors, {
             )
           : await invoke();
         if (raw) return value;
+        // Cache-Control cho GET: private (có auth), 10s max-age, stale 30s
+        if (method === "GET" && !write)
+          reply.header("Cache-Control", "private, max-age=10, stale-while-revalidate=30");
         return { data: json(value) };
       },
     });

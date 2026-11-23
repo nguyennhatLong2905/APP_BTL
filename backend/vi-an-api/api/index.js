@@ -1,4 +1,4 @@
-﻿import { MongoClient } from "mongodb";
+import { MongoClient } from "mongodb";
 import { buildApp } from "../src/app.js";
 import { initialize } from "../src/migrate.js";
 
@@ -15,7 +15,15 @@ async function getApp() {
 
       const client = new MongoClient(process.env.MONGODB_URI, {
         promoteLongs: false,
-        serverSelectionTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
+        socketTimeoutMS: 30_000,
+        // Connection pool — tránh tạo kết nối mới mỗi request
+        maxPoolSize: 20,
+        minPoolSize: 2,
+        maxIdleTimeMS: 60_000,
+        // Nén dữ liệu ở tầng driver
+        compressors: ["zlib"],
       });
 
       await client.connect();

@@ -29,6 +29,12 @@ class WeekReflectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isCurrentWeek = week.startAt != null &&
+        week.endAt != null &&
+        !now.isBefore(week.startAt!) &&
+        now.isBefore(week.endAt!);
+
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -130,7 +136,7 @@ class WeekReflectionHeader extends StatelessWidget {
                   ),
               ],
             ),
-            if (selectedWeekStartIso != null && onClearSelection != null) ...[
+            if (!isCurrentWeek && onClearSelection != null) ...[
               const SizedBox(height: 6),
               Align(
                 alignment: Alignment.centerRight,
@@ -166,7 +172,7 @@ class WeekReflectionHeader extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Chưa đủ dữ liệu để chiêm nghiệm tuần này. '
-                        'Thêm giao dịch chi tiêu để Ví An tổng hợp cùng bạn.',
+                        'Thêm giao dịch chi tiêu để Ví An tổng hợp cùng bạn, hoặc chọn "Đổi tuần" để xem lại các tuần trước.',
                         style: TextStyle(
                           fontSize: 11.5,
                           height: 1.35,

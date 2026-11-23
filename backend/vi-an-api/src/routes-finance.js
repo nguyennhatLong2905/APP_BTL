@@ -12,6 +12,7 @@ import {
   daysBetween,
   json,
   escapeRegex,
+  fraction,
 } from "./common.js";
 import * as S from "./schemas.js";
 import { createEntry, changeEntry, applyImpacts, notify } from "./ledger.js";
@@ -470,12 +471,31 @@ export function financeRoutes(app, ctx, r) {
     "GET",
     "/goals",
     { tag: "Goals", summary: "Mục tiêu và tiến độ" },
-    async (req) =>
-      Promise.all(
-        (await ownedList("goals", req.owner)).map((g) =>
-          goalView(db, req.owner, g),
-        ),
-      ),
+    async (req) => {
+      const goals = await ownedList("goals", req.owner);
+      if (!goals.length) return [];
+      // Batch: 1 query duy nhất thay vì N queries (1 per goal)
+      const allocs = await db
+        .collection("goal_allocations")
+        .find({ userId: req.owner, goalId: { $in: goals.map((g) => g._id) } })
+        .toArray();
+      const byGoal = new Map();
+      for (const a of allocs) {
+        const k = a.goalId.toHexString();
+        if (!byGoal.has(k)) byGoal.set(k, []);
+        byGoal.get(k).push(a);
+      }
+      return goals.map((g) => {
+        const allocations = byGoal.get(g._id.toHexString()) || [];
+        const allocated = allocations.reduce((s, a) => s + B(a.amount), 0n);
+        return {
+          ...g,
+          allocations,
+          allocated,
+          percent: fraction(allocated, B(g.targetAmount)),
+        };
+      });
+    },
   );
   r(
     "POST",

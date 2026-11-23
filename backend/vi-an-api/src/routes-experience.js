@@ -26,6 +26,7 @@ import {
 import { createEntry, notify, autoTrackReview } from "./ledger.js";
 import {
   reviewWindow,
+  weekBounds,
   weekStats,
   weekNarrative,
   selfInsight,
@@ -298,10 +299,38 @@ export function experienceRoutes(app, ctx, r) {
         .collection("users")
         .findOne({ _id: req.owner }, { projection: { timezone: 1 } });
       const zone = user?.timezone || "Asia/Ho_Chi_Minh";
-      const wins = reviewWindow(
-        { startAt: req.filters.startAt, endAt: req.filters.endAt },
-        zone,
-      );
+
+      let wins;
+      if (req.filters.startAt && req.filters.endAt) {
+        wins = reviewWindow(
+          { startAt: req.filters.startAt, endAt: req.filters.endAt },
+          zone,
+        );
+      } else {
+        const curWeek = weekBounds(new Date(), zone);
+        // Kiểm tra xem tuần hiện tại có giao dịch chi tiêu không
+        const curExpense = await db.collection("transactions").findOne({
+          userId: req.owner,
+          status: "posted",
+          type: "expense",
+          occurredAt: { $gte: curWeek.start, $lt: curWeek.end },
+        });
+
+        if (curExpense) {
+          wins = curWeek;
+        } else {
+          // Tuần hiện tại chưa có chi tiêu: tìm tuần gần nhất có chi tiêu để hiển thị
+          const latestExpense = await db.collection("transactions").findOne(
+            { userId: req.owner, status: "posted", type: "expense" },
+            { sort: { occurredAt: -1 } },
+          );
+          if (latestExpense && latestExpense.occurredAt) {
+            wins = weekBounds(latestExpense.occurredAt, zone);
+          } else {
+            wins = curWeek;
+          }
+        }
+      }
 
       const [stats, reflections, insight, suggestions, weeks, categories, entries] =
         await Promise.all([

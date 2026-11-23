@@ -6,7 +6,7 @@ import '../constants/app_constants.dart';
 enum Environment { dev, prod }
 
 class EnvConfig {
-  static Environment currentEnvironment = Environment.prod;
+  static Environment currentEnvironment = Environment.dev;
 
   static String? realDeviceIp;
 
