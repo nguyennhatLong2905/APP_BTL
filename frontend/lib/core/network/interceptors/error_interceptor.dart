@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-/// Interceptor bắt và format chuẩn lỗi trả về từ NestJS Backend
+/// Interceptor bắt và format chuẩn lỗi trả về từ Backend (Fastify / NestJS)
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
@@ -14,14 +14,52 @@ class ErrorInterceptor extends Interceptor {
       final statusCode = err.response?.statusCode;
       final data = err.response?.data;
 
-      // Trích xuất message từ response NestJS
-      if (data is Map<String, dynamic> && data.containsKey('message')) {
-        final messageData = data['message'];
-        if (messageData is List) {
-          // NestJS ValidationPipe thường trả về mảng các câu báo lỗi
-          errorMessage = messageData.join('\n');
-        } else if (messageData is String) {
-          errorMessage = messageData;
+      // Trích xuất message từ response Fastify hoặc NestJS
+      if (data is Map<String, dynamic>) {
+        if (data['error'] is Map<String, dynamic> && data['error']['message'] != null) {
+          final errorObj = data['error'] as Map<String, dynamic>;
+          final msg = errorObj['message'].toString();
+          if (errorObj['details'] is List && (errorObj['details'] as List).isNotEmpty) {
+            final details = (errorObj['details'] as List)
+                .map((d) => d is Map ? (d['message'] ?? d.toString()) : d.toString())
+                .join(', ');
+            errorMessage = '$msg: $details';
+          } else {
+            errorMessage = msg;
+          }
+        } else if (data.containsKey('message')) {
+          final messageData = data['message'];
+          if (messageData is List) {
+            errorMessage = messageData.join('\n');
+          } else if (messageData is String) {
+            errorMessage = messageData;
+          }
+        } else {
+          switch (statusCode) {
+            case 400:
+              errorMessage = 'Yêu cầu không hợp lệ (Bad Request)';
+              break;
+            case 401:
+              errorMessage = 'Email hoặc mật khẩu không đúng, hoặc phiên đăng nhập đã hết hạn.';
+              break;
+            case 403:
+              errorMessage = 'Bạn không có quyền thực hiện thao tác này (Forbidden)';
+              break;
+            case 404:
+              errorMessage = 'Không tìm thấy dữ liệu yêu cầu (Not Found)';
+              break;
+            case 409:
+              errorMessage = 'Dữ liệu đã tồn tại hoặc xảy ra xung đột.';
+              break;
+            case 422:
+              errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin nhập.';
+              break;
+            case 500:
+            case 502:
+            case 503:
+              errorMessage = 'Lỗi máy chủ (Server Error). Vui lòng thử lại sau.';
+              break;
+          }
         }
       } else {
         switch (statusCode) {
@@ -29,13 +67,19 @@ class ErrorInterceptor extends Interceptor {
             errorMessage = 'Yêu cầu không hợp lệ (Bad Request)';
             break;
           case 401:
-            errorMessage = 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+            errorMessage = 'Email hoặc mật khẩu không đúng, hoặc phiên đăng nhập đã hết hạn.';
             break;
           case 403:
             errorMessage = 'Bạn không có quyền thực hiện thao tác này (Forbidden)';
             break;
           case 404:
             errorMessage = 'Không tìm thấy dữ liệu yêu cầu (Not Found)';
+            break;
+          case 409:
+            errorMessage = 'Dữ liệu đã tồn tại hoặc xảy ra xung đột.';
+            break;
+          case 422:
+            errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin nhập.';
             break;
           case 500:
           case 502:
@@ -45,7 +89,7 @@ class ErrorInterceptor extends Interceptor {
         }
       }
     } else if (err.type == DioExceptionType.unknown && err.error.toString().contains('SocketException')) {
-      errorMessage = 'Không thể kết nối đến Server NestJS. Vui lòng kiểm tra Wi-Fi/IP Backend.';
+      errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra Wi-Fi/IP Backend.';
     }
 
     // Gắn thông điệp lỗi rõ ràng vào DioException

@@ -51,7 +51,7 @@ class CategoryItem {
   factory CategoryItem.fromJson(Map<String, dynamic> j) => CategoryItem(
         id: j['_id']?.toString() ?? '',
         name: j['name']?.toString() ?? '',
-        type: j['type']?.toString() ?? 'expense',
+        type: j['kind']?.toString() ?? j['type']?.toString() ?? 'expense',
         icon: j['icon']?.toString(),
       );
 }
@@ -178,11 +178,30 @@ class TransactionNotifier extends Notifier<TransactionState> {
     String? note,
   }) async {
     state = state.copyWith(isSubmitting: true, errorMessage: null);
+
+    // ── Optimistic update: thêm giao dịch tạm vào đầu danh sách ──────
+    // Người dùng thấy kết quả ngay, không phải chờ server xác nhận.
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final optimisticTx = Transaction(
+      id: tempId,
+      title: memo ?? 'Giao dịch mới',
+      category: 'Khác',
+      amount: type == 'expense'
+          ? -amountVnd.toDouble()
+          : amountVnd.toDouble(),
+      date: occurredAt,
+      note: note,
+      icon: TransactionIcon.other,
+    );
+    state = state.copyWith(
+      transactions: [optimisticTx, ...state.transactions],
+    );
+
     try {
       final ds = ref.read(transactionRemoteDataSourceProvider);
       await ds.createTransaction(
         type: type,
-        amount: amountVnd,
+        amount: amountVnd.toString(),
         occurredAt: occurredAt.toIso8601String(),
         categoryId: categoryId,
         walletId: walletId,
@@ -194,12 +213,16 @@ class TransactionNotifier extends Notifier<TransactionState> {
         isSubmitting: false,
         successMessage: 'Giao dịch đã được lưu!',
       );
-      // Refresh danh sách
+      // Server xác nhận → thay thế bản tạm bằng dữ liệu chính xác từ server
       await loadTransactions();
       return true;
     } catch (e) {
+      // Lỗi → xóa bản tạm, trả danh sách về trạng thái ban đầu
       state = state.copyWith(
         isSubmitting: false,
+        transactions: state.transactions
+            .where((t) => t.id != tempId)
+            .toList(),
         errorMessage: e.toString().replaceAll('Exception: ', ''),
       );
       return false;

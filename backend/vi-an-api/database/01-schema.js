@@ -60,5 +60,14 @@ idx('insights',{userId:1,status:1,generatedAt:-1});
 idx('challenges',{userId:1,status:1,endAt:1});
 idx('notifications',{userId:1,dedupeKey:1},{unique:true});
 idx('notifications',{status:1,scheduledAt:1});
-print('vi_an: 14 collections and indexes ready.');
+// --- Indexes bổ sung (không có trong schema gốc) ---
+// api_requests: atomic() query theo (userId, key) — thiếu index = full-scan mỗi write!
+idx('api_requests',{userId:1,key:1},{unique:true});
+// auth_accounts: login lookup theo email
+idx('auth_accounts',{email:1},{unique:true});
+// notifications: user inbox kết hợp userId (thay vì chỉ status+scheduledAt)
+idx('notifications',{userId:1,status:1,scheduledAt:1});
+// reflections: danh sách nhật ký sắp xếp theo ngày đánh giá
+idx('reflections',{userId:1,dueAt:1});
+print('vi_an: 14 collections + 4 extra performance indexes ready.');
 })();

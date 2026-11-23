@@ -283,8 +283,7 @@ class ReportNotifier extends Notifier<ReportState> {
     try {
       final ds = ref.read(transactionRemoteDataSourceProvider);
       await ds.updateTransaction(id: tx.id, data: data);
-      await loadTransactions(force: true);
-      // Số dư ví + tổng quan cũng đổi theo
+      // Làm mới các màn hình bị ảnh hưởng (Report, Dashboard, Transaction, Budget)
       invalidateFinancialData(ref);
       return null;
     } catch (e) {
@@ -297,7 +296,6 @@ class ReportNotifier extends Notifier<ReportState> {
     try {
       final ds = ref.read(transactionRemoteDataSourceProvider);
       await ds.voidTransaction(tx.id, expectedVersion: tx.version);
-      await loadTransactions(force: true);
       invalidateFinancialData(ref);
       return null;
     } catch (e) {

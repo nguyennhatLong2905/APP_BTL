@@ -697,6 +697,19 @@ export async function reviewWeeks(db, userId, zone, limit = 12) {
     .limit(2000)
     .toArray();
   const seen = new Map();
+
+  // Luôn đảm bảo tuần hiện tại có mặt trong danh sách tuần
+  const currentWeek = weekBounds(new Date(), zone);
+  const currentKey = iso(currentWeek.start);
+  seen.set(currentKey, {
+    startAt: currentWeek.start,
+    endAt: currentWeek.end,
+    label: `${DateTime.fromJSDate(currentWeek.start, { zone }).toFormat("dd/MM")} – ${DateTime.fromJSDate(
+      new Date(currentWeek.end.getTime() - 1),
+      { zone },
+    ).toFormat("dd/MM/yyyy")}`,
+  });
+
   for (const t of rows) {
     const w = weekBounds(t.occurredAt, zone);
     const key = iso(w.start);
@@ -711,17 +724,6 @@ export async function reviewWeeks(db, userId, zone, limit = 12) {
       });
     }
     if (seen.size >= limit) break;
-  }
-  if (!seen.size) {
-    const w = weekBounds(new Date(), zone);
-    seen.set(iso(w.start), {
-      startAt: w.start,
-      endAt: w.end,
-      label: `${DateTime.fromJSDate(w.start, { zone }).toFormat("dd/MM")} – ${DateTime.fromJSDate(
-        new Date(w.end.getTime() - 1),
-        { zone },
-      ).toFormat("dd/MM/yyyy")}`,
-    });
   }
   return [...seen.values()];
 }

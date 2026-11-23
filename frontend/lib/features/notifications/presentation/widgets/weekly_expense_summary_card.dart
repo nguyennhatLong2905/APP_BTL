@@ -30,6 +30,12 @@ class WeeklyExpenseSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isCurrentWeek = week.startAt != null &&
+        week.endAt != null &&
+        !now.isBefore(week.startAt!) &&
+        now.isBefore(week.endAt!);
+
     final isUp = week.trend == 'up';
     final changeColor = isUp ? const Color(0xFFB91C1C) : const Color(0xFF0F5B47);
     final changeBg =
@@ -47,9 +53,9 @@ class WeeklyExpenseSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'TỔNG CHI TUẦN QUA',
-                  style: TextStyle(
+                Text(
+                  isCurrentWeek ? 'TỔNG CHI TUẦN NÀY' : 'TỔNG CHI TRONG TUẦN',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
@@ -99,7 +105,9 @@ class WeeklyExpenseSummaryCard extends StatelessWidget {
 
             if (!week.hasData)
               Text(
-                'Chưa có giao dịch chi trong tuần này.',
+                isCurrentWeek
+                    ? 'Chưa có giao dịch chi trong tuần này. Chọn "Đổi tuần" ở trên để xem các tuần trước.'
+                    : 'Chưa có giao dịch chi trong tuần được chọn.',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade700,
@@ -115,7 +123,9 @@ class WeeklyExpenseSummaryCard extends StatelessWidget {
                     height: 1.35,
                   ),
                   children: [
-                    const TextSpan(text: 'Tuần trước đã chi '),
+                    TextSpan(
+                      text: isCurrentWeek ? 'Tuần trước đã chi ' : 'Tuần trước đó đã chi ',
+                    ),
                     TextSpan(
                       text: '${_money.format(week.previousExpense)} ₫',
                       style: const TextStyle(fontWeight: FontWeight.bold),
