@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod_clean_architecture/core/network/api_client.dart';
@@ -29,6 +30,7 @@ void main() {
   String? transactionId;
 
   setUpAll(() {
+    HttpOverrides.global = null;
     dio = Dio(BaseOptions(
       baseUrl: 'http://127.0.0.1:3000/api/v1',
       connectTimeout: const Duration(seconds: 30),
@@ -236,7 +238,7 @@ void main() {
       print('\n💵 Testing create transaction...');
       final transaction = await transactionDataSource.createTransaction(
         type: 'expense',
-        amount: 50000,
+        amount: '50000',
         occurredAt: DateTime.now().toIso8601String(),
         walletId: walletId!,
         categoryId: categoryId!,

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../data/datasources/smart_spending_remote_data_source.dart';
 
 class WalletState {
@@ -81,17 +82,28 @@ class WalletNotifier extends Notifier<WalletState> {
   Future<void> _loadDashboardOverview() async {
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
-      final data = await ds.getDashboardOverview();
+      final raw = await ds.getDashboardOverview();
+      final data = (raw['overview'] as Map<String, dynamic>?) ?? raw;
 
-      final freeBalance = _toDouble(data['freeBalance'] ?? data['totalBalance'] ?? 0);
-      final fixedBills = _toDouble(data['fixedBills'] ?? data['totalFixedExpense'] ?? 0);
-      final daysLeft = (data['daysLeft'] ?? data['daysLeftInPeriod'] ?? 14) as int;
-      final salaryDate = data['salaryDate'] as String? ?? '--';
+      final freeBalance = _toDouble(data['available'] ?? data['freeBalance'] ?? data['total'] ?? data['totalBalance'] ?? 0);
+      final fixedBills = _toDouble(data['unpaidBills'] ?? data['fixedBills'] ?? data['totalFixedExpense'] ?? 0);
+      final emergencyFund = _toDouble(data['protectedMoney'] ?? data['emergencyFund'] ?? 0);
+      final daysLeft = (data['daysRemaining'] ?? data['daysLeft'] ?? data['daysLeftInPeriod'] ?? 14) as int;
+      
+      String salaryDate = '--';
+      final nextPaydayRaw = data['nextPayday'];
+      if (nextPaydayRaw != null) {
+        final parsed = DateTime.tryParse(nextPaydayRaw.toString());
+        if (parsed != null) {
+          salaryDate = DateFormat('dd/MM').format(parsed.toLocal());
+        }
+      }
 
       state = state.copyWith(
         currentFreeBalance: freeBalance,
         fixedBillsAmount: fixedBills,
-        daysLeftInPeriod: daysLeft,
+        emergencyFundAmount: emergencyFund,
+        daysLeftInPeriod: daysLeft < 0 ? 0 : daysLeft,
         salaryDateText: salaryDate,
       );
     } catch (_) {

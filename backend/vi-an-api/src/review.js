@@ -389,9 +389,15 @@ export async function selfInsight(db, userId) {
  * vì câu chung "chưa có gợi ý phù hợp".
  */
 export async function budgetSuggestions(db, userId, zone, at = new Date()) {
-  const plan = await db
-    .collection("budget_plans")
-    .findOne({ userId, status: "active" });
+  const plan =
+    (await db.collection("budget_plans").findOne(
+      { userId, status: "active", startAt: { $lte: at }, endAt: { $gt: at } },
+      { sort: { updatedAt: -1, createdAt: -1 } },
+    )) ||
+    (await db.collection("budget_plans").findOne(
+      { userId, status: "active" },
+      { sort: { updatedAt: -1, createdAt: -1 } },
+    ));
   const cats = await categoryMap(db, userId);
   const insight = await selfInsight(db, userId);
   const suggestions = [];

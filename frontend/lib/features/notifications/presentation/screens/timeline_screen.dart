@@ -980,7 +980,7 @@ class _CategoryTransactionsSheetState
                     final r = _rows[i];
                     final amount = num.tryParse('${r['amount'] ?? 0}') ?? 0;
                     final at =
-                        DateTime.tryParse(r['occurredAt']?.toString() ?? '');
+                        DateTime.tryParse(r['occurredAt']?.toString() ?? '')?.toLocal();
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(

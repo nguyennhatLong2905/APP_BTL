@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
+import 'package:flutter_riverpod_clean_architecture/core/widgets/app_snackbar.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasources/profile_remote_data_source.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/providers/home_provider.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/widgets/balance_card.dart';
@@ -83,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
 
                       // Warning banner (nếu còn hiện)
                       if (homeState.showWarningBanner)
-                        _buildWarningBanner(context, notifier),
+                        _buildWarningBanner(context, ref, notifier),
 
                       const SizedBox(height: 4),
 
@@ -274,7 +276,11 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ── Warning Banner ────────────────────────────────────────────────
-  Widget _buildWarningBanner(BuildContext context, HomeNotifier notifier) {
+  Widget _buildWarningBanner(
+    BuildContext context,
+    WidgetRef ref,
+    HomeNotifier notifier,
+  ) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       padding: const EdgeInsets.all(12),
@@ -321,10 +327,52 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Nút chính
+              // Nút chính: Chọn ngày nhận lương kế tiếp
               Expanded(
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: now.add(const Duration(days: 15)),
+                      firstDate: now,
+                      lastDate: now.add(const Duration(days: 90)),
+                      helpText: 'Chọn ngày nhận lương chu kỳ tới',
+                      confirmText: 'Lưu',
+                      cancelText: 'Hủy',
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(primary: _teal),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+
+                    if (picked != null && context.mounted) {
+                      try {
+                        final isoPayday = DateFormat("yyyy-MM-dd'T'12:00:00.000'Z'").format(picked.toUtc());
+                        await ref.read(profileRemoteDataSourceProvider).updateProfile(
+                          nextPayday: isoPayday,
+                        );
+                        await notifier.loadDashboard(force: true);
+                        if (context.mounted) {
+                          AppSnackBar.showSuccess(
+                            context,
+                            'Đã cập nhật ngày nhận lương: ${DateFormat('dd/MM/yyyy').format(picked)}',
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          AppSnackBar.showError(
+                            context,
+                            'Không thể cập nhật ngày lương: ${e.toString().replaceAll('Exception: ', '')}',
+                          );
+                        }
+                      }
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
@@ -344,9 +392,9 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Nút phụ
+              // Nút phụ: Mở màn hình Kế Hoạch Chi Tiêu
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.go(AppConstants.budgetPlanningRoute),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Text(

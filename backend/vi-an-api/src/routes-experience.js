@@ -337,7 +337,7 @@ export function experienceRoutes(app, ctx, r) {
           weekStats(db, req.owner, wins, zone),
           reviews(req.owner),
           selfInsight(db, req.owner),
-          budgetSuggestions(db, req.owner, zone),
+          budgetSuggestions(db, req.owner, zone, wins.end || wins.start || new Date()),
           reviewWeeks(db, req.owner, zone),
           db.collection("categories").find({ userId: req.owner }).toArray(),
           journal(db, req.owner),

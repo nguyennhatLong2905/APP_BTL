@@ -356,6 +356,21 @@ export function financeRoutes(app, ctx, r) {
     "/budgets",
     { write: true, body: S.budget, tag: "Plans", summary: "Tạo kỳ ngân sách" },
     async (req, reply, session) => {
+      // Xóa kỳ cùng startAt nếu đã có (tránh vi phạm unique index userId_periodType_startAt)
+      await db.collection("budget_plans").deleteMany(
+        {
+          userId: req.owner,
+          periodType: req.input.periodType,
+          startAt: new Date(req.input.startAt),
+        },
+        { session },
+      );
+      // Đóng các kỳ ngân sách active cũ
+      await db.collection("budget_plans").updateMany(
+        { userId: req.owner, status: "active" },
+        { $set: { status: "closed", updatedAt: now() } },
+        { session },
+      );
       const p = {
         ...base(req.owner),
         ...(await validateBudget(req.owner, req.input, session)),

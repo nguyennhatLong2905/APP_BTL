@@ -102,6 +102,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  /// Hiển thị dialog quên mật khẩu — hướng dẫn liên hệ hỗ trợ.
+  void _showForgotPasswordDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Quên mật khẩu?'),
+        content: const Text(
+          'Hiện tại ứng dụng chưa hỗ trợ đặt lại mật khẩu tự động.\n\n'
+          'Vui lòng liên hệ hỗ trợ qua email: support@vian.app\n\n'
+          'Hoặc sử dụng tài khoản demo bằng cách bấm "Đăng nhập" khi để trống email và mật khẩu.',
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Đã hiểu'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('LoginScreen: build called!');
@@ -192,7 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: () => _showForgotPasswordDialog(context),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 4, vertical: 8),
