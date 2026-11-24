@@ -226,7 +226,7 @@ class ReportNotifier extends Notifier<ReportState> {
 
     final occurredAt = raw['occurredAt'] as String?;
     final dateTime = occurredAt != null
-        ? DateTime.tryParse(occurredAt) ?? DateTime.now()
+        ? (DateTime.tryParse(occurredAt) ?? DateTime.now()).toLocal()
         : DateTime.now();
 
     final cat = raw['category'] as Map<String, dynamic>?;

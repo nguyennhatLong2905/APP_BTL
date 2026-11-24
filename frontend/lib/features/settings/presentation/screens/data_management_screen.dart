@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 import '../providers/data_management_provider.dart';
 
 class DataManagementScreen extends ConsumerStatefulWidget {
@@ -13,31 +17,92 @@ class DataManagementScreen extends ConsumerStatefulWidget {
 class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
   static const Color _teal = Color(0xFF2C7873);
 
-  bool _hideAmount = false;
   bool _appLock = false;
 
   Future<void> _handleImportCSV() async {
     AppSnackBar.showWarning(context, 'Chức năng chọn file CSV đang được phát triển...');
   }
 
+  /// Xuất dữ liệu: gọi API, lưu file CSV vào thư mục Downloads, thông báo đường dẫn.
   Future<void> _handleExportData() async {
     try {
-      final bytes = await ref.read(dataManagementProvider.notifier).exportTransactionsCsv();
-      // In a real app, save bytes to a file. For now, show success.
+      // Hiển thị dialog chọn thời gian
+      final dateRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+        initialDateRange: DateTimeRange(
+          start: DateTime.now().subtract(const Duration(days: 30)),
+          end: DateTime.now(),
+        ),
+        helpText: 'Chọn khoảng thời gian xuất',
+        cancelText: 'Hủy',
+        confirmText: 'Xuất',
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(primary: _teal),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (dateRange == null) return;
       if (!mounted) return;
-      AppSnackBar.showSuccess(context, 'Xuất dữ liệu thành công (${bytes.length} bytes)');
+
+      AppSnackBar.showWarning(context, 'Đang xuất dữ liệu...');
+
+      final startAt = DateFormat("yyyy-MM-dd'T'00:00:00.000'Z'").format(dateRange.start.toUtc());
+      final endAt = DateFormat("yyyy-MM-dd'T'23:59:59.999'Z'").format(dateRange.end.toUtc());
+
+      final bytes = await ref.read(dataManagementProvider.notifier).exportTransactionsCsv(
+        startAt: startAt,
+        endAt: endAt,
+      );
+
+      if (!mounted) return;
+
+      // Lưu file vào thư mục Downloads của thiết bị
+      Directory? dir;
+      if (Platform.isAndroid) {
+        dir = Directory('/storage/emulated/0/Download');
+        if (!dir.existsSync()) dir = await getExternalStorageDirectory();
+      } else if (Platform.isIOS) {
+        dir = await getApplicationDocumentsDirectory();
+      } else {
+        dir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      }
+
+      if (!mounted) return;
+      if (dir == null) {
+        AppSnackBar.showError(context, 'Không thể lưu file trên thiết bị này');
+        return;
+      }
+
+      final fileName = 'vi_an_transactions_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+
+      if (!mounted) return;
+      AppSnackBar.showSuccess(
+        context,
+        'Đã xuất ${bytes.length} bytes → ${file.path}',
+      );
     } catch (e) {
-      AppSnackBar.showError(context, e.toString());
+      if (!mounted) return;
+      AppSnackBar.showError(context, 'Lỗi xuất dữ liệu: ${e.toString().replaceAll("Exception: ", "")}');
     }
   }
 
   Future<void> _handleBackup() async {
     try {
-      final backup = await ref.read(dataManagementProvider.notifier).createBackup();
+      await ref.read(dataManagementProvider.notifier).createBackup();
       if (!mounted) return;
       AppSnackBar.showSuccess(context, 'Đã tạo bản sao lưu thành công');
     } catch (e) {
-      AppSnackBar.showError(context, e.toString());
+      if (!mounted) return;
+      AppSnackBar.showError(context, e.toString().replaceAll('Exception: ', ''));
     }
   }
 
@@ -58,7 +123,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
               child: const Text('Xóa', style: TextStyle(color: Colors.red)),
             ),
           ],
-        )
+        ),
       );
 
       if (confirm == true) {
@@ -67,13 +132,16 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
         AppSnackBar.showSuccess(context, 'Đã xóa dữ liệu');
       }
     } catch (e) {
-      AppSnackBar.showError(context, e.toString());
+      if (!mounted) return;
+      AppSnackBar.showError(context, e.toString().replaceAll('Exception: ', ''));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dataManagementProvider);
+    // Lấy trạng thái ẩn số tiền từ homeProvider (nguồn duy nhất của sự thật)
+    final balanceVisible = ref.watch(homeProvider).balanceVisible;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5FAF9),
@@ -131,13 +199,17 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
               _buildSection(
                 title: 'Bảo mật & Hiển thị',
                 children: [
+                  // Ẩn số tiền — kết nối với homeProvider để đồng bộ toàn app
                   SwitchListTile(
-                    value: _hideAmount,
-                    onChanged: (v) => setState(() => _hideAmount = v),
+                    value: !balanceVisible,
+                    onChanged: (v) {
+                      // Toggle qua homeProvider → cập nhật balance_card & các nơi dùng balanceVisible
+                      ref.read(homeProvider.notifier).toggleBalanceVisibility();
+                    },
                     title: const Text('Ẩn số tiền', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    subtitle: const Text('không thay đổi dữ liệu nghiệp vụ', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    subtitle: const Text('ẩn số dư & giao dịch trong toàn bộ app', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     secondary: const Icon(Icons.visibility_off_rounded, color: _teal),
-                    activeColor: _teal,
+                    activeThumbColor: _teal,
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
@@ -146,7 +218,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                     title: const Text('Khóa app', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
                     subtitle: const Text('thay đổi cách truy cập', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     secondary: const Icon(Icons.lock_rounded, color: _teal),
-                    activeColor: _teal,
+                    activeThumbColor: _teal,
                   ),
                 ],
               ),

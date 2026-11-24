@@ -5,6 +5,7 @@ class MindfulDelayCard extends StatelessWidget {
   final double dailySavingGoal;
   final int savingDays;
   final String reminderDate;
+  final String? salaryDate;
   final VoidCallback? onCreatePlanPressed;
 
   const MindfulDelayCard({
@@ -12,6 +13,7 @@ class MindfulDelayCard extends StatelessWidget {
     required this.dailySavingGoal,
     required this.savingDays,
     required this.reminderDate,
+    this.salaryDate,
     this.onCreatePlanPressed,
   });
 
@@ -91,7 +93,9 @@ class MindfulDelayCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Cho bản thân thêm thời gian lắng đọng và tích lũy thảnh thơi sau ngày nhận lương 16/10.',
+              (salaryDate != null && salaryDate != '--')
+                  ? 'Cho bản thân thêm thời gian lắng đọng và tích lũy thảnh thơi sau ngày nhận lương $salaryDate.'
+                  : 'Cho bản thân thêm thời gian lắng đọng và tích lũy thảnh thơi trong $savingDays ngày tới.',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade700,
@@ -125,7 +129,9 @@ class MindfulDelayCard extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        '$reminderDate (sau lương 1 ngày)',
+                        (salaryDate != null && salaryDate != '--')
+                            ? '$reminderDate (sau lương 1 ngày)'
+                            : '$reminderDate (sau $savingDays ngày)',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,

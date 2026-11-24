@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -224,14 +225,32 @@ class SmartSpendingScreen extends ConsumerWidget {
             const SizedBox(height: 12),
 
             // Card 5: Khuyến dùng chánh niệm (Chờ & Tích lũy)
-            MindfulDelayCard(
-              dailySavingGoal: state.dailySavingGoal,
-              savingDays: state.savingDaysGoal,
-              reminderDate: '17/10/2026',
-              onCreatePlanPressed: () {
-                AppSnackBar.showSuccess(
-                  context,
-                  'Đã tạo lộ trình tích lũy ${state.dailySavingGoal.toInt()} ₫/ngày!',
+            Builder(
+              builder: (context) {
+                final now = DateTime.now();
+                String reminderDate;
+                if (state.salaryDateText != '--') {
+                  final parsedPayday = DateTime.tryParse(state.salaryDateText);
+                  if (parsedPayday != null) {
+                    reminderDate = DateFormat('dd/MM/yyyy').format(parsedPayday.add(const Duration(days: 1)));
+                  } else {
+                    reminderDate = state.salaryDateText;
+                  }
+                } else {
+                  reminderDate = DateFormat('dd/MM/yyyy').format(now.add(Duration(days: state.savingDaysGoal)));
+                }
+
+                return MindfulDelayCard(
+                  dailySavingGoal: state.dailySavingGoal,
+                  savingDays: state.savingDaysGoal,
+                  reminderDate: reminderDate,
+                  salaryDate: state.salaryDateText != '--' ? state.salaryDateText : null,
+                  onCreatePlanPressed: () {
+                    AppSnackBar.showSuccess(
+                      context,
+                      'Đã tạo lộ trình tích lũy ${state.dailySavingGoal.toInt()} ₫/ngày!',
+                    );
+                  },
                 );
               },
             ),

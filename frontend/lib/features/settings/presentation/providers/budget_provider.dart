@@ -180,7 +180,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
       final plans = results[0] as Map<String, dynamic>;
       final budgets = (results[1] as List).cast<Map<String, dynamic>>();
       // 1 kỳ ngân sách active duy nhất (backend chặn chồng lấn)
-      final plan = budgets.isNotEmpty ? budgets.first : null;
+      final activeBudgets = budgets.where((b) => b['status'] == 'active').toList();
+      final plan = activeBudgets.isNotEmpty ? activeBudgets.first : (budgets.isNotEmpty ? budgets.first : null);
 
       final goals = (results[2] as List).cast<Map<String, dynamic>>();
       final bills = (results[3] as List).cast<Map<String, dynamic>>();
@@ -191,6 +192,28 @@ class BudgetNotifier extends Notifier<BudgetState> {
       final daysLeft =
           ((overview['daysRemaining'] ?? overview['daysLeft'] ?? 0) as num)
               .toInt();
+
+      // Tính periodText từ kỳ ngân sách (plan) hoặc mặc định theo tháng
+      String periodText;
+      if (plan != null) {
+        final startAt = DateTime.tryParse(plan['startAt'] as String? ?? '');
+        final endAt = DateTime.tryParse(plan['endAt'] as String? ?? '');
+        final periodType = plan['periodType'] as String? ?? 'month';
+        if (startAt != null && endAt != null) {
+          final startLabel = '${startAt.toLocal().day.toString().padLeft(2, '0')}/${startAt.toLocal().month.toString().padLeft(2, '0')}';
+          final endLabel = '${endAt.toLocal().day.toString().padLeft(2, '0')}/${endAt.toLocal().month.toString().padLeft(2, '0')}/${endAt.toLocal().year}';
+          periodText = periodType == 'pay_cycle'
+              ? 'Chu kỳ lương: $startLabel – $endLabel'
+              : 'Tháng ${startAt.toLocal().month}/${startAt.toLocal().year}';
+        } else {
+          final now = DateTime.now();
+          periodText = 'Tháng ${now.month}/${now.year}';
+        }
+      } else {
+        // Chưa có kỳ ngân sách — hiển thị "Chưa thiết lập"
+        final now = DateTime.now();
+        periodText = 'Tháng ${now.month}/${now.year} (Chưa có ngân sách)';
+      }
 
       // Ví từ overview để map tên + tính khả dụng khi phân bổ
       final rawWallets =
@@ -250,6 +273,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         totalBudget: totalBudget,
         totalSpent: totalSpent,
         daysLeft: daysLeft,
+        periodText: periodText,
         categories: cats,
         cycleStatus: cycleStatus,
         goals: goals,
@@ -289,7 +313,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
       final budgets = await ds.getBudgets();
-      final plan = budgets.isNotEmpty ? budgets.first : null;
+      final activeBudgets = budgets.where((b) => b['status'] == 'active').toList();
+      final plan = activeBudgets.isNotEmpty ? activeBudgets.first : (budgets.isNotEmpty ? budgets.first : null);
       if (plan == null) {
         state = state.copyWith(
           categories: const [],
