@@ -4,10 +4,12 @@ import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants
 import 'package:flutter_riverpod_clean_architecture/core/providers/localization_providers.dart';
 import 'package:flutter_riverpod_clean_architecture/core/router/locale_aware_router.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/profile_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/register_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/splash_screen.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/home/presentation/screens/home_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/timeline_screen.dart';
 import 'package:flutter_riverpod_clean_architecture/features/notifications/presentation/screens/reflection_history_screen.dart';
@@ -49,6 +51,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isGoingToLogin = location == AppConstants.loginRoute;
       final isGoingToRegister = location == AppConstants.registerRoute;
+      final isGoingToForgotPassword =
+          location == AppConstants.forgotPasswordRoute;
       final isGoingToSplash = location == AppConstants.splashRoute;
 
       // Splash luôn được vào
@@ -57,13 +61,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Nếu chưa login → về login
-      if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
+      if (!isLoggedIn &&
+          !isGoingToLogin &&
+          !isGoingToRegister &&
+          !isGoingToForgotPassword) {
         debugPrint('GoRouter: not logged in -> redirect to login');
         return AppConstants.loginRoute;
       }
 
-      // Nếu đã login mà vào login/register → về home
-      if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
+      // Nếu đã login mà vào login/register/forgot-password → về home
+      if (isLoggedIn &&
+          (isGoingToLogin || isGoingToRegister || isGoingToForgotPassword)) {
         debugPrint('GoRouter: logged in but going to auth -> redirect to home');
         return AppConstants.homeRoute;
       }
@@ -139,6 +147,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
+        path: AppConstants.forgotPasswordRoute,
+        name: 'forgot_password',
+        builder: (context, state) => ForgotPasswordScreen(
+          initialEmail: state.extra is String ? state.extra as String : null,
+        ),
+      ),
+      GoRoute(
         path: AppConstants.settingsRoute,
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
@@ -152,6 +167,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings/data-management',
         name: 'data_management',
         builder: (context, state) => const DataManagementScreen(),
+      ),
+      GoRoute(
+        path: AppConstants.changePasswordRoute,
+        name: 'change_password',
+        builder: (context, state) => const ChangePasswordScreen(),
       ),
       GoRoute(
         path: AppConstants.profileRoute,

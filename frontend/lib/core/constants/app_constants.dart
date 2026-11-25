@@ -22,6 +22,7 @@ class AppConstants {
   static const String initialRoute = '/';
   static const String loginRoute = '/login';
   static const String registerRoute = '/register';
+  static const String forgotPasswordRoute = '/forgot-password';
   static const String profileRoute = '/profile';
   static const String languageSettingsRoute = '/settings/language';
 
@@ -63,6 +64,7 @@ class AppConstants {
 
   // Extra Routes
   static const String localizationAssetsDemoRoute = '/settings/localization-demo';
+  static const String changePasswordRoute = '/settings/change-password';
 
   // Animation durations
   static const Duration defaultAnimationDuration = Duration(milliseconds: 300);

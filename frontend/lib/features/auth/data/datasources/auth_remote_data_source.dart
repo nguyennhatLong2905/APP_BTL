@@ -19,6 +19,30 @@ abstract class AuthRemoteDataSource {
     required String email,
     required String password,
   });
+
+  /// Đổi mật khẩu — trả về {accessToken}
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Gửi mã OTP đặt lại mật khẩu qua email
+  Future<Map<String, dynamic>> requestPasswordResetOtp({
+    required String email,
+  });
+
+  /// Xác minh mã OTP — trả về {verified, resetToken, expiresInSeconds}
+  Future<Map<String, dynamic>> verifyResetOtp({
+    required String email,
+    required String otp,
+  });
+
+  /// Đặt lại mật khẩu sau khi xác minh OTP
+  Future<void> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -77,6 +101,82 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final body = data as Map<String, dynamic>;
         return body['data'] as Map<String, dynamic>;
       },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/change-password',
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        return body['data'] as Map<String, dynamic>;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> requestPasswordResetOtp({
+    required String email,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/forgot-password',
+      data: {'email': email},
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        return body['data'] as Map<String, dynamic>;
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> verifyResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/verify-reset-otp',
+      data: {'email': email, 'otp': otp},
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) {
+        final body = data as Map<String, dynamic>;
+        return body['data'] as Map<String, dynamic>;
+      },
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/reset-password',
+      data: {
+        'email': email,
+        'resetToken': resetToken,
+        'newPassword': newPassword,
+      },
+    );
+    result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (_) => null,
     );
   }
 }

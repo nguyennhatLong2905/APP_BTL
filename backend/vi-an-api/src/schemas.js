@@ -109,4 +109,20 @@ export const login = obj({
   email: z.email().max(254),
   password: z.string().min(1).max(128),
 });
+export const changePassword = obj({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(10).max(128),
+});
+export const forgotPassword = obj({
+  email: z.email().max(254),
+});
+export const verifyResetOtp = obj({
+  email: z.email().max(254),
+  otp: z.string().regex(/^\d{6}$/),
+});
+export const resetPassword = obj({
+  email: z.email().max(254),
+  resetToken: z.string().min(32).max(128),
+  newPassword: z.string().min(10).max(128),
+});
 export { z, id, money, positive, timestamp, text, note, version };

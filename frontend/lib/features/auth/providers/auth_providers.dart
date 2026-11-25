@@ -4,6 +4,10 @@ import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecase
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/logout_use_case.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/register_use_case.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/update_profile_use_case.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/change_password_use_case.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/request_password_reset_otp_use_case.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/verify_reset_otp_use_case.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/usecases/reset_password_use_case.dart';
 
 /// Data layer dependency injection providers
 /// These providers are responsible for creating and managing data layer instances
@@ -26,3 +30,21 @@ final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
 final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
   return UpdateProfileUseCase(ref.watch(authRepositoryProvider));
 });
+
+final changePasswordUseCaseProvider = Provider<ChangePasswordUseCase>((ref) {
+  return ChangePasswordUseCase(ref.watch(authRepositoryProvider));
+});
+
+final requestPasswordResetOtpUseCaseProvider =
+    Provider<RequestPasswordResetOtpUseCase>((ref) {
+  return RequestPasswordResetOtpUseCase(ref.watch(authRepositoryProvider));
+});
+
+final verifyResetOtpUseCaseProvider = Provider<VerifyResetOtpUseCase>((ref) {
+  return VerifyResetOtpUseCase(ref.watch(authRepositoryProvider));
+});
+
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  return ResetPasswordUseCase(ref.watch(authRepositoryProvider));
+});
+

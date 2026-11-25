@@ -8,6 +8,7 @@ import 'package:flutter_riverpod_clean_architecture/core/storage/local_storage_s
 import 'package:flutter_riverpod_clean_architecture/core/storage/secure_storage_service.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/data/models/user_model.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/entities/password_reset_otp_info.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/entities/user_entity.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/repositories/auth_repository.dart';
 
@@ -229,6 +230,109 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(updated.toEntity());
     } on CacheException catch (e) {
       return Left(CacheFailure(message: e.message));
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _remoteDataSource.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      final accessToken = response['accessToken'] as String;
+
+      // Lưu token mới → phiên hiện tại vẫn hoạt động
+      await _secureStorageService.write(
+        key: AppConstants.tokenKey,
+        value: accessToken,
+      );
+      return Right(accessToken);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on UnauthorizedException catch (e) {
+      return Left(AuthFailure(message: e.message));
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, PasswordResetOtpInfo>> requestPasswordResetOtp({
+    required String email,
+  }) async {
+    try {
+      final response = await _remoteDataSource.requestPasswordResetOtp(
+        email: email.trim().toLowerCase(),
+      );
+      return Right(
+        PasswordResetOtpInfo(
+          email: (response['email'] as String?) ?? email.trim().toLowerCase(),
+          expiresInSeconds: (response['expiresInSeconds'] as num?)?.toInt() ?? 600,
+          resendAfterSeconds:
+              (response['resendAfterSeconds'] as num?)?.toInt() ?? 60,
+          deliveryChannel: (response['deliveryChannel'] as String?) ?? 'smtp',
+        ),
+      );
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> verifyResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await _remoteDataSource.verifyResetOtp(
+        email: email.trim().toLowerCase(),
+        otp: otp.trim(),
+      );
+      final resetToken = response['resetToken'] as String? ?? '';
+      if (resetToken.isEmpty) {
+        return const Left(
+          ServerFailure(message: 'Không nhận được mã xác thực đặt lại mật khẩu.'),
+        );
+      }
+      return Right(resetToken);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    try {
+      await _remoteDataSource.resetPassword(
+        email: email.trim().toLowerCase(),
+        resetToken: resetToken,
+        newPassword: newPassword,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
     } on Exception {
       return const Left(ServerFailure());
     }

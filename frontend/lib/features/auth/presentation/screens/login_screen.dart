@@ -102,31 +102,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  /// Hiển thị dialog quên mật khẩu — hướng dẫn liên hệ hỗ trợ.
-  void _showForgotPasswordDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Quên mật khẩu?'),
-        content: const Text(
-          'Hiện tại ứng dụng chưa hỗ trợ đặt lại mật khẩu tự động.\n\n'
-          'Vui lòng liên hệ hỗ trợ qua email: support@vian.app\n\n'
-          'Hoặc sử dụng tài khoản demo bằng cách bấm "Đăng nhập" khi để trống email và mật khẩu.',
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Đã hiểu'),
-          ),
-        ],
-      ),
+  /// Chuyển sang màn hình Quên mật khẩu (xác minh OTP qua email).
+  Future<void> _openForgotPassword() async {
+    final prefill = _usernameController.text.trim();
+    final updatedEmail = await context.push<String>(
+      AppConstants.forgotPasswordRoute,
+      extra: prefill,
     );
+    if (!mounted) return;
+    if (updatedEmail != null && updatedEmail.isNotEmpty) {
+      _usernameController.text = updatedEmail;
+      _passwordController.clear();
+    }
   }
 
   @override
@@ -219,7 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () => _showForgotPasswordDialog(context),
+                          onPressed: _openForgotPassword,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 4, vertical: 8),

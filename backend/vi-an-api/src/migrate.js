@@ -57,6 +57,7 @@ export async function initialize(db, { seed = false } = {}) {
   }
   for (const name of [
     "auth_accounts",
+    "password_reset_otps",
     "api_requests",
     "audit_events",
     "import_jobs",
@@ -73,6 +74,12 @@ export async function initialize(db, { seed = false } = {}) {
   await db
     .collection("auth_accounts")
     .createIndex({ userId: 1 }, { unique: true });
+  await db
+    .collection("password_reset_otps")
+    .createIndex({ email: 1, createdAt: -1 });
+  await db
+    .collection("password_reset_otps")
+    .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await db
     .collection("api_requests")
     .createIndex({ userId: 1, key: 1 }, { unique: true });

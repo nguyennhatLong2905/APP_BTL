@@ -45,7 +45,14 @@ async function getApp() {
         allowDemo: false,
         origins: (process.env.CORS_ORIGINS || "").split(","),
         logger: {
-          redact: ["req.headers.authorization", "req.body.password"],
+          redact: [
+            "req.headers.authorization",
+            "req.body.password",
+            "req.body.currentPassword",
+            "req.body.newPassword",
+            "req.body.otp",
+            "req.body.resetToken",
+          ],
         },
       });
 
