@@ -126,7 +126,8 @@ export function experienceRoutes(app, ctx, r) {
       tag: "Screens",
       summary: "Tổng quan, cách tính, hóa đơn và giao dịch gần đây",
     },
-    async (req) => {
+    async (req, reply) => {
+      reply.header("Cache-Control", "private, no-store");
       const o = await overview(db, req.owner),
         recent = await listEntries(db, req.owner, { limit: 3 }),
         user = await db.collection("users").findOne({ _id: req.owner });

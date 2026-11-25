@@ -4,7 +4,6 @@ import 'package:flutter_riverpod_clean_architecture/features/home/domain/models/
 
 /// State đầy đủ của màn hình Home
 class HomeState {
-  final bool showWarningBanner;
   final bool balanceVisible;
   final bool isLoading;
   final DashboardData? dashboardData;
@@ -12,7 +11,6 @@ class HomeState {
   final DateTime? lastLoadedAt;
 
   const HomeState({
-    this.showWarningBanner = true,
     this.balanceVisible = true,
     this.isLoading = false,
     this.dashboardData,
@@ -21,7 +19,6 @@ class HomeState {
   });
 
   HomeState copyWith({
-    bool? showWarningBanner,
     bool? balanceVisible,
     bool? isLoading,
     DashboardData? dashboardData,
@@ -29,7 +26,6 @@ class HomeState {
     DateTime? lastLoadedAt,
   }) {
     return HomeState(
-      showWarningBanner: showWarningBanner ?? this.showWarningBanner,
       balanceVisible: balanceVisible ?? this.balanceVisible,
       isLoading: isLoading ?? this.isLoading,
       dashboardData: dashboardData ?? this.dashboardData,
@@ -41,6 +37,8 @@ class HomeState {
 
 /// Notifier cho màn hình Home — kết nối API thật
 class HomeNotifier extends Notifier<HomeState> {
+  int _dashboardRequestId = 0;
+
   @override
   HomeState build() {
     // Không load tự động nữa
@@ -56,32 +54,29 @@ class HomeNotifier extends Notifier<HomeState> {
         return; // Dùng cache
       }
     }
-    
+
+    final requestId = ++_dashboardRequestId;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final dataSource = ref.read(dashboardRemoteDataSourceProvider);
       final data = await dataSource.getDashboard();
+      if (!ref.mounted || requestId != _dashboardRequestId) return;
       state = state.copyWith(
-        isLoading: false, 
+        isLoading: false,
         dashboardData: data,
         lastLoadedAt: DateTime.now(),
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      if (!ref.mounted || requestId != _dashboardRequestId) return;
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
-
-  /// Đóng banner cảnh báo
-  void dismissWarning() =>
-      state = state.copyWith(showWarningBanner: false);
 
   /// Ẩn/hiện số tiền
   void toggleBalanceVisibility() =>
       state = state.copyWith(balanceVisible: !state.balanceVisible);
 }
 
-final homeProvider =
-    NotifierProvider<HomeNotifier, HomeState>(HomeNotifier.new);
+final homeProvider = NotifierProvider<HomeNotifier, HomeState>(
+  HomeNotifier.new,
+);

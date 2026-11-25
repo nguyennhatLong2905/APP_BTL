@@ -4,18 +4,17 @@ import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/ui/finance_screen_style.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/datasources/timeline_remote_data_source.dart';
 import '../../domain/models/review_analytics.dart';
-import '../../domain/models/timeline_item.dart';
 import '../providers/timeline_provider.dart';
 import '../widgets/budget_suggestion_section.dart';
 import '../widgets/evidence_sheet.dart';
 import '../widgets/reflection_bottom_nav.dart';
-import '../widgets/reflection_transaction_card.dart';
 import '../widgets/self_insight_card.dart';
-import '../widgets/week_reflection_header.dart';
-import '../widgets/weekly_expense_summary_card.dart';
+import '../widgets/review_journal.dart';
+import '../widgets/weekly_review_card.dart';
 
 final _money = NumberFormat('#,###', 'vi_VN');
 
@@ -28,60 +27,8 @@ class TimelineScreen extends ConsumerWidget {
     final notifier = ref.read(timelineProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE3F5F1), // Pastel Mint Background
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => context.go(AppConstants.splashRoute),
-          tooltip: 'Quay lại',
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'VÍ AN',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const Text(
-              'Ví An Nhìn Lại Tài Chính',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F5B47),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            tooltip: 'Tải lại',
-            onPressed: state.isLoading
-                ? null
-                : () => notifier.loadAll(
-                      weekStartIso: state.selectedWeekStartIso,
-                      weekEndIso: state.selectedWeekStartIso == null
-                          ? null
-                          : state.weekEnd?.toUtc().toIso8601String(),
-                    ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFF0F5B47),
-              child: const Icon(Icons.person, size: 18, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: FinanceScreenStyle.background,
+      appBar: const FinanceScreenHeader(title: 'Nhìn lại tài chính'),
       body: _buildBody(context, ref, state, notifier),
       bottomNavigationBar: const ReflectionBottomNav(),
     );
@@ -95,7 +42,7 @@ class TimelineScreen extends ConsumerWidget {
   ) {
     if (state.isLoading && state.week.startAt == null) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0F5B47)),
+        child: CircularProgressIndicator(color: FinanceScreenStyle.green),
       );
     }
     if (state.errorMessage != null && state.week.startAt == null) {
@@ -106,75 +53,29 @@ class TimelineScreen extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      color: const Color(0xFF0F5B47),
-      onRefresh: () => notifier.loadAll(
-        weekStartIso: state.selectedWeekStartIso,
-        weekEndIso: state.selectedWeekStartIso == null
-            ? null
-            : state.weekEnd?.toUtc().toIso8601String(),
-      ),
+      color: FinanceScreenStyle.green,
+      onRefresh: notifier.loadAll,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(13, 13, 13, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (state.errorMessage != null)
               _InlineError(message: state.errorMessage!),
-            // Card 1: Chiêm nghiệm tuần
-            WeekReflectionHeader(
-              dateRange: state.weekLabel,
-              week: state.week,
-              weeks: state.weeks,
-              selectedWeekStartIso: state.selectedWeekStartIso,
-              isBusy: state.isLoading,
-              onSelectWeek: (w) => notifier.selectWeek(w),
-              onClearSelection: notifier.clearWeekSelection,
-            ),
-            const SizedBox(height: 12),
-
-            // Card 2: Tổng chi tuần qua (có drill-down)
-            WeeklyExpenseSummaryCard(
-              week: state.week,
-              onTapCategory: (cat) => _openCategoryTransactions(
-                context,
-                ref,
-                cat,
-                state,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Section Header: Nhật ký dùng tiền
-            const Row(
-              children: [
-                Icon(Icons.favorite_outline, color: Color(0xFF0F5B47), size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Nhật ký Dùng tiền',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Mọi khoản chi đều tự động được ghi vào nhật ký. Sau 7 ngày, Ví An sẽ mời bạn nhìn lại để lắng nghe cảm xúc thật sự còn lại khi niềm phấn khích mua sắm ban đầu đã lắng xuống.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade800,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            _JournalSection(
-              notifier: notifier,
+            WeeklyReviewCard(
               state: state,
-              onRatingSelected: _onRatingSelected,
-              onSave: _onSave,
-              onSkip: _onSkip,
+              onSelectWeek: notifier.selectWeek,
+              onTapCategory: (category) =>
+                  _openCategoryTransactions(context, ref, category, state),
+            ),
+            const SizedBox(height: 18),
+            ReviewJournal(
+              state: state,
+              onSave: notifier.rateReflection,
+              onSkip: notifier.skipReflection,
+              onHistory: () =>
+                  context.push(AppConstants.reflectionHistoryRoute),
             ),
             const SizedBox(height: 16),
 
@@ -205,56 +106,6 @@ class TimelineScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  // ── Nhật ký: đánh giá / lưu / bỏ qua ───────────────────────────────
-
-  void _onRatingSelected(
-    BuildContext context,
-    TimelineNotifier notifier,
-    JournalEntry entry,
-    EmotionRating rating,
-  ) {
-    // Chọn nhanh: lưu ngay để không mất thao tác khi người dùng rời màn.
-    notifier.rateReflection(entry.id, rating, note: entry.note);
-  }
-
-  Future<void> _onSave(
-    BuildContext context,
-    TimelineNotifier notifier,
-    JournalEntry entry,
-    EmotionRating? rating,
-    String note,
-  ) async {
-    if (rating == null) {
-      AppSnackBar.showWarning(context, 'Chọn mức đánh giá trước khi lưu');
-      return;
-    }
-    final err = await notifier.rateReflection(
-      entry.id,
-      rating,
-      note: note,
-    );
-    if (!context.mounted) return;
-    if (err != null) {
-      AppSnackBar.showError(context, err);
-      return;
-    }
-    AppSnackBar.showSuccess(context, 'Đã lưu đánh giá cho "${entry.title}"');
-  }
-
-  Future<void> _onSkip(
-    BuildContext context,
-    TimelineNotifier notifier,
-    JournalEntry entry,
-  ) async {
-    final err = await notifier.skipReflection(entry.id);
-    if (!context.mounted) return;
-    if (err != null) {
-      AppSnackBar.showError(context, err);
-      return;
-    }
-    AppSnackBar.showSuccess(context, 'Đã bỏ qua "${entry.title}"');
   }
 
   // ── Drill-down giao dịch theo danh mục ─────────────────────────────
@@ -303,7 +154,10 @@ class TimelineScreen extends ConsumerWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackBar.showError(context, e.toString().replaceAll('Exception: ', ''));
+      AppSnackBar.showError(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+      );
     }
   }
 
@@ -336,9 +190,9 @@ class TimelineScreen extends ConsumerWidget {
               child: Text(
                 s.isIncrease
                     ? 'Hạn mức danh mục tăng ${_money.format(s.proposedLimit - s.currentLimit)} ₫. '
-                        'Tổng ngân sách kỳ này tăng tương ứng; chỉ áp dụng khi bạn bấm Xác nhận.'
+                          'Tổng ngân sách kỳ này tăng tương ứng; chỉ áp dụng khi bạn bấm Xác nhận.'
                     : 'Hạn mức danh mục giảm ${_money.format(s.currentLimit - s.proposedLimit)} ₫. '
-                        'Khoản chênh lệch trở lại là tiền tự do trong kỳ; chỉ áp dụng khi bạn bấm Xác nhận.',
+                          'Khoản chênh lệch trở lại là tiền tự do trong kỳ; chỉ áp dụng khi bạn bấm Xác nhận.',
                 style: const TextStyle(
                   fontSize: 11.5,
                   height: 1.4,
@@ -367,10 +221,7 @@ class TimelineScreen extends ConsumerWidget {
           Text(label, style: const TextStyle(fontSize: 12)),
           Text(
             '${_money.format(value)} ₫',
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -399,7 +250,7 @@ class TimelineScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F5B47),
+              backgroundColor: FinanceScreenStyle.green,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -417,13 +268,14 @@ class TimelineScreen extends ConsumerWidget {
     try {
       await _putBudgetLimit(ref, s.budgetId!, s);
       if (!context.mounted) return;
-      AppSnackBar.showSuccess(
-          context, 'Đã cập nhật hạn mức ${s.categoryName}');
+      AppSnackBar.showSuccess(context, 'Đã cập nhật hạn mức ${s.categoryName}');
       await ref.read(timelineProvider.notifier).loadAll();
     } catch (e) {
       if (!context.mounted) return;
       AppSnackBar.showError(
-          context, e.toString().replaceAll('Exception: ', ''));
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+      );
     }
   }
 
@@ -435,7 +287,8 @@ class TimelineScreen extends ConsumerWidget {
   ) async {
     final ds = ref.read(timelineRemoteDataSourceProvider);
     final plan = await ds.getBudgetPlan(budgetId);
-    final limits = (plan['limits'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final limits = (plan['limits'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
     final updated = limits.map((l) {
       if (l['categoryId']?.toString() == s.categoryId) {
         return {
@@ -534,331 +387,6 @@ class _InlineError extends StatelessWidget {
   }
 }
 
-class _JournalSection extends StatelessWidget {
-  final TimelineNotifier notifier;
-  final TimelineState state;
-  final void Function(BuildContext, TimelineNotifier, JournalEntry, EmotionRating)
-      onRatingSelected;
-  final Future<void> Function(
-    BuildContext, TimelineNotifier, JournalEntry, EmotionRating?, String) onSave;
-  final Future<void> Function(BuildContext, TimelineNotifier, JournalEntry)
-      onSkip;
-
-  const _JournalSection({
-    required this.notifier,
-    required this.state,
-    required this.onRatingSelected,
-    required this.onSave,
-    required this.onSkip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = state.journal;
-    if (entries.isEmpty) {
-      return const _EmptyJournal();
-    }
-
-    final awaiting = state.awaitingReview;
-    final tracking = state.tracking;
-    final handled = entries.where((e) => e.isRated || e.isSkipped).toList();
-
-    Widget card(JournalEntry e) => ReflectionTransactionCard(
-          key: ValueKey(e.id),
-          entry: e,
-          onRatingSelected: (r) => onRatingSelected(context, notifier, e, r),
-          onSave: (r, note) => onSave(context, notifier, e, r, note),
-          onSkip: () => onSkip(context, notifier, e),
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (awaiting.isNotEmpty) ...[
-          _JournalGroupHeader(
-            icon: Icons.notifications_active_outlined,
-            title: 'Chờ đánh giá',
-            subtitle:
-                '${awaiting.length} khoản đã đủ 7 ngày, mời bạn nhìn lại.',
-            highlight: true,
-          ),
-          const SizedBox(height: 8),
-          for (final e in awaiting) card(e),
-        ],
-        if (tracking.isNotEmpty) ...[
-          _JournalGroupHeader(
-            icon: Icons.hourglass_bottom,
-            title: 'Đang theo dõi',
-            subtitle:
-                '${tracking.length} khoản mới ghi nhận, đếm ngược tới ngày đánh giá.',
-            highlight: false,
-          ),
-          const SizedBox(height: 8),
-          for (final e in tracking) card(e),
-        ],
-        if (handled.isNotEmpty) ...[
-          _JournalGroupHeader(
-            icon: Icons.task_alt,
-            title: 'Đã xử lý',
-            subtitle:
-                '${handled.length} khoản đã đánh giá hoặc bỏ qua trong nhật ký.',
-            highlight: false,
-            trailing: TextButton(
-              onPressed: () =>
-                  context.push(AppConstants.reflectionHistoryRoute),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF0F5B47),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 28),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Lịch sử',
-                style:
-                    TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final e in handled)
-            _HandledJournalTile(
-              entry: e,
-              onOpenHistory: () =>
-                  context.push(AppConstants.reflectionHistoryRoute),
-            ),
-        ],
-        // Chỉ hiển thị thông báo "đã xử lý hết" khi thật sự không còn giao
-        // dịch nào đang chờ đủ 7 ngày hoặc đang theo dõi.
-        if (state.allJournalHandled && entries.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _JournalCompleteNote(
-            ratedCount: state.ratedCount,
-            skippedCount: state.skippedCount,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _JournalGroupHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool highlight;
-  final Widget? trailing;
-
-  const _JournalGroupHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.highlight,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 15,
-          color: highlight ? const Color(0xFF0F5B47) : Colors.grey.shade600,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.bold,
-                  color: highlight ? const Color(0xFF0F5B47) : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        ?trailing,
-      ],
-    );
-  }
-}
-
-/// Mục đã đánh giá/bỏ qua — hiển thị gọn, chi tiết nằm ở màn lịch sử.
-class _HandledJournalTile extends StatelessWidget {
-  final JournalEntry entry;
-  final VoidCallback onOpenHistory;
-
-  const _HandledJournalTile({
-    required this.entry,
-    required this.onOpenHistory,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final (color, bg) = switch (entry.rating) {
-      'worth_it' => (const Color(0xFF15803D), const Color(0xFFDCFCE7)),
-      'reconsider' => (const Color(0xFFB45309), const Color(0xFFFEF3C7)),
-      'neutral' => (const Color(0xFF0F5B47), const Color(0xFFE2F6F0)),
-      _ => (const Color(0xFF6B7280), const Color(0xFFF3F4F6)),
-    };
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: InkWell(
-        onTap: onOpenHistory,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              Icon(
-                billCategoryIcon(entry.categoryLabel),
-                size: 16,
-                color: const Color(0xFF0F5B47),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${entry.categoryLabel} • ${entry.dateText}',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  entry.ratingLabel,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Thông báo "đã xử lý hết" chỉ xuất hiện khi không còn giao dịch chưa xử lý.
-class _JournalCompleteNote extends StatelessWidget {
-  final int ratedCount;
-  final int skippedCount;
-
-  const _JournalCompleteNote({
-    required this.ratedCount,
-    required this.skippedCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF8F5),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline,
-              size: 18, color: Color(0xFF0F5B47)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Bạn đã xử lý hết nhật ký hiện tại: $ratedCount đánh giá, '
-              '$skippedCount bỏ qua. Khoản chi mới sẽ tự động được ghi nhận.',
-              style: const TextStyle(
-                fontSize: 11.5,
-                height: 1.35,
-                color: Color(0xFF0F5B47),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyJournal extends StatelessWidget {
-  const _EmptyJournal();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.auto_stories_outlined,
-              size: 34, color: Color(0xFFBDBDBD)),
-          const SizedBox(height: 8),
-          const Text(
-            'Chưa có khoản chi nào trong nhật ký.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Mọi khoản chi bạn tạo sẽ tự động vào đây và được mời đánh giá sau 7 ngày.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11.5, color: Color(0xFF9CA3AF)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════
-// Drill-down: giao dịch của một danh mục trong tuần
-// ════════════════════════════════════════════════════════════════════
-
 class _CategoryTransactionsSheet extends ConsumerStatefulWidget {
   final WeekCategory category;
   final DateTime startAt;
@@ -946,8 +474,9 @@ class _CategoryTransactionsSheetState
               const Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
-                  child:
-                      CircularProgressIndicator(color: Color(0xFF0F5B47)),
+                  child: CircularProgressIndicator(
+                    color: FinanceScreenStyle.green,
+                  ),
                 ),
               )
             else if (_error != null)
@@ -955,7 +484,10 @@ class _CategoryTransactionsSheetState
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   _error!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFB91C1C),
+                  ),
                 ),
               )
             else if (_rows.isEmpty)
@@ -979,14 +511,17 @@ class _CategoryTransactionsSheetState
                   itemBuilder: (context, i) {
                     final r = _rows[i];
                     final amount = num.tryParse('${r['amount'] ?? 0}') ?? 0;
-                    final at =
-                        DateTime.tryParse(r['occurredAt']?.toString() ?? '')?.toLocal();
+                    final at = DateTime.tryParse(
+                      r['occurredAt']?.toString() ?? '',
+                    )?.toLocal();
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         r['note']?.toString() ?? 'Chi tiêu',
                         style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: Text(
                         at == null

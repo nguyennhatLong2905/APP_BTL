@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
@@ -14,6 +13,9 @@ class EnvConfig {
     if (currentEnvironment == Environment.prod) {
       return AppConstants.prodBaseUrl;
     }
+
+    const configuredUrl = String.fromEnvironment('VIAN_DEV_API_URL');
+    if (configuredUrl.isNotEmpty) return configuredUrl;
 
     if (realDeviceIp != null && realDeviceIp!.isNotEmpty) {
       return 'http://$realDeviceIp:3000/api/v1';

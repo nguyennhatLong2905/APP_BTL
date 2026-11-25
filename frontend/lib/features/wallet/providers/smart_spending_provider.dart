@@ -68,8 +68,7 @@ class SmartSpendingNotifier extends Notifier<SmartSpendingState> {
     }
   }
 
-  void updateItemName(String name) =>
-      state = state.copyWith(itemName: name);
+  void updateItemName(String name) => state = state.copyWith(itemName: name);
 
   void updateItemAmount(int amount) =>
       state = state.copyWith(itemAmount: amount);
@@ -95,13 +94,18 @@ class SmartSpendingNotifier extends Notifier<SmartSpendingState> {
   }
 
   Future<void> getRecommendations() async {
+    if (state.itemAmount <= 0) return;
     state = state.copyWith(isSimulating: true, errorMessage: null);
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final result = await ds.getRecommendations(
         question: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
-        options: [],
-        minimumDaily: state.itemAmount.toString(),
+        options: [
+          (
+            name: state.itemName.isEmpty ? 'Sản phẩm' : state.itemName,
+            price: state.itemAmount.toString(),
+          ),
+        ],
       );
       state = state.copyWith(isSimulating: false, recommendations: result);
     } catch (e) {
@@ -123,4 +127,5 @@ class SmartSpendingNotifier extends Notifier<SmartSpendingState> {
 
 final smartSpendingProvider =
     NotifierProvider<SmartSpendingNotifier, SmartSpendingState>(
-        SmartSpendingNotifier.new);
+      SmartSpendingNotifier.new,
+    );

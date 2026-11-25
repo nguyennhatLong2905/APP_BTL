@@ -9,20 +9,29 @@ class WalletItem {
   final String name;
   final double balance;
   final String? currency;
+  final String? type;
+  final DateTime? openingAt;
+  final bool isActive;
 
   const WalletItem({
     required this.id,
     required this.name,
     required this.balance,
     this.currency,
+    this.type,
+    this.openingAt,
+    this.isActive = true,
   });
 
   factory WalletItem.fromJson(Map<String, dynamic> j) => WalletItem(
-        id: j['_id']?.toString() ?? '',
-        name: j['name']?.toString() ?? '',
-        balance: _toDouble(j['balance']),
-        currency: j['currency']?.toString(),
-      );
+    id: j['_id']?.toString() ?? '',
+    name: j['name']?.toString() ?? '',
+    balance: _toDouble(j['balance']),
+    currency: j['currency']?.toString(),
+    type: j['type']?.toString(),
+    openingAt: DateTime.tryParse(j['openingAt']?.toString() ?? '')?.toLocal(),
+    isActive: j['status'] != 'archived',
+  );
 
   static double _toDouble(dynamic v) {
     if (v == null) return 0.0;
@@ -40,20 +49,23 @@ class CategoryItem {
   final String name;
   final String type; // 'income' | 'expense'
   final String? icon;
+  final bool isActive;
 
   const CategoryItem({
     required this.id,
     required this.name,
     required this.type,
     this.icon,
+    this.isActive = true,
   });
 
   factory CategoryItem.fromJson(Map<String, dynamic> j) => CategoryItem(
-        id: j['_id']?.toString() ?? '',
-        name: j['name']?.toString() ?? '',
-        type: j['kind']?.toString() ?? j['type']?.toString() ?? 'expense',
-        icon: j['icon']?.toString(),
-      );
+    id: j['_id']?.toString() ?? '',
+    name: j['name']?.toString() ?? '',
+    type: j['kind']?.toString() ?? j['type']?.toString() ?? 'expense',
+    icon: j['icon']?.toString(),
+    isActive: j['status'] != 'archived',
+  );
 }
 
 // ── State ────────────────────────────────────────────────────────────
@@ -160,10 +172,7 @@ class TransactionNotifier extends Notifier<TransactionState> {
         hasMore: hasMore,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -186,16 +195,12 @@ class TransactionNotifier extends Notifier<TransactionState> {
       id: tempId,
       title: memo ?? 'Giao dịch mới',
       category: 'Khác',
-      amount: type == 'expense'
-          ? -amountVnd.toDouble()
-          : amountVnd.toDouble(),
+      amount: type == 'expense' ? -amountVnd.toDouble() : amountVnd.toDouble(),
       date: occurredAt,
       note: note,
       icon: TransactionIcon.other,
     );
-    state = state.copyWith(
-      transactions: [optimisticTx, ...state.transactions],
-    );
+    state = state.copyWith(transactions: [optimisticTx, ...state.transactions]);
 
     try {
       final ds = ref.read(transactionRemoteDataSourceProvider);
@@ -220,9 +225,7 @@ class TransactionNotifier extends Notifier<TransactionState> {
       // Lỗi → xóa bản tạm, trả danh sách về trạng thái ban đầu
       state = state.copyWith(
         isSubmitting: false,
-        transactions: state.transactions
-            .where((t) => t.id != tempId)
-            .toList(),
+        transactions: state.transactions.where((t) => t.id != tempId).toList(),
         errorMessage: e.toString().replaceAll('Exception: ', ''),
       );
       return false;
@@ -253,7 +256,8 @@ class TransactionNotifier extends Notifier<TransactionState> {
   // ── Parser ─────────────────────────────────────────────────────────
 
   List<Transaction> _parseTransactionList(Map<String, dynamic> resp) {
-    final raw = resp['items'] as List<dynamic>? ??
+    final raw =
+        resp['items'] as List<dynamic>? ??
         resp['entries'] as List<dynamic>? ??
         [];
     return raw.map((e) => _parseOne(e as Map<String, dynamic>)).toList();
@@ -282,10 +286,18 @@ class TransactionNotifier extends Notifier<TransactionState> {
 
   TransactionIcon _icon(String cat, double amount) {
     final c = cat.toLowerCase();
-    if (c.contains('ăn') || c.contains('food') || c.contains('quán')) return TransactionIcon.food;
-    if (c.contains('xe') || c.contains('grab') || c.contains('di chuyển')) return TransactionIcon.transport;
-    if (c.contains('mua') || c.contains('shop')) return TransactionIcon.shopping;
-    if (c.contains('y tế') || c.contains('sức khoẻ')) return TransactionIcon.health;
+    if (c.contains('ăn') || c.contains('food') || c.contains('quán')) {
+      return TransactionIcon.food;
+    }
+    if (c.contains('xe') || c.contains('grab') || c.contains('di chuyển')) {
+      return TransactionIcon.transport;
+    }
+    if (c.contains('mua') || c.contains('shop')) {
+      return TransactionIcon.shopping;
+    }
+    if (c.contains('y tế') || c.contains('sức khoẻ')) {
+      return TransactionIcon.health;
+    }
     if (c.contains('lương') || amount > 0) return TransactionIcon.salary;
     if (c.contains('chuyển')) return TransactionIcon.transfer;
     return TransactionIcon.other;
@@ -293,7 +305,11 @@ class TransactionNotifier extends Notifier<TransactionState> {
 
   DateTime _parseDate(dynamic v) {
     if (v == null) return DateTime.now();
-    try { return DateTime.parse(v.toString()).toLocal(); } catch (_) { return DateTime.now(); }
+    try {
+      return DateTime.parse(v.toString()).toLocal();
+    } catch (_) {
+      return DateTime.now();
+    }
   }
 
   double _toDouble(dynamic v) {
@@ -309,4 +325,5 @@ class TransactionNotifier extends Notifier<TransactionState> {
 
 final transactionProvider =
     NotifierProvider<TransactionNotifier, TransactionState>(
-        TransactionNotifier.new);
+      TransactionNotifier.new,
+    );

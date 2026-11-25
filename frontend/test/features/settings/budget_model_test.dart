@@ -9,21 +9,20 @@ CategoryBudget _budget({
   int warningPercent = 80,
   bool locked = false,
   int? percent,
-}) =>
-    CategoryBudget(
-      id: 'c1',
-      name: 'Ăn uống',
-      icon: Icons.restaurant_rounded,
-      allocatedAmount: limit,
-      spentAmount: spent,
-      warningPercent: warningPercent,
-      locked: locked,
-      percent: percent,
-    );
+}) => CategoryBudget(
+  id: 'c1',
+  name: 'Ăn uống',
+  icon: Icons.restaurant_rounded,
+  allocatedAmount: limit,
+  spentAmount: spent,
+  warningPercent: warningPercent,
+  locked: locked,
+  percent: percent,
+);
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(body: SingleChildScrollView(child: child)),
-    );
+  home: Scaffold(body: SingleChildScrollView(child: child)),
+);
 
 void main() {
   group('CategoryBudget – công thức và trạng thái', () {
@@ -74,42 +73,47 @@ void main() {
   });
 
   group('BudgetCategoryCard – hiển thị', () {
-    testWidgets('bình thường: hiện hạn mức, đã chi, còn lại, %', (tester) async {
-      await tester.pumpWidget(_wrap(
-        BudgetCategoryCard(
-          category: _budget(limit: 2000000, spent: 1600000),
+    testWidgets('bình thường: hiện hạn mức, đã chi, còn lại, %', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          BudgetCategoryCard(category: _budget(limit: 2000000, spent: 1600000)),
         ),
-      ));
-      expect(find.text('Ăn uống'), findsOneWidget);
-      expect(
-        find.textContaining('Hạn mức 2.000.000 ₫'),
-        findsOneWidget,
       );
-      expect(find.textContaining('Đã chi 1.600.000 ₫'), findsOneWidget);
-      expect(find.text('400.000 ₫'), findsOneWidget);
+      expect(find.text('Ăn uống'), findsOneWidget);
+      expect(find.textContaining('Hạn mức 2.000.000 đ'), findsOneWidget);
+      expect(find.textContaining('Đã chi 1.600.000 đ'), findsOneWidget);
+      expect(find.text('400.000 đ'), findsOneWidget);
       expect(find.text('80%'), findsOneWidget);
       expect(find.text('Sắp hết'), findsOneWidget);
     });
 
-    testWidgets('vượt hạn mức: hiện số tiền vượt và trạng thái', (tester) async {
-      await tester.pumpWidget(_wrap(
-        BudgetCategoryCard(
-          category: _budget(limit: 2000000, spent: 2300000),
+    testWidgets('vượt hạn mức: hiện số tiền vượt và trạng thái', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          BudgetCategoryCard(category: _budget(limit: 2000000, spent: 2300000)),
         ),
-      ));
-      expect(find.textContaining('Vượt hạn mức 300.000 ₫'), findsWidgets);
-      expect(find.text('Vượt hạn mức'), findsWidgets);
+      );
+      expect(find.text('−300.000 đ'), findsOneWidget);
+      expect(find.text('Vượt hạn mức'), findsOneWidget);
     });
 
     testWidgets('có nút xóa khi được cấp callback', (tester) async {
       var deleted = false;
-      await tester.pumpWidget(_wrap(
-        BudgetCategoryCard(
-          category: _budget(limit: 2000000, spent: 100000),
-          onDeletePressed: () => deleted = true,
+      await tester.pumpWidget(
+        _wrap(
+          BudgetCategoryCard(
+            category: _budget(limit: 2000000, spent: 100000),
+            onDeletePressed: () => deleted = true,
+          ),
         ),
-      ));
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      );
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xóa'));
       await tester.pumpAndSettle();
       expect(deleted, isTrue);
     });

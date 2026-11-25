@@ -33,33 +33,37 @@ class SelfInsightCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.lightbulb_outline,
-                        color: Color(0xFF0F5B47), size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Thấu hiểu bản thân',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                const Icon(
+                  Icons.lightbulb_outline,
+                  color: Color(0xFF0D5B47),
+                  size: 18,
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2F6F0),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                const SizedBox(width: 8),
+                const Expanded(
                   child: Text(
-                    'Dựa trên ${insight.sampleCount} đánh giá',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F5B47),
+                    'Thấu hiểu bản thân',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2F6F0),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Dựa trên ${insight.sampleCount} đánh giá',
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F5B47),
+                      ),
                     ),
                   ),
                 ),
@@ -84,8 +88,11 @@ class SelfInsightCard extends StatelessWidget {
             Center(
               child: TextButton.icon(
                 onPressed: onViewHistory,
-                icon: const Icon(Icons.visibility_outlined,
-                    size: 16, color: Color(0xFF0F5B47)),
+                icon: const Icon(
+                  Icons.visibility_outlined,
+                  size: 16,
+                  color: Color(0xFF0F5B47),
+                ),
                 label: const Text(
                   'Xem chi tiết các nhật ký giao dịch đã đánh giá',
                   style: TextStyle(
@@ -110,8 +117,10 @@ class _NotEnoughData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = (insight.minimumSamples - insight.sampleCount)
-        .clamp(0, insight.minimumSamples);
+    final remaining = (insight.minimumSamples - insight.sampleCount).clamp(
+      0,
+      insight.minimumSamples,
+    );
     final progress = insight.minimumSamples == 0
         ? 0.0
         : (insight.sampleCount / insight.minimumSamples).clamp(0.0, 1.0);

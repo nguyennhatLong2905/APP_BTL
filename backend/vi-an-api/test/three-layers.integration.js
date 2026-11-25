@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MongoClient, ObjectId } from "mongodb";
+import { Long, MongoClient, ObjectId } from "mongodb";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { initialize } from "../src/migrate.js";
 import { buildApp } from "../src/app.js";
@@ -28,7 +28,7 @@ test(
         downloadDir:
           process.env.MONGOMS_DOWNLOAD_DIR || "/tmp/vi-an-mongodb-binaries",
       },
-      replSet: { count: 1 },
+      replSet: { count: 1, configSettings: { electionTimeoutMillis: 2500 } },
     });
     const client = new MongoClient(repl.getUri(), { promoteLongs: false });
     await client.connect();
@@ -67,6 +67,8 @@ test(
         ...(body ? { payload: body } : {}),
       });
       assert.equal(res.statusCode, expected, res.body);
+      if (method === "GET" && url === "/dashboard")
+        assert.equal(res.headers["cache-control"], "private, no-store");
       return res.json().data;
     }
     const dash = () => call("GET", "/dashboard");
@@ -133,6 +135,8 @@ test(
         e.available.toString(),
         `${label}: Lớp 3 = Lớp 1 − Lớp 2`,
       );
+      assert.equal(o.spendableAmount, (e.available > 0n ? e.available : 0n).toString());
+      assert.equal(o.shortfallAmount, (e.available < 0n ? -e.available : 0n).toString());
       // Khối `layers` phản chiếu đúng các trường phẳng, không tính khác đi.
       assert.equal(o.layers.total, o.total);
       assert.equal(o.layers.protectedMoney, o.protectedMoney);
@@ -162,6 +166,24 @@ test(
         assert.equal(o.layers.protectedGoalCount, 1);
       },
     );
+
+    await t.test("thiếu tiền: phần có thể chi bằng 0 và khoản thiếu được trả riêng", async () => {
+      const before = await dash();
+      const bills = db.collection("bill_occurrences");
+      const id = new ObjectId(before.bills[0]._id);
+      const original = await bills.findOne({ _id: id });
+      const increase = Long.fromString((BigInt(before.available) + 500000n).toString());
+
+      try {
+        await bills.updateOne({ _id: id }, { $inc: { amount: increase } });
+        const after = await assertMatchesDb("thiếu tiền dành riêng");
+        assert.equal(after.available, "-500000");
+        assert.equal(after.spendableAmount, "0");
+        assert.equal(after.shortfallAmount, "500000");
+      } finally {
+        await bills.updateOne({ _id: id }, { $set: { amount: original.amount } });
+      }
+    });
 
     await t.test("phát sinh giao dịch chi: Lớp 1 và Lớp 3 giảm đúng số tiền",
       async () => {

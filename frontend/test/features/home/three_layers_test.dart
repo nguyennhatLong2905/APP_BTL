@@ -60,14 +60,15 @@ void main() {
       expect(d.spendable, 2100000, reason: 'Lớp 3 vẫn tính được');
     });
 
-    test('chi vượt khả năng: Lớp 3 âm được giữ nguyên', () {
+    test('thiếu tiền: không có tiền để chi và giữ lại khoản thiếu', () {
       final d = data(
         total: 1000000,
         protectedMoney: 800000,
         unpaidBills: 500000,
         available: -300000,
       );
-      expect(d.spendable, -300000);
+      expect(d.spendable, 0);
+      expect(d.shortfall, 300000);
     });
 
     test('số liệu thay đổi khi dữ liệu thật thay đổi (không hardcode)', () {

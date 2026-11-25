@@ -24,6 +24,45 @@
         }
       ]
     },
+    "week": {
+      "startAt": "2026-09-24T17:00:00.000Z",
+      "endAt": "2026-10-01T17:00:00.000Z",
+      "previousStartAt": "2026-09-17T17:00:00.000Z",
+      "income": "25000",
+      "expense": "450000",
+      "net": "-425000",
+      "previousExpense": "380000",
+      "expenseChangePercent": 18.42,
+      "trend": "up",
+      "topCategory": {
+        "categoryId": "00000000000000000000000f",
+        "name": "Học tập",
+        "kind": "expense",
+        "amount": "450000",
+        "count": 1,
+        "percent": 100
+      },
+      "categories": [
+        {
+          "categoryId": "00000000000000000000000f",
+          "name": "Học tập",
+          "kind": "expense",
+          "amount": "450000",
+          "count": 1,
+          "percent": 100,
+          "previousAmount": "0",
+          "changePercent": null,
+          "transactionCount": 1,
+          "topTransactionCount": 0
+        }
+      ],
+      "hasData": true,
+      "dayCount": 7,
+      "narrative": [
+        "Chi tiêu tuần này tăng 18.42% so với tuần trước.",
+        "Học tập chiếm 100% tổng chi (1 giao dịch)."
+      ]
+    },
     "reflections": [
       {
         "_id": "000000000000000000000259",
@@ -76,13 +115,290 @@
           "categoryId": "00000000000000000000000f",
           "note": "Khóa học tiếng Anh giao tiếp"
         }
+      },
+      {
+        "_id": "6b06f09ab17938200c6b26df",
+        "userId": "000000000000000000000001",
+        "transactionId": "000000000000000000000064",
+        "createdAt": "2026-11-25T14:28:42.124Z",
+        "dueAt": "2026-10-09T01:30:00.000Z",
+        "status": "pending",
+        "updatedAt": "2026-11-25T14:28:42.124Z",
+        "transaction": {
+          "_id": "000000000000000000000064",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "type": "expense",
+          "amount": "45000",
+          "currency": "VND",
+          "occurredAt": "2026-10-02T01:30:00.000Z",
+          "status": "posted",
+          "idempotencyKey": "demo:100",
+          "version": 1,
+          "source": "manual",
+          "walletId": "000000000000000000000002",
+          "categoryId": "00000000000000000000000a",
+          "note": "Cà phê sáng"
+        }
+      },
+      {
+        "_id": "6b06f09ab17938200c6b26dd",
+        "userId": "000000000000000000000001",
+        "transactionId": "000000000000000000000065",
+        "createdAt": "2026-11-25T14:28:42.110Z",
+        "dueAt": "2026-10-09T05:15:00.000Z",
+        "status": "pending",
+        "updatedAt": "2026-11-25T14:28:42.110Z",
+        "transaction": {
+          "_id": "000000000000000000000065",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "type": "expense",
+          "amount": "60000",
+          "currency": "VND",
+          "occurredAt": "2026-10-02T05:15:00.000Z",
+          "status": "posted",
+          "idempotencyKey": "demo:101",
+          "version": 1,
+          "source": "manual",
+          "walletId": "000000000000000000000003",
+          "categoryId": "00000000000000000000000a",
+          "note": "Cơm trưa văn phòng"
+        }
+      },
+      {
+        "_id": "6b06f09ab17938200c6b26db",
+        "userId": "000000000000000000000001",
+        "transactionId": "000000000000000000000066",
+        "createdAt": "2026-11-25T14:28:42.096Z",
+        "dueAt": "2026-10-09T10:45:00.000Z",
+        "status": "pending",
+        "updatedAt": "2026-11-25T14:28:42.096Z",
+        "transaction": {
+          "_id": "000000000000000000000066",
+          "userId": "000000000000000000000001",
+          "createdAt": "2026-10-02T16:59:59.000Z",
+          "updatedAt": "2026-10-02T16:59:59.000Z",
+          "type": "expense",
+          "amount": "70000",
+          "currency": "VND",
+          "occurredAt": "2026-10-02T10:45:00.000Z",
+          "status": "posted",
+          "idempotencyKey": "demo:102",
+          "version": 1,
+          "source": "manual",
+          "walletId": "000000000000000000000002",
+          "categoryId": "00000000000000000000000b",
+          "note": "Đổ xăng xe máy"
+        }
       }
     ],
+    "journal": [
+      {
+        "_id": "6b06f09ab17938200c6b26db",
+        "hasReflectionRecord": true,
+        "transactionId": "000000000000000000000066",
+        "status": "pending",
+        "state": "awaiting_review",
+        "rating": null,
+        "note": null,
+        "ratedAt": null,
+        "dueAt": "2026-10-09T10:45:00.000Z",
+        "daysRemaining": 0,
+        "isDue": true,
+        "transaction": {
+          "_id": "000000000000000000000066",
+          "amount": "70000",
+          "occurredAt": "2026-10-02T10:45:00.000Z",
+          "note": "Đổ xăng xe máy",
+          "type": "expense",
+          "categoryId": "00000000000000000000000b",
+          "categoryName": "Đi lại"
+        },
+        "categoryName": "Đi lại"
+      },
+      {
+        "_id": "6b06f09ab17938200c6b26dd",
+        "hasReflectionRecord": true,
+        "transactionId": "000000000000000000000065",
+        "status": "pending",
+        "state": "awaiting_review",
+        "rating": null,
+        "note": null,
+        "ratedAt": null,
+        "dueAt": "2026-10-09T05:15:00.000Z",
+        "daysRemaining": 0,
+        "isDue": true,
+        "transaction": {
+          "_id": "000000000000000000000065",
+          "amount": "60000",
+          "occurredAt": "2026-10-02T05:15:00.000Z",
+          "note": "Cơm trưa văn phòng",
+          "type": "expense",
+          "categoryId": "00000000000000000000000a",
+          "categoryName": "Ăn uống"
+        },
+        "categoryName": "Ăn uống"
+      },
+      {
+        "_id": "6b06f09ab17938200c6b26df",
+        "hasReflectionRecord": true,
+        "transactionId": "000000000000000000000064",
+        "status": "pending",
+        "state": "awaiting_review",
+        "rating": null,
+        "note": null,
+        "ratedAt": null,
+        "dueAt": "2026-10-09T01:30:00.000Z",
+        "daysRemaining": 0,
+        "isDue": true,
+        "transaction": {
+          "_id": "000000000000000000000064",
+          "amount": "45000",
+          "occurredAt": "2026-10-02T01:30:00.000Z",
+          "note": "Cà phê sáng",
+          "type": "expense",
+          "categoryId": "00000000000000000000000a",
+          "categoryName": "Ăn uống"
+        },
+        "categoryName": "Ăn uống"
+      },
+      {
+        "_id": "000000000000000000000258",
+        "hasReflectionRecord": true,
+        "transactionId": "000000000000000000000069",
+        "status": "pending",
+        "state": "awaiting_review",
+        "rating": null,
+        "note": null,
+        "ratedAt": null,
+        "dueAt": "2026-10-02T03:00:00.000Z",
+        "daysRemaining": 0,
+        "isDue": true,
+        "transaction": {
+          "_id": "000000000000000000000069",
+          "amount": "450000",
+          "occurredAt": "2026-09-25T03:00:00.000Z",
+          "note": "Khóa học tiếng Anh giao tiếp",
+          "type": "expense",
+          "categoryId": "00000000000000000000000f",
+          "categoryName": "Học tập"
+        },
+        "categoryName": "Học tập"
+      },
+      {
+        "_id": "000000000000000000000259",
+        "hasReflectionRecord": true,
+        "transactionId": "00000000000000000000006a",
+        "status": "pending",
+        "state": "awaiting_review",
+        "rating": null,
+        "note": null,
+        "ratedAt": null,
+        "dueAt": "2026-10-01T03:00:00.000Z",
+        "daysRemaining": 0,
+        "isDue": true,
+        "transaction": {
+          "_id": "00000000000000000000006a",
+          "amount": "380000",
+          "occurredAt": "2026-09-24T03:00:00.000Z",
+          "note": "Áo khoác gió thu đông",
+          "type": "expense",
+          "categoryId": "00000000000000000000000c",
+          "categoryName": "Mua sắm cá nhân"
+        },
+        "categoryName": "Mua sắm cá nhân"
+      }
+    ],
+    "journalSummary": {
+      "total": 5,
+      "tracking": 0,
+      "awaitingReview": 5,
+      "rated": 0,
+      "skipped": 0,
+      "reviewed": 0
+    },
     "patterns": {
       "sampleCount": 0,
       "byCategory": [],
       "hasEnoughData": false
     },
+    "selfInsight": {
+      "sampleCount": 0,
+      "ratedCount": 0,
+      "hasEnoughData": false,
+      "minimumSamples": 3,
+      "strongSignalSamples": 5,
+      "groups": [],
+      "statements": []
+    },
+    "budgetSuggestions": {
+      "budgetId": "0000000000000000000000c8",
+      "budgetName": "Kỳ lương 16/09 – 16/10",
+      "hasBudget": true,
+      "minimumSamples": 3,
+      "suggestions": [],
+      "usage": [
+        {
+          "categoryId": "00000000000000000000000c",
+          "categoryName": "Mua sắm cá nhân",
+          "limit": "1000000",
+          "spent": "380000",
+          "percent": 38,
+          "transactions": 1
+        },
+        {
+          "categoryId": "00000000000000000000000b",
+          "categoryName": "Đi lại",
+          "limit": "600000",
+          "spent": "70000",
+          "percent": 11.66,
+          "transactions": 0
+        },
+        {
+          "categoryId": "00000000000000000000000a",
+          "categoryName": "Ăn uống",
+          "limit": "2500000",
+          "spent": "105000",
+          "percent": 4.2,
+          "transactions": 0
+        },
+        {
+          "categoryId": "00000000000000000000000d",
+          "categoryName": "Sinh hoạt & khác",
+          "limit": "1400000",
+          "spent": "0",
+          "percent": 0,
+          "transactions": 0
+        }
+      ],
+      "emptyReason": {
+        "code": "no_ratings",
+        "reason": "Mức chi hiện tại đang nằm trong khoảng hợp lý so với hạn mức, nên chưa cần đổi hạn mức.",
+        "nextStep": "Đánh giá các khoản chi sau 7 ngày để Ví An hiểu bạn thấy khoản nào đáng tiền và tinh chỉnh chính xác hơn."
+      }
+    },
+    "weeks": [
+      {
+        "startAt": "2026-11-22T17:00:00.000Z",
+        "endAt": "2026-11-29T17:00:00.000Z",
+        "label": "23/11 – 29/11/2026"
+      },
+      {
+        "startAt": "2026-09-27T17:00:00.000Z",
+        "endAt": "2026-10-04T17:00:00.000Z",
+        "label": "28/09 – 04/10/2026"
+      },
+      {
+        "startAt": "2026-09-20T17:00:00.000Z",
+        "endAt": "2026-09-27T17:00:00.000Z",
+        "label": "21/09 – 27/09/2026"
+      }
+    ],
+    "hasData": true,
+    "minimumSamples": 3,
     "insights": [
       {
         "_id": "0000000000000000000002bc",

@@ -616,6 +616,16 @@
             "pattern": "^-?[0-9]+$",
             "nullable": true
           },
+          "spendableAmount": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Số tiền có thể chi sau khi trừ các khoản đã dành riêng."
+          },
+          "shortfallAmount": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Số tiền còn thiếu để đủ các khoản đã dành riêng."
+          },
           "dailyReference": {
             "type": "string",
             "pattern": "^-?[0-9]+$",
@@ -685,6 +695,8 @@
           "unpaidBills",
           "protectedMoney",
           "available",
+          "spendableAmount",
+          "shortfallAmount",
           "dailyReference",
           "wallets",
           "bills"

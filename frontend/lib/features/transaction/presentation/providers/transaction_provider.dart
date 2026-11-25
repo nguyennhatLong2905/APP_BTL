@@ -1,354 +1,245 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_riverpod_clean_architecture/core/utils/refresh_financial_data.dart';
-import 'package:flutter_riverpod_clean_architecture/features/settings/data/datasources/category_remote_data_source.dart';
-import 'package:flutter_riverpod_clean_architecture/features/transaction/data/datasources/transaction_remote_data_source.dart';
-import 'package:flutter_riverpod_clean_architecture/features/transaction/domain/models/transaction.dart';
-import 'package:flutter_riverpod_clean_architecture/features/transaction/domain/models/transaction_category.dart';
-import 'package:flutter_riverpod_clean_architecture/features/transaction/providers/transaction_provider.dart';
 
-/// Exception khi chưa có ví
-class WalletNotFoundException implements Exception {
-  final String message;
-  WalletNotFoundException(this.message);
-  @override
-  String toString() => message;
-}
+import '../../../../core/utils/refresh_financial_data.dart';
+import '../../../../core/widgets/currency_text_field.dart';
+import '../../../settings/data/datasources/category_remote_data_source.dart';
+import '../../data/datasources/attachment_remote_data_source.dart';
+import '../../data/datasources/transaction_remote_data_source.dart';
+import '../../domain/models/transaction.dart';
+import '../../domain/models/transaction_category.dart';
+import '../../providers/transaction_provider.dart';
 
-/// State cho Add Transaction Screen
 class TransactionFormState {
   final TransactionType type;
-  final double? amount;
+  final int amount;
   final TransactionCategory? selectedCategory;
-  final String? selectedWalletId; // ID của ví được chọn
-  final String? selectedWalletName; // Tên ví để hiển thị
-  final String? selectedToWalletId; // Cho chuyển ví
-  final String? selectedToWalletName; // Cho chuyển ví
+  final WalletItem? wallet;
+  final WalletItem? toWallet;
   final DateTime selectedDate;
-  final String? note;
-  final String? photoPath;
+  final String note;
+  final XFile? photo;
   final bool isLoading;
   final String? error;
   final bool isSuccess;
 
   TransactionFormState({
     this.type = TransactionType.expense,
-    this.amount,
+    this.amount = 0,
     this.selectedCategory,
-    this.selectedWalletId,
-    this.selectedWalletName,
-    this.selectedToWalletId,
-    this.selectedToWalletName,
+    this.wallet,
+    this.toWallet,
     DateTime? selectedDate,
-    this.note,
-    this.photoPath,
+    this.note = '',
+    this.photo,
     this.isLoading = false,
     this.error,
     this.isSuccess = false,
   }) : selectedDate = selectedDate ?? DateTime.now();
 
+  bool get isTransfer => type == TransactionType.transfer;
+
+  bool get isValid => saveBlockReason == null;
+
+  String? get saveBlockReason {
+    if (amount <= 0) return 'Nhập số tiền lớn hơn 0 để lưu.';
+    if (isTransfer) {
+      if (wallet == null && toWallet == null)
+        return 'Chọn ví gửi và ví nhận để lưu.';
+      if (wallet == null) return 'Chọn ví gửi để lưu.';
+      if (toWallet == null) return 'Chọn ví nhận để lưu.';
+      if (wallet!.id == toWallet!.id)
+        return 'Ví gửi và ví nhận phải khác nhau.';
+      return null;
+    }
+    final walletLabel = type == TransactionType.income
+        ? 'ví nhận tiền'
+        : 'ví chi tiền';
+    if (wallet == null && selectedCategory == null) {
+      return 'Chọn $walletLabel và danh mục để lưu.';
+    }
+    if (wallet == null) return 'Chọn $walletLabel để lưu.';
+    if (selectedCategory == null) return 'Chọn danh mục để lưu.';
+    return null;
+  }
+
   TransactionFormState copyWith({
     TransactionType? type,
-    double? amount,
+    int? amount,
     TransactionCategory? selectedCategory,
-    String? selectedWalletId,
-    String? selectedWalletName,
-    String? selectedToWalletId,
-    String? selectedToWalletName,
+    WalletItem? wallet,
+    WalletItem? toWallet,
     DateTime? selectedDate,
     String? note,
-    String? photoPath,
+    XFile? photo,
     bool? isLoading,
     String? error,
     bool? isSuccess,
     bool clearCategory = false,
     bool clearPhoto = false,
-    bool clearWallet = false,
-    bool clearToWallet = false,
-  }) {
-    return TransactionFormState(
-      type: type ?? this.type,
-      amount: amount ?? this.amount,
-      selectedCategory: clearCategory ? null : (selectedCategory ?? this.selectedCategory),
-      selectedWalletId: clearWallet ? null : (selectedWalletId ?? this.selectedWalletId),
-      selectedWalletName: clearWallet ? null : (selectedWalletName ?? this.selectedWalletName),
-      selectedToWalletId: clearToWallet ? null : (selectedToWalletId ?? this.selectedToWalletId),
-      selectedToWalletName: clearToWallet ? null : (selectedToWalletName ?? this.selectedToWalletName),
-      selectedDate: selectedDate ?? this.selectedDate,
-      note: note ?? this.note,
-      photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      isSuccess: isSuccess ?? this.isSuccess,
-    );
-  }
-
-  bool get isValid {
-    if (type == TransactionType.transfer) {
-      return amount != null && 
-             amount! > 0 && 
-             selectedWalletId != null &&
-             selectedToWalletId != null;
-    }
-    return amount != null && 
-           amount! > 0 && 
-           selectedCategory != null;
-  }
+  }) => TransactionFormState(
+    type: type ?? this.type,
+    amount: amount ?? this.amount,
+    selectedCategory: clearCategory
+        ? null
+        : selectedCategory ?? this.selectedCategory,
+    wallet: wallet ?? this.wallet,
+    toWallet: toWallet ?? this.toWallet,
+    selectedDate: selectedDate ?? this.selectedDate,
+    note: note ?? this.note,
+    photo: clearPhoto ? null : photo ?? this.photo,
+    isLoading: isLoading ?? this.isLoading,
+    error: error,
+    isSuccess: isSuccess ?? this.isSuccess,
+  );
 }
 
-/// Notifier quản lý state Add Transaction Form
 class TransactionFormNotifier extends Notifier<TransactionFormState> {
+  // Khoảng số nguyên chính xác trên Flutter Web.
+  static const _maxAmount = 9007199254740991;
+  String? _uploadedPhotoId;
+
   @override
-  TransactionFormState build() {
-    return TransactionFormState(
-      selectedDate: DateTime.now(),
-    );
-  }
+  TransactionFormState build() => TransactionFormState();
 
-  /// Chuyển đổi giữa Thu/Chi
   void setType(TransactionType type) {
-    state = state.copyWith(
-      type: type,
-      clearCategory: true, // Reset category khi đổi type
-      clearWallet: false, // Giữ ví đã chọn
-    );
+    if (state.type == type) return;
+    state = state.copyWith(type: type, clearCategory: true);
   }
 
-  /// Chọn ví nguồn
-  void selectWallet(String walletId, String walletName) {
-    state = state.copyWith(
-      selectedWalletId: walletId,
-      selectedWalletName: walletName,
-    );
+  void selectWallet(WalletItem wallet, {bool destination = false}) {
+    final other = destination ? state.wallet : state.toWallet;
+    if (state.isTransfer && wallet.id == other?.id) {
+      state = state.copyWith(error: 'Ví gửi và ví nhận phải khác nhau.');
+      return;
+    }
+    state = destination
+        ? state.copyWith(toWallet: wallet)
+        : state.copyWith(wallet: wallet);
   }
 
-  /// Chọn ví đích (cho chuyển ví)
-  void selectToWallet(String walletId, String walletName) {
-    state = state.copyWith(
-      selectedToWalletId: walletId,
-      selectedToWalletName: walletName,
-    );
+  void appendDigits(int digits, {int placeValue = 10}) {
+    if (state.amount > (_maxAmount - digits) ~/ placeValue) return;
+    state = state.copyWith(amount: state.amount * placeValue + digits);
   }
 
-  /// Cập nhật số tiền
-  void setAmount(double? amount) {
-    state = state.copyWith(amount: amount);
+  void deleteDigit() => state = state.copyWith(amount: state.amount ~/ 10);
+
+  void addAmount(int amount) {
+    if (amount > _maxAmount - state.amount) return;
+    state = state.copyWith(amount: state.amount + amount);
   }
 
-  /// Chọn category
   void selectCategory(TransactionCategory category) {
     state = state.copyWith(selectedCategory: category);
   }
 
-  /// Chọn ngày
-  void setDate(DateTime date) {
-    state = state.copyWith(selectedDate: date);
+  void setDate(DateTime date) => state = state.copyWith(selectedDate: date);
+  void setNote(String note) => state = state.copyWith(note: note);
+
+  void setPhoto(XFile? photo) {
+    _uploadedPhotoId = null;
+    state = state.copyWith(photo: photo, clearPhoto: photo == null);
   }
 
-  /// Cập nhật ghi chú
-  void setNote(String? note) {
-    state = state.copyWith(note: note);
-  }
-
-  /// Cập nhật ảnh
-  void setPhoto(String? path) {
-    state = state.copyWith(photoPath: path);
-  }
-
-  /// Xóa ảnh
-  void removePhoto() {
-    state = state.copyWith(clearPhoto: true);
-  }
-
-  /// Lưu giao dịch
   Future<void> saveTransaction() async {
-    if (!state.isValid) {
-      state = state.copyWith(
-        error: 'Vui lòng nhập đủ thông tin',
+    if (state.isLoading || state.isSuccess || !state.isValid) return;
+
+    final draft = state;
+    state = draft.copyWith(isLoading: true);
+    try {
+      final from = draft.wallet!;
+      final to = draft.isTransfer ? draft.toWallet : null;
+      for (final wallet in [from, ?to]) {
+        final openingAt = wallet.openingAt;
+        if (openingAt != null && draft.selectedDate.isBefore(openingAt)) {
+          throw Exception(
+            'Ngày giao dịch phải từ ${DateFormat('dd/MM/yyyy').format(openingAt)} '
+            'trở đi đối với ví "${wallet.name}".',
+          );
+        }
+      }
+
+      final ds = ref.read(transactionRemoteDataSourceProvider);
+      final categoryId = draft.isTransfer
+          ? null
+          : await _resolveCategory(draft);
+      if (draft.type == TransactionType.expense) {
+        await _assertBudgetAllowance(
+          categoryId: categoryId!,
+          amount: draft.amount,
+          occurredAt: draft.selectedDate,
+        );
+      }
+
+      final photo = draft.photo;
+      if (photo != null && _uploadedPhotoId == null) {
+        _uploadedPhotoId = await ref
+            .read(attachmentRemoteDataSourceProvider)
+            .uploadAttachment(photo);
+      }
+      final attachmentId = _uploadedPhotoId;
+      await ds.createTransaction(
+        type: draft.type.name,
+        amount: draft.amount.toString(),
+        occurredAt: draft.selectedDate.toUtc().toIso8601String(),
+        walletId: draft.isTransfer ? null : from.id,
+        fromWalletId: draft.isTransfer ? from.id : null,
+        toWalletId: to?.id,
+        categoryId: categoryId,
+        note: draft.note.trim(),
+        attachmentIds: attachmentId == null ? null : [attachmentId],
+      );
+    } catch (e) {
+      state = draft.copyWith(
+        isLoading: false,
+        error:
+            'Không thể lưu giao dịch. ${e.toString().replaceFirst('Exception: ', '')}',
       );
       return;
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    state = draft.copyWith(isLoading: false, isSuccess: true);
+    ref.read(transactionProvider.notifier).loadWallets();
+    invalidateFinancialData(ref);
+  }
 
-    try {
-      // Đọc wallets/categories từ transactionProvider đã cache — không gọi API thêm
-      final txState = ref.read(transactionProvider);
-      final wallets = txState.wallets.map((w) => <String, dynamic>{
-        '_id': w.id,
-        'name': w.name,
-        'openingAt': null, // openingAt không có trong WalletItem; giữ null, backend kiểm tra
-      }).toList();
-      final categories = txState.categories.map((c) => <String, dynamic>{
-        '_id': c.id,
-        'name': c.name,
-        'kind': c.type,
-      }).toList();
+  Future<String> _resolveCategory(TransactionFormState draft) async {
+    final category = draft.selectedCategory!;
+    final kind = draft.type.name;
+    final name = category.name.trim().toLowerCase();
+    final cached = ref
+        .read(transactionProvider)
+        .categories
+        .where((item) => item.isActive && item.type == kind);
+    final selected = cached.where((item) => item.id == category.id).firstOrNull;
+    if (selected != null) return selected.id;
 
-      // Nếu chưa có dữ liệu trong cache, fallback gọi API một lần
-      final ds = ref.read(transactionRemoteDataSourceProvider);
-      final List<Map<String, dynamic>> resolvedWallets;
-      final List<Map<String, dynamic>> resolvedCategories;
-      if (wallets.isEmpty) {
-        resolvedWallets = await ds.getWallets();
-        resolvedCategories = await ds.getCategories();
-      } else {
-        resolvedWallets = wallets;
-        resolvedCategories = categories;
+    // Danh mục gợi ý có thể chưa tồn tại trong tài khoản cũ.
+    // Đọc lại danh sách trước khi tạo để dùng đúng ID hiện có.
+    final ds = ref.read(categoryRemoteDataSourceProvider);
+    final categories = await ds.getCategories();
+    for (final item in categories.map(CategoryItem.fromJson)) {
+      if (!item.isActive || item.type != kind) continue;
+      if (item.id == category.id || item.name.trim().toLowerCase() == name) {
+        return item.id;
       }
-
-      if (resolvedWallets.isEmpty) {
-        throw WalletNotFoundException('Bạn chưa có ví nào. Vui lòng tạo ví trước để ghi nhận giao dịch.');
-      }
-
-      // Dùng ví đã chọn, hoặc ví đầu tiên nếu chưa chọn
-      final walletId = state.selectedWalletId ?? resolvedWallets.first['_id'] as String;
-
-      // Chặn sớm trên client: ngày giao dịch phải >= openingAt của mọi ví liên quan
-      List<Map<String, dynamic>> involvedWallets(List<String> ids) =>
-          resolvedWallets.where((w) => ids.contains(w['_id'] as String)).toList();
-      final involved = state.type == TransactionType.transfer
-          ? involvedWallets([
-              state.selectedWalletId ?? resolvedWallets[0]['_id'] as String,
-              state.selectedToWalletId ?? resolvedWallets[1]['_id'] as String,
-            ])
-          : involvedWallets([walletId]);
-      for (final w in involved) {
-        final openingAtRaw = w['openingAt'];
-        if (openingAtRaw != null) {
-          final openingAt = DateTime.tryParse(openingAtRaw as String)?.toLocal();
-          if (openingAt != null && state.selectedDate.isBefore(openingAt)) {
-            throw Exception(
-                'Ngày giao dịch (${DateFormat('dd/MM/yyyy').format(state.selectedDate)}) '
-                'trước ngày bắt đầu theo dõi ví "${w['name']}" '
-                '(${DateFormat('dd/MM/yyyy').format(openingAt)}). '
-                'Hãy chọn ngày sau đó, hoặc tạo ví mới với ngày bắt đầu sớm hơn.');
-          }
-        }
-      }
-
-      if (state.type == TransactionType.transfer) {
-        if (resolvedWallets.length < 2) {
-          throw Exception('Cần ít nhất 2 ví để thực hiện chuyển ví');
-        }
-
-        final fromWalletId = state.selectedWalletId ?? resolvedWallets[0]['_id'] as String;
-        final toWalletId = state.selectedToWalletId ?? resolvedWallets[1]['_id'] as String;
-
-        final occurredAtUtc = state.selectedDate.toUtc();
-        final occurredAt = '${occurredAtUtc.year.toString().padLeft(4, '0')}-${occurredAtUtc.month.toString().padLeft(2, '0')}-${occurredAtUtc.day.toString().padLeft(2, '0')}T${occurredAtUtc.hour.toString().padLeft(2, '0')}:${occurredAtUtc.minute.toString().padLeft(2, '0')}:${occurredAtUtc.second.toString().padLeft(2, '0')}.${occurredAtUtc.millisecond.toString().padLeft(3, '0')}Z';
-
-        await ds.createTransaction(
-          type: 'transfer',
-          amount: state.amount!.toInt().toString(),
-          occurredAt: occurredAt,
-          fromWalletId: fromWalletId,
-          toWalletId: toWalletId,
-          note: state.note,
-        );
-      } else {
-        String categoryId = '';
-        final kind = state.type.name; // 'expense' | 'income'
-        final catDs = ref.read(categoryRemoteDataSourceProvider);
-
-        if (state.selectedCategory != null) {
-          final selName = state.selectedCategory!.name.toLowerCase().trim();
-          // 1. Khớp chính xác tên và loại thu/chi
-          final exactMatch = resolvedCategories.firstWhere(
-            (c) =>
-                c['name']?.toString().toLowerCase().trim() == selName &&
-                c['kind']?.toString() == kind,
-            orElse: () => <String, dynamic>{},
-          );
-          if (exactMatch.isNotEmpty && exactMatch['_id'] != null) {
-            categoryId = exactMatch['_id'].toString();
-          } else {
-            // 2. Khớp gần đúng theo tên (ví dụ: "Mua sắm" khớp "Mua sắm cá nhân")
-            final partialMatch = resolvedCategories.firstWhere(
-              (c) {
-                if (c['kind']?.toString() != kind) return false;
-                final cName = c['name']?.toString().toLowerCase().trim() ?? '';
-                return cName.contains(selName) || selName.contains(cName);
-              },
-              orElse: () => <String, dynamic>{},
-            );
-            if (partialMatch.isNotEmpty && partialMatch['_id'] != null) {
-              categoryId = partialMatch['_id'].toString();
-            } else {
-              // 3. Tự động tạo danh mục trên DB nếu chưa có
-              try {
-                final newCat = await catDs.createCategory(
-                  name: state.selectedCategory!.name,
-                  kind: kind,
-                );
-                categoryId = newCat['_id']?.toString() ?? '';
-                // Làm mới danh sách danh mục trong cache ngầm
-                ref.read(transactionProvider.notifier).loadCategories();
-              } catch (_) {}
-            }
-          }
-        }
-
-        // Nếu chưa tìm thấy categoryId, fallback tìm bất kỳ danh mục nào cùng kind
-        if (categoryId.isEmpty) {
-          final matchingCats = resolvedCategories
-              .where((c) => c['kind']?.toString() == kind)
-              .toList();
-          if (matchingCats.isNotEmpty) {
-            categoryId = matchingCats.first['_id']?.toString() ?? '';
-          } else {
-            // Tự tạo danh mục mặc định cho kind này nếu DB chưa có
-            try {
-              final defaultName =
-                  state.type == TransactionType.income ? 'Thu nhập' : 'Khác';
-              final newCat = await catDs.createCategory(
-                name: defaultName,
-                kind: kind,
-              );
-              categoryId = newCat['_id']?.toString() ?? '';
-              ref.read(transactionProvider.notifier).loadCategories();
-            } catch (_) {}
-          }
-        }
-
-        if (categoryId.isEmpty) {
-          throw Exception('Không tìm thấy danh mục phù hợp cho loại giao dịch này');
-        }
-
-        final occurredAtUtc = state.selectedDate.toUtc();
-        final occurredAt = '${occurredAtUtc.year.toString().padLeft(4, '0')}-${occurredAtUtc.month.toString().padLeft(2, '0')}-${occurredAtUtc.day.toString().padLeft(2, '0')}T${occurredAtUtc.hour.toString().padLeft(2, '0')}:${occurredAtUtc.minute.toString().padLeft(2, '0')}:${occurredAtUtc.second.toString().padLeft(2, '0')}.${occurredAtUtc.millisecond.toString().padLeft(3, '0')}Z';
-
-        // Chỉ kiểm tra hạn mức ngân sách đối với giao dịch Chi tiêu (Expense)
-        if (state.type == TransactionType.expense) {
-          await _assertBudgetAllowance(
-            categoryId: categoryId,
-            amount: state.amount!,
-            occurredAt: state.selectedDate,
-          );
-        }
-
-        await ds.createTransaction(
-          type: state.type.name,
-          amount: state.amount!.toInt().toString(),
-          occurredAt: occurredAt,
-          categoryId: categoryId,
-          walletId: walletId,
-          note: state.note,
-        );
-      }
-
-      // Thành công
-      state = state.copyWith(isLoading: false, isSuccess: true);
-
-      // Làm mới chính xác: chỉ những provider bị ảnh hưởng bởi giao dịch này.
-      invalidateFinancialData(ref);
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Không thể lưu giao dịch: '
-            '${e.toString().replaceAll('Exception: ', '')}',
-      );
     }
+    final suggestions = draft.type == TransactionType.expense
+        ? DefaultCategories.expenseCategories
+        : DefaultCategories.incomeCategories;
+    if (!suggestions.any((item) => item.id == category.id)) {
+      throw Exception('Danh mục đã chọn không còn khả dụng. Hãy chọn lại.');
+    }
+    final created = await ds.createCategory(name: category.name, kind: kind);
+    final id = created['_id']?.toString();
+    if (id == null || id.isEmpty) {
+      throw Exception('Không tìm thấy danh mục vừa tạo.');
+    }
+    ref.read(transactionProvider.notifier).loadCategories();
+    return id;
   }
 
   /// Kiểm tra hạn mức ngân sách trên client (backend vẫn kiểm tra lại).
@@ -357,7 +248,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   /// danh mục khác hoặc giao dịch thu nhập/chuyển ví không bị ảnh hưởng.
   Future<void> _assertBudgetAllowance({
     required String categoryId,
-    required double amount,
+    required int amount,
     required DateTime occurredAt,
   }) async {
     final budgets = await ref
@@ -371,9 +262,9 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       if (occurredAt.isBefore(start) || !occurredAt.isBefore(end)) continue;
       final limits = (plan['limits'] as List?) ?? const [];
       final line = limits.cast<Map<String, dynamic>>().firstWhere(
-            (l) => l['categoryId']?.toString() == categoryId,
-            orElse: () => <String, dynamic>{},
-          );
+        (l) => l['categoryId']?.toString() == categoryId,
+        orElse: () => <String, dynamic>{},
+      );
       if (line.isEmpty) continue;
       final limit = double.tryParse(line['limit']?.toString() ?? '') ?? 0;
       final spent = double.tryParse(line['spent']?.toString() ?? '') ?? 0;
@@ -384,40 +275,77 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         throw Exception(
           remaining <= 0
               ? 'Danh mục "$name" đã hết hạn mức ngân sách trong kỳ này. '
-                  'Tăng hạn mức trong Kế hoạch hoặc chọn danh mục khác.'
-              : 'Khoản chi vượt hạn mức còn lại ${_vnd(remaining)} ₫ của danh mục '
-                  '"$name" (vượt ${_vnd(over)} ₫). Tăng hạn mức hoặc chọn danh mục khác.',
+                    'Tăng hạn mức trong Kế hoạch hoặc chọn danh mục khác.'
+              : 'Khoản chi vượt hạn mức còn lại ${CurrencyTextField.formatAmount(remaining)} ₫ của danh mục '
+                    '"$name" (vượt ${CurrencyTextField.formatAmount(over)} ₫). Tăng hạn mức hoặc chọn danh mục khác.',
         );
       }
     }
   }
 
-  static String _vnd(double v) {
-    final s = v.abs().toInt().toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-
-  /// Reset form
   void reset() {
-    state = TransactionFormState(selectedDate: DateTime.now());
+    _uploadedPhotoId = null;
+    state = TransactionFormState();
   }
 }
 
-/// Provider cho Transaction Form
 final transactionFormProvider =
     NotifierProvider<TransactionFormNotifier, TransactionFormState>(
-  TransactionFormNotifier.new,
-);
+      TransactionFormNotifier.new,
+    );
 
-/// Provider cho danh sách categories (dựa vào type hiện tại)
 final currentCategoriesProvider = Provider<List<TransactionCategory>>((ref) {
-  final type = ref.watch(transactionFormProvider).type;
-  return type == TransactionType.expense
+  final type = ref.watch(transactionFormProvider.select((form) => form.type));
+  if (type == TransactionType.transfer) return const [];
+
+  final isExpense = type == TransactionType.expense;
+  final categories = ref
+      .watch(transactionProvider.select((state) => state.categories))
+      .where((item) => item.isActive && item.type == type.name)
+      .toList();
+  final defaults = isExpense
       ? DefaultCategories.expenseCategories
       : DefaultCategories.incomeCategories;
+  final popular = defaults.take(5).toList();
+  final usedIds = <String>{};
+  final choices = [
+    for (final suggestion in popular)
+      _matchSuggestion(suggestion, categories, usedIds),
+  ];
+  return [
+    ...choices,
+    for (final item in categories)
+      if (!usedIds.contains(item.id))
+        TransactionCategory(
+          id: item.id,
+          name: item.name,
+          icon: Icons.label_outline_rounded,
+          color: Colors.transparent,
+          type: isExpense
+              ? TransactionCategoryType.expense
+              : TransactionCategoryType.income,
+        ),
+  ];
 });
+
+TransactionCategory _matchSuggestion(
+  TransactionCategory suggestion,
+  List<CategoryItem> categories,
+  Set<String> usedIds,
+) {
+  final match = categories
+      .where(
+        (item) =>
+            item.name.trim().toLowerCase() == suggestion.name.toLowerCase(),
+      )
+      .firstOrNull;
+  if (match == null) return suggestion;
+  usedIds.add(match.id);
+  return TransactionCategory(
+    id: match.id,
+    name: match.name,
+    icon: suggestion.icon,
+    color: suggestion.color,
+    type: suggestion.type,
+  );
+}

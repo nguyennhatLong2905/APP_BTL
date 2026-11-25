@@ -37,19 +37,7 @@ Dio dio(Ref ref) {
   // 2. ErrorInterceptor - Bắt và chuẩn hóa lỗi NestJS
   dio.interceptors.add(ErrorInterceptor());
 
-  // 3. LogInterceptor - Debug API requests/responses
-  dio.interceptors.add(
-    LogInterceptor(
-      request: true,
-      requestHeader: true,
-      requestBody: true,
-      responseHeader: true,
-      responseBody: true,
-      error: true,
-    ),
-  );
-
-  // 4. RetryInterceptor - Tự động thử lại khi mất mạng chập chờn
+  // 3. RetryInterceptor - Tự động thử lại khi mất mạng chập chờn
   dio.interceptors.add(RetryInterceptor(dio: dio));
 
   return dio;

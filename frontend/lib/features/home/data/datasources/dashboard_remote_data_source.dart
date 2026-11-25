@@ -41,8 +41,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       if (bal >= 0) walletSum += bal;
     }
     final totalFromApi = overview['total'];
-    final totalBalance =
-        totalFromApi != null ? _toDouble(totalFromApi) : walletSum;
+    final totalBalance = totalFromApi != null
+        ? _toDouble(totalFromApi)
+        : walletSum;
 
     // Thu/chi trong kỳ: backend dashboard không trả period summary,
     // nên tính từ recentTransactions nếu có, ngược lại 0.
@@ -64,6 +65,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       } else if (type == 'expense') {
         totalExpense += amount;
         parsed.add(_parseTransaction(map, signed: -amount));
+      } else if (type == 'adjustment' &&
+          map['adjustmentDirection'] == 'decrease') {
+        parsed.add(_parseTransaction(map, signed: -amount));
       } else {
         parsed.add(_parseTransaction(map, signed: amount));
       }
@@ -82,20 +86,18 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
         (d['bills'] as List<dynamic>?) ??
         (overview['bills'] as List<dynamic>?) ??
         const [];
-    final upcomingBills = rawBills
-        .map((b) {
-          final map = b as Map<String, dynamic>;
-          return UpcomingBill(
-            id: map['_id']?.toString() ?? '',
-            name: map['name']?.toString() ??
-                map['nameTemplate']?.toString() ??
-                'Hóa đơn',
-            amount: _toDouble(map['amount']),
-            dueAt: DateTime.tryParse(map['dueAt']?.toString() ?? '')
-                ?.toLocal(),
-          );
-        })
-        .toList();
+    final upcomingBills = rawBills.map((b) {
+      final map = b as Map<String, dynamic>;
+      return UpcomingBill(
+        id: map['_id']?.toString() ?? '',
+        name:
+            map['name']?.toString() ??
+            map['nameTemplate']?.toString() ??
+            'Hóa đơn',
+        amount: _toDouble(map['amount']),
+        dueAt: DateTime.tryParse(map['dueAt']?.toString() ?? '')?.toLocal(),
+      );
+    }).toList();
 
     // Weekly data (fallback: tạo 7 cột trống)
     final weeklyData = <WeeklySpending>[
@@ -109,16 +111,14 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
     ];
 
     // Lớp 1 hiển thị chi tiết từng ví đang hoạt động (balance thật).
-    final walletBreakdown = wallets
-        .map((w) {
-          final map = w as Map<String, dynamic>;
-          return WalletBalance(
-            id: map['_id']?.toString() ?? '',
-            name: map['name']?.toString() ?? 'Ví',
-            balance: _toDouble(map['balance']),
-          );
-        })
-        .toList();
+    final walletBreakdown = wallets.map((w) {
+      final map = w as Map<String, dynamic>;
+      return WalletBalance(
+        id: map['_id']?.toString() ?? '',
+        name: map['name']?.toString() ?? 'Ví',
+        balance: _toDouble(map['balance']),
+      );
+    }).toList();
 
     return DashboardData(
       totalBalance: totalBalance,
@@ -129,7 +129,16 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       available: overview['available'] == null
           ? null
           : _toDouble(overview['available']),
+      spendableAmount: overview['spendableAmount'] == null
+          ? null
+          : _toDouble(overview['spendableAmount']),
+      shortfallAmount: overview['shortfallAmount'] == null
+          ? null
+          : _toDouble(overview['shortfallAmount']),
       daysRemaining: (overview['daysRemaining'] as num?)?.toInt(),
+      dailyReference: overview['dailyReference'] == null
+          ? null
+          : _toDouble(overview['dailyReference']),
       nextPayday: DateTime.tryParse(
         overview['nextPayday']?.toString() ?? '',
       )?.toLocal(),
@@ -154,7 +163,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
       amount: amount,
       date: _parseDate(e['occurredAt'] ?? e['createdAt']),
       note: note,
-      icon: _iconFor(catName, amount),
+      icon: e['type'] == 'transfer'
+          ? TransactionIcon.transfer
+          : _iconFor(catName, amount),
     );
   }
 
@@ -173,16 +184,25 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
 
   TransactionIcon _iconFor(String category, double amount) {
     final cat = category.toLowerCase();
-    if (cat.contains('ăn') || cat.contains('food') || cat.contains('cà phê') || cat.contains('quán')) {
+    if (cat.contains('ăn') ||
+        cat.contains('food') ||
+        cat.contains('cà phê') ||
+        cat.contains('quán')) {
       return TransactionIcon.food;
     }
-    if (cat.contains('xe') || cat.contains('grab') || cat.contains('di chuyển') || cat.contains('xăng')) {
+    if (cat.contains('xe') ||
+        cat.contains('grab') ||
+        cat.contains('đi lại') ||
+        cat.contains('di chuyển') ||
+        cat.contains('xăng')) {
       return TransactionIcon.transport;
     }
     if (cat.contains('mua') || cat.contains('shop') || cat.contains('shopee')) {
       return TransactionIcon.shopping;
     }
-    if (cat.contains('y tế') || cat.contains('sức khoẻ') || cat.contains('bệnh')) {
+    if (cat.contains('y tế') ||
+        cat.contains('sức khoẻ') ||
+        cat.contains('bệnh')) {
       return TransactionIcon.health;
     }
     if (cat.contains('lương') || cat.contains('salary') || amount > 0) {
@@ -215,8 +235,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   }
 }
 
-final dashboardRemoteDataSourceProvider =
-    Provider<DashboardRemoteDataSource>((ref) {
+final dashboardRemoteDataSourceProvider = Provider<DashboardRemoteDataSource>((
+  ref,
+) {
   final apiClient = ref.watch(apiClientProvider);
   return DashboardRemoteDataSourceImpl(apiClient);
 });

@@ -1,11 +1,9 @@
 {
   "data": {
     "overview": {
-
-      "asOf": "2026-11-14T08:14:28.326Z",
-
+      "asOf": "2026-11-25T14:28:42.634Z",
       "nextPayday": "2026-10-15T17:00:00.000Z",
-      "daysRemaining": -29,
+      "daysRemaining": -40,
       "missingData": [
         "nextPaydayInFuture"
       ],
@@ -14,6 +12,18 @@
       "unpaidBills": "3500000",
       "protectedMoney": "2400000",
       "available": "2100000",
+      "spendableAmount": "2100000",
+      "shortfallAmount": "0",
+      "layers": {
+        "total": "8000000",
+        "protectedMoney": "2400000",
+        "unpaidBills": "3500000",
+        "obligations": "5900000",
+        "available": "2100000",
+        "walletCount": 2,
+        "unpaidBillCount": 2,
+        "protectedGoalCount": 1
+      },
       "dailyReference": null,
       "wallets": [
         {
@@ -90,7 +100,10 @@
             "limit": "2500000",
             "spent": "105000",
             "remaining": "2395000",
+            "rawRemaining": "2395000",
             "percent": 4.2,
+            "status": "normal",
+            "locked": false,
             "warning": false
           },
           {
@@ -98,7 +111,10 @@
             "limit": "600000",
             "spent": "70000",
             "remaining": "530000",
+            "rawRemaining": "530000",
             "percent": 11.66,
+            "status": "normal",
+            "locked": false,
             "warning": false
           },
           {
@@ -106,7 +122,10 @@
             "limit": "1000000",
             "spent": "380000",
             "remaining": "620000",
+            "rawRemaining": "620000",
             "percent": 38,
+            "status": "normal",
+            "locked": false,
             "warning": false
           },
           {
@@ -114,12 +133,17 @@
             "limit": "1400000",
             "spent": "0",
             "remaining": "1400000",
+            "rawRemaining": "1400000",
             "percent": 0,
+            "status": "normal",
+            "locked": false,
             "warning": false
           }
         ],
         "totalLimit": "5500000",
-        "totalSpent": "555000"
+        "totalSpent": "555000",
+        "totalRemaining": "4945000",
+        "lockedCategories": []
       }
     ],
     "goals": [

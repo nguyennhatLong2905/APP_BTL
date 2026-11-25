@@ -20,6 +20,7 @@ class Transaction {
 
   bool get isExpense => amount < 0;
   bool get isIncome => amount > 0;
+  bool get showsCreditSign => icon != TransactionIcon.transfer;
 }
 
 /// Enum icon cho giao dịch
@@ -90,8 +91,11 @@ class DashboardData {
   final double protectedMoney;
   final double unpaidBills;
   final double? available; // null khi chưa có ngày lương kế tiếp
+  final double? spendableAmount;
+  final double? shortfallAmount;
   final int? daysRemaining;
   final DateTime? nextPayday;
+  final double? dailyReference;
   final List<Transaction> recentTransactions;
   final List<UpcomingBill> upcomingBills;
   final List<WeeklySpending> weeklyData;
@@ -106,18 +110,24 @@ class DashboardData {
     this.protectedMoney = 0,
     this.unpaidBills = 0,
     this.available,
+    this.spendableAmount,
+    this.shortfallAmount,
     this.daysRemaining,
     this.nextPayday,
+    this.dailyReference,
     required this.recentTransactions,
     this.upcomingBills = const [],
     required this.weeklyData,
     this.walletBreakdown = const [],
   });
 
-  /// Số tiền còn được chi = available (đã trừ bảo vệ + hóa đơn),
-  /// fallback tự tính nếu backend không trả.
+  double get _netAvailable => available ?? (totalBalance - obligations);
+
   double get spendable =>
-      available ?? (totalBalance - protectedMoney - unpaidBills);
+      spendableAmount ?? _netAvailable.clamp(0, double.infinity);
+
+  double get shortfall =>
+      shortfallAmount ?? (-_netAvailable).clamp(0, double.infinity);
 
   /// Số ví đang hoạt động.
   int get walletCount => walletBreakdown.length;
@@ -129,6 +139,6 @@ class DashboardData {
   double get dailyLimit {
     final d = daysRemaining;
     if (d == null || d <= 0) return 0;
-    return (spendable / d).clamp(0, double.infinity);
+    return (dailyReference ?? spendable / d).clamp(0, double.infinity);
   }
 }

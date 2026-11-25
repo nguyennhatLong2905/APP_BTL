@@ -1,9 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/utils/refresh_financial_data.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/presentation/providers/home_provider.dart';
 import '../providers/data_management_provider.dart';
 
@@ -11,130 +17,222 @@ class DataManagementScreen extends ConsumerStatefulWidget {
   const DataManagementScreen({super.key});
 
   @override
-  ConsumerState<DataManagementScreen> createState() => _DataManagementScreenState();
+  ConsumerState<DataManagementScreen> createState() =>
+      _DataManagementScreenState();
 }
 
 class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
   static const Color _teal = Color(0xFF2C7873);
 
-  bool _appLock = false;
-
   Future<void> _handleImportCSV() async {
-    AppSnackBar.showWarning(context, 'Chức năng chọn file CSV đang được phát triển...');
+    try {
+      final notifier = ref.read(dataManagementProvider.notifier);
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'CSV',
+            extensions: ['csv'],
+            uniformTypeIdentifiers: ['public.comma-separated-values-text'],
+            mimeTypes: ['text/csv'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      final preview = await notifier.previewImport(await file.readAsString());
+      if (!mounted) return;
+      final rows = (preview['rows'] as List).cast<Map<String, dynamic>>();
+      final valid = rows
+          .where(
+            (row) => row['error'] == null && row['suspectedDuplicate'] != true,
+          )
+          .toList();
+      final skipped = rows.length - valid.length;
+      if (valid.isEmpty) {
+        AppSnackBar.showWarning(
+          context,
+          'Không có dòng hợp lệ để nhập. Hãy dùng các cột từ file CSV xuất của Ví An.',
+        );
+        return;
+      }
+      if (!await _confirm(
+            'Nhập CSV',
+            'Nhập ${valid.length} giao dịch hợp lệ. Bỏ qua $skipped dòng lỗi hoặc nghi trùng.',
+            'Nhập',
+          ) ||
+          !mounted) {
+        return;
+      }
+      final result = await notifier.commitImport(
+        preview['_id'] as String,
+        valid.map((row) => row['index'] as int).toList(),
+        false,
+      );
+      if (!mounted) return;
+      invalidateFinancialDataFromWidget(ref);
+      AppSnackBar.showSuccess(
+        context,
+        'Đã nhập ${result['imported']} giao dịch.',
+      );
+    } catch (error) {
+      _showError(error);
+    }
   }
 
-  /// Xuất dữ liệu: gọi API, lưu file CSV vào thư mục Downloads, thông báo đường dẫn.
   Future<void> _handleExportData() async {
     try {
-      // Hiển thị dialog chọn thời gian
-      final dateRange = await showDateRangePicker(
+      final now = DateTime.now();
+      final range = await showDateRangePicker(
         context: context,
         firstDate: DateTime(2020),
-        lastDate: DateTime.now(),
+        lastDate: now,
         initialDateRange: DateTimeRange(
-          start: DateTime.now().subtract(const Duration(days: 30)),
-          end: DateTime.now(),
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
         ),
         helpText: 'Chọn khoảng thời gian xuất',
         cancelText: 'Hủy',
         confirmText: 'Xuất',
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(primary: _teal),
-            ),
-            child: child!,
+        saveText: 'Xuất',
+      );
+      if (range == null || !mounted) return;
+      final end = DateTime(range.end.year, range.end.month, range.end.day + 1);
+      final bytes = await ref
+          .read(dataManagementProvider.notifier)
+          .exportTransactionsCsv(
+            startAt: range.start.toUtc().toIso8601String(),
+            endAt: end.toUtc().toIso8601String(),
           );
-        },
-      );
-
-      if (dateRange == null) return;
-      if (!mounted) return;
-
-      AppSnackBar.showWarning(context, 'Đang xuất dữ liệu...');
-
-      final startAt = DateFormat("yyyy-MM-dd'T'00:00:00.000'Z'").format(dateRange.start.toUtc());
-      final endAt = DateFormat("yyyy-MM-dd'T'23:59:59.999'Z'").format(dateRange.end.toUtc());
-
-      final bytes = await ref.read(dataManagementProvider.notifier).exportTransactionsCsv(
-        startAt: startAt,
-        endAt: endAt,
-      );
-
-      if (!mounted) return;
-
-      // Lưu file vào thư mục Downloads của thiết bị
-      Directory? dir;
-      if (Platform.isAndroid) {
-        dir = Directory('/storage/emulated/0/Download');
-        if (!dir.existsSync()) dir = await getExternalStorageDirectory();
-      } else if (Platform.isIOS) {
-        dir = await getApplicationDocumentsDirectory();
-      } else {
-        dir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
-      }
-
-      if (!mounted) return;
-      if (dir == null) {
-        AppSnackBar.showError(context, 'Không thể lưu file trên thiết bị này');
-        return;
-      }
-
-      final fileName = 'vi_an_transactions_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(bytes);
-
-      if (!mounted) return;
-      AppSnackBar.showSuccess(
-        context,
-        'Đã xuất ${bytes.length} bytes → ${file.path}',
-      );
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackBar.showError(context, 'Lỗi xuất dữ liệu: ${e.toString().replaceAll("Exception: ", "")}');
+      await _saveFile(bytes, 'giao-dich', 'csv', 'text/csv');
+    } catch (error) {
+      _showError(error);
     }
   }
 
   Future<void> _handleBackup() async {
     try {
-      await ref.read(dataManagementProvider.notifier).createBackup();
+      final backup = await ref
+          .read(dataManagementProvider.notifier)
+          .createBackup();
+      await _saveFile(
+        utf8.encode(jsonEncode(backup)),
+        'sao-luu',
+        'json',
+        'application/json',
+      );
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _handleRestore() async {
+    try {
+      final notifier = ref.read(dataManagementProvider.notifier);
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'JSON',
+            extensions: ['json'],
+            uniformTypeIdentifiers: ['public.json'],
+            mimeTypes: ['application/json'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      final backup =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final preview = await notifier.previewRestore(backup);
       if (!mounted) return;
-      AppSnackBar.showSuccess(context, 'Đã tạo bản sao lưu thành công');
-    } catch (e) {
+      if (!await _confirm(
+            'Khôi phục dữ liệu',
+            'Bản sao sẽ thay thế dữ liệu tài chính hiện tại. Sau khi khôi phục, bạn cần đăng nhập lại.',
+            'Khôi phục',
+          ) ||
+          !mounted) {
+        return;
+      }
+      await notifier.restoreBackup(
+        preview['previewId'] as String,
+        preview['confirmationText'] as String,
+      );
       if (!mounted) return;
-      AppSnackBar.showError(context, e.toString().replaceAll('Exception: ', ''));
+      await ref.read(authProvider.notifier).logout();
+    } catch (error) {
+      _showError(error);
     }
   }
 
   Future<void> _handleWipeData() async {
     try {
-      final preview = await ref.read(dataManagementProvider.notifier).previewErase();
+      final notifier = ref.read(dataManagementProvider.notifier);
+      final preview = await notifier.previewErase();
       if (!mounted) return;
+      if (!await _confirm(
+            'Xác nhận xóa',
+            'Ví, giao dịch, ngân sách, mục tiêu và hóa đơn sẽ bị xóa. Bạn cần đăng nhập lại sau khi xóa.',
+            'Xóa dữ liệu',
+          ) ||
+          !mounted) {
+        return;
+      }
+      await notifier.eraseData(
+        preview['previewId'] as String,
+        preview['confirmationText'] as String,
+      );
+      if (!mounted) return;
+      await ref.read(authProvider.notifier).logout();
+    } catch (error) {
+      _showError(error);
+    }
+  }
 
-      final confirm = await showDialog<bool>(
+  Future<bool> _confirm(String title, String message, String action) async =>
+      await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Xác nhận xóa'),
-          content: Text('Sẽ xóa: ${preview.toString()}. Bạn chắc chứ?'),
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
             TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(action),
             ),
           ],
         ),
-      );
+      ) ??
+      false;
 
-      if (confirm == true) {
-        await ref.read(dataManagementProvider.notifier).eraseData(preview['previewId'] ?? '', 'CONFIRM');
-        if (!mounted) return;
-        AppSnackBar.showSuccess(context, 'Đã xóa dữ liệu');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackBar.showError(context, e.toString().replaceAll('Exception: ', ''));
+  Future<void> _saveFile(
+    List<int> bytes,
+    String label,
+    String extension,
+    String mimeType,
+  ) async {
+    if (!mounted) return;
+    final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final filename = 'vi-an-$label-$stamp.$extension';
+    final file = XFile.fromData(
+      Uint8List.fromList(bytes),
+      name: filename,
+      mimeType: mimeType,
+    );
+    if (kIsWeb) {
+      await file.saveTo(filename);
+    } else {
+      final dir = Platform.isAndroid || Platform.isIOS
+          ? await getApplicationDocumentsDirectory()
+          : await getDownloadsDirectory() ??
+                await getApplicationDocumentsDirectory();
+      await file.saveTo('${dir.path}/$filename');
     }
+    if (mounted) AppSnackBar.showSuccess(context, 'Đã lưu $filename');
+  }
+
+  void _showError(Object error) {
+    if (mounted) AppSnackBar.showError(context, error.toString());
   }
 
   @override
@@ -162,14 +260,14 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                   _ActionTile(
                     icon: Icons.upload_file_rounded,
                     title: 'Nhập CSV',
-                    subtitle: 'chọn file → ghép cột → xem trước → ...',
+                    subtitle: 'Xem trước và nhập theo cột CSV của Ví An',
                     onTap: _handleImportCSV,
                   ),
                   const Divider(height: 1),
                   _ActionTile(
                     icon: Icons.download_rounded,
                     title: 'Xuất dữ liệu',
-                    subtitle: 'chọn thời gian, ví và định dạng → tạo file',
+                    subtitle: 'Chọn khoảng thời gian và tải CSV',
                     onTap: _handleExportData,
                   ),
                 ],
@@ -188,10 +286,8 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                   _ActionTile(
                     icon: Icons.restore_rounded,
                     title: 'Khôi phục',
-                    subtitle: 'xem dữ liệu sẽ thay thế hoặc bổ sung',
-                    onTap: () {
-                      AppSnackBar.showWarning(context, 'Chức năng chọn file để khôi phục đang được phát triển.');
-                    },
+                    subtitle: 'Thay thế dữ liệu từ bản sao lưu của bạn',
+                    onTap: _handleRestore,
                   ),
                 ],
               ),
@@ -199,24 +295,43 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
               _buildSection(
                 title: 'Bảo mật & Hiển thị',
                 children: [
-                  // Ẩn số tiền — kết nối với homeProvider để đồng bộ toàn app
                   SwitchListTile(
                     value: !balanceVisible,
-                    onChanged: (v) {
-                      // Toggle qua homeProvider → cập nhật balance_card & các nơi dùng balanceVisible
+                    onChanged: (_) {
                       ref.read(homeProvider.notifier).toggleBalanceVisibility();
                     },
-                    title: const Text('Ẩn số tiền', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    subtitle: const Text('ẩn số dư & giao dịch trong toàn bộ app', style: TextStyle(fontSize: 13, color: Colors.grey)),
-                    secondary: const Icon(Icons.visibility_off_rounded, color: _teal),
+                    title: const Text(
+                      'Ẩn số tiền',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Ẩn số dư và giao dịch trên Tổng quan',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    secondary: const Icon(
+                      Icons.visibility_off_rounded,
+                      color: _teal,
+                    ),
                     activeThumbColor: _teal,
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    value: _appLock,
-                    onChanged: (v) => setState(() => _appLock = v),
-                    title: const Text('Khóa app', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    subtitle: const Text('thay đổi cách truy cập', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    value: false,
+                    onChanged: null,
+                    title: const Text(
+                      'Khóa app',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Chưa hỗ trợ khóa ứng dụng',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
                     secondary: const Icon(Icons.lock_rounded, color: _teal),
                     activeThumbColor: _teal,
                   ),
@@ -250,7 +365,10 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
     );
   }
 
-  Widget _buildSection({required String title, required List<Widget> children}) {
+  Widget _buildSection({
+    required String title,
+    required List<Widget> children,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -265,11 +383,12 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
+        Material(
+          color: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE3EFEC)),
+            side: const BorderSide(color: Color(0xFFE3EFEC)),
           ),
           child: Column(children: children),
         ),
@@ -311,7 +430,11 @@ class _ActionTile extends StatelessWidget {
         subtitle,
         style: const TextStyle(fontSize: 13, color: Colors.grey),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: Colors.grey,
+        size: 20,
+      ),
       onTap: onTap,
     );
   }

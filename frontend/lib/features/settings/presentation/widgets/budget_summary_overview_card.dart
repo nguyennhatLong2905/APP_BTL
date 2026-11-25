@@ -1,199 +1,138 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
+import '../../../../core/ui/finance_screen_style.dart';
+import '../providers/budget_provider.dart';
 
 class BudgetSummaryOverviewCard extends StatelessWidget {
-  final double freeRemaining;
-  final double totalBudget;
-  final double totalSpent;
-  final int spentPercentage;
-  final double dailyLimit;
-  final String statusText;
-
   const BudgetSummaryOverviewCard({
     super.key,
-    required this.freeRemaining,
-    required this.totalBudget,
-    required this.totalSpent,
-    required this.spentPercentage,
-    required this.dailyLimit,
-    required this.statusText,
+    required this.state,
+    required this.onPeriodChanged,
   });
+
+  final BudgetState state;
+  final ValueChanged<String> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat('#,###', 'vi_VN');
-
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Còn để chi thực tế',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade700,
-                      ),
+    final remaining = state.spendableNow;
+    return FinanceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              PopupMenuButton<String>(
+                enabled: !state.isLoading,
+                tooltip: 'Chọn kỳ ngân sách',
+                initialValue: state.filterMode,
+                onSelected: onPeriodChanged,
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'Chu kỳ lương',
+                    child: Text('Chu kỳ lương'),
+                  ),
+                  PopupMenuItem(value: 'Theo tháng', child: Text('Theo tháng')),
+                ],
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: FinanceScreenStyle.mint,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 9,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${currencyFormatter.format(freeRemaining)} ₫',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F5B47),
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          state.filterMode,
+                          style: FinanceScreenStyle.strong,
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.keyboard_arrow_down, size: 18),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Tổng ngân sách',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${currencyFormatter.format(totalBudget)} ₫',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: (spentPercentage / 100).clamp(0.0, 1.0),
-                minHeight: 10,
-                backgroundColor: const Color(0xFFE2F6F0),
-                color: const Color(0xFF0F5B47),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  state.periodText,
+                  style: FinanceScreenStyle.detail,
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Còn để chi thực tế',
+            style: TextStyle(color: FinanceScreenStyle.ink, fontSize: 15),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            FinanceScreenStyle.money(remaining),
+            style: FinanceScreenStyle.amount.copyWith(
+              color: remaining < 0
+                  ? FinanceScreenStyle.danger
+                  : FinanceScreenStyle.green,
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Đã dùng ${currencyFormatter.format(totalSpent)} ₫ ($spentPercentage%)',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade700,
+          ),
+          const SizedBox(height: 6),
+          const Divider(color: FinanceScreenStyle.border),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Đã dùng ${FinanceScreenStyle.money(state.totalSpent)} / ${FinanceScreenStyle.money(state.totalBudget)}',
+                  style: const TextStyle(
+                    color: FinanceScreenStyle.ink,
+                    fontSize: 13,
                   ),
                 ),
-                const Text(
-                  'Bảo đảm trong hạn mức',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F5B47),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${state.spentPercentage}%',
+                style: FinanceScreenStyle.strong,
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          FinanceProgress(
+            value: state.totalBudget > 0
+                ? state.totalSpent / state.totalBudget
+                : 0,
+            height: 10,
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Hạn mức / ngày',
+                  style: TextStyle(color: FinanceScreenStyle.ink),
+                ),
+              ),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    state.daysLeft > 0
+                        ? FinanceScreenStyle.money(state.dailyLimit)
+                        : '—',
+                    textAlign: TextAlign.end,
+                    style: FinanceScreenStyle.strong.copyWith(fontSize: 16),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // 2 Sub Boxes
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEAF8F5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.speed,
-                            size: 16, color: Color(0xFF0F5B47)),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hạn mức / ngày',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            Text(
-                              '${currencyFormatter.format(dailyLimit)} ₫',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEAF8F5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.verified_user_outlined,
-                            size: 16, color: Color(0xFF0F5B47)),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Trạng thái kỳ',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            Text(
-                              statusText,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F5B47),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

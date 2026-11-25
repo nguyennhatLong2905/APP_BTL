@@ -21,25 +21,29 @@ class PeriodSelectorWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(reportProvider);
     final notifier = ref.read(reportProvider.notifier);
-    final now = DateTime.now();
+    final month = state.selectedMonth ?? DateTime.now();
 
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
       children: [
-        // ── Nút tháng (có icon calendar + text dynamic) ─────────────
         _PeriodChip(
-          label:
-              state.selectedPeriod == PeriodFilter.month
-                  ? 'Tháng ${now.month}/${now.year}'
-                  : 'Tháng ${now.month}/${now.year}',
+          label: 'Tháng ${month.month}/${month.year}',
           icon: Icons.calendar_month_rounded,
           isActive: state.selectedPeriod == PeriodFilter.month,
           activeColor: _teal,
           activeTextColor: Colors.white,
           inactiveColor: _bg,
           inactiveTextColor: _textDark,
-          onTap: () => notifier.setPeriod(PeriodFilter.month),
+          onTap: () async {
+            final chosen = await showDialog<int>(
+              context: context,
+              builder: (_) => _MonthPickerDialog(month: month),
+            );
+            if (chosen == null || !context.mounted) return;
+            notifier.setMonth(DateTime(month.year, chosen));
+          },
         ),
-        const SizedBox(width: 8),
         _PeriodChip(
           label: 'Tuần này',
           isActive: state.selectedPeriod == PeriodFilter.week,
@@ -49,7 +53,6 @@ class PeriodSelectorWidget extends ConsumerWidget {
           inactiveTextColor: _textDark,
           onTap: () => notifier.setPeriod(PeriodFilter.week),
         ),
-        const SizedBox(width: 8),
         _PeriodChip(
           label: 'Hôm nay',
           isActive: state.selectedPeriod == PeriodFilter.today,
@@ -58,6 +61,67 @@ class PeriodSelectorWidget extends ConsumerWidget {
           inactiveColor: _bg,
           inactiveTextColor: _textDark,
           onTap: () => notifier.setPeriod(PeriodFilter.today),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthPickerDialog extends StatelessWidget {
+  const _MonthPickerDialog({required this.month});
+
+  final DateTime month;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Chọn tháng · ${month.year}'),
+      scrollable: true,
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var row = 0; row < 4; row++)
+              Row(
+                children: [
+                  for (var value = row * 3 + 1; value <= row * 3 + 3; value++)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Semantics(
+                          selected: value == month.month,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context, value),
+                            style: TextButton.styleFrom(
+                              backgroundColor: value == month.month
+                                  ? PeriodSelectorWidget._teal
+                                  : null,
+                              foregroundColor: value == month.month
+                                  ? Colors.white
+                                  : PeriodSelectorWidget._teal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Text(
+                              'Tháng $value',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
         ),
       ],
     );
@@ -87,31 +151,45 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    return Semantics(
+      button: true,
+      selected: isActive,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? activeColor : inactiveColor,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: isActive ? activeTextColor : inactiveTextColor),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? activeTextColor : inactiveTextColor,
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: isActive ? activeTextColor : inactiveTextColor,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isActive ? activeTextColor : inactiveTextColor,
+                      fontSize: 13,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

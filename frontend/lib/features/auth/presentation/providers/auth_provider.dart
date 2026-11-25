@@ -2,6 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/entities/user_entity.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/providers/auth_providers.dart';
+import '../../../home/presentation/providers/home_provider.dart';
+import '../../../notifications/presentation/providers/timeline_provider.dart';
+import '../../../report/presentation/providers/report_provider.dart';
+import '../../../settings/presentation/providers/budget_provider.dart';
+import '../../../transaction/presentation/providers/transaction_provider.dart';
+import '../../../transaction/providers/transaction_provider.dart';
+import '../../../wallet/presentation/providers/wallet_provider.dart';
+import '../../../wallet/providers/smart_spending_provider.dart';
 
 // Auth state
 class AuthState {
@@ -62,11 +70,7 @@ class AuthNotifier extends Notifier<AuthState> {
         state = const AuthState(isAuthenticated: false, isLoading: false);
       },
       (user) {
-        state = AuthState(
-          isAuthenticated: true,
-          isLoading: false,
-          user: user,
-        );
+        state = AuthState(isAuthenticated: true, isLoading: false, user: user);
       },
     );
   }
@@ -157,12 +161,22 @@ class AuthNotifier extends Notifier<AuthState> {
         isLoading: false,
         errorMessage: failure.message,
       ),
-      (_) => state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
-        clearUser: true,
-        errorMessage: null,
-      ),
+      (_) {
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: false,
+          clearUser: true,
+          errorMessage: null,
+        );
+        ref.invalidate(homeProvider);
+        ref.invalidate(reportProvider);
+        ref.invalidate(transactionProvider);
+        ref.invalidate(transactionFormProvider);
+        ref.invalidate(budgetProvider);
+        ref.invalidate(timelineProvider);
+        ref.invalidate(smartSpendingProvider);
+        ref.invalidate(walletProvider);
+      },
     );
   }
 

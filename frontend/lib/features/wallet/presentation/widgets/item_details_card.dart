@@ -45,8 +45,10 @@ class ItemDetailsCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE2F6F0),
                     borderRadius: BorderRadius.circular(12),
@@ -54,7 +56,11 @@ class ItemDetailsCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.devices, size: 12, color: Color(0xFF0F5B47)),
+                      const Icon(
+                        Icons.devices,
+                        size: 12,
+                        color: Color(0xFF0F5B47),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         categoryTag,
@@ -93,6 +99,7 @@ class ItemDetailsCard extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: onEditName,
+                    tooltip: 'Chỉnh sửa món đồ',
                     color: Colors.grey.shade600,
                   ),
                 ],
@@ -105,10 +112,7 @@ class ItemDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Giá dự kiến:',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade700,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
                 Text(
                   '${currencyFormatter.format(itemPrice)} ₫',
@@ -126,8 +130,11 @@ class ItemDetailsCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Chu kỳ còn $daysLeft ngày (Lương: $salaryDate)',

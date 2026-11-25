@@ -104,41 +104,44 @@ export async function owned(db, col, userId, idValue, session) {
   return v;
 }
 export async function atomic(ctx, userId, key, scope, body, action) {
-  const digest = hash({ scope, body }),
-    session = ctx.client.startSession();
+  fail(ctx.transactionCapable, "REPLICA_SET_REQUIRED", "Cần MongoDB replica set để lưu an toàn.", 503);
+  const digest = hash({ scope, body });
+  const session = ctx.client.startSession();
   try {
-    const locked = await ctx.db
-      .collection("users")
-      .updateOne(
-        { _id: userId },
-        { $inc: { apiRevision: I(1) } },
-        { session },
-      );
-    fail(
-      locked.matchedCount === 1,
-      "USER_NOT_FOUND",
-      "Người dùng không tồn tại.",
-      401,
-    );
-    const previous = await ctx.db
-      .collection("api_requests")
-      .findOne({ userId, key }, { session });
-    if (previous) {
+    return await session.withTransaction(async () => {
+      const locked = await ctx.db
+        .collection("users")
+        .updateOne(
+          { _id: userId },
+          { $inc: { apiRevision: I(1) } },
+          { session },
+        );
       fail(
-        previous.digest === digest,
-        "IDEMPOTENCY_CONFLICT",
-        "Khóa này đã được dùng với yêu cầu khác.",
+        locked.matchedCount === 1,
+        "USER_NOT_FOUND",
+        "Người dùng không tồn tại.",
+        401,
       );
-      return previous.result;
-    }
-    const result = json(await action(session));
-    await ctx.db
-      .collection("api_requests")
-      .insertOne(
-        { ...base(userId), key, digest, scope, result },
-        { session },
-      );
-    return result;
+      const previous = await ctx.db
+        .collection("api_requests")
+        .findOne({ userId, key }, { session });
+      if (previous) {
+        fail(
+          previous.digest === digest,
+          "IDEMPOTENCY_CONFLICT",
+          "Khóa này đã được dùng với yêu cầu khác.",
+        );
+        return previous.result;
+      }
+      const result = json(await action(session));
+      await ctx.db
+        .collection("api_requests")
+        .insertOne(
+          { ...base(userId), key, digest, scope, result },
+          { session },
+        );
+      return result;
+    });
   } finally {
     await session.endSession();
   }

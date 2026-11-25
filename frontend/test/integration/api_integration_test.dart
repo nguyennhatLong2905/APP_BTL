@@ -11,7 +11,17 @@ import 'package:flutter_riverpod_clean_architecture/features/home/data/datasourc
 import 'package:flutter_riverpod_clean_architecture/features/settings/data/datasources/budget_remote_data_source.dart';
 import 'package:flutter_riverpod_clean_architecture/features/wallet/data/datasources/smart_spending_remote_data_source.dart';
 
+const _qaApi = String.fromEnvironment('VIAN_TEST_API_URL');
+
 void main() {
+  if (_qaApi.isEmpty) {
+    test(
+      'API integration requires an isolated backend',
+      () {},
+      skip: 'Set VIAN_TEST_API_URL to a disposable QA database.',
+    );
+    return;
+  }
   late Dio dio;
   late ApiClient apiClient;
   late AuthRemoteDataSourceImpl authDataSource;
@@ -24,18 +34,19 @@ void main() {
   late SmartSpendingRemoteDataSourceImpl smartSpendingDataSource;
 
   String? authToken;
-  String? userId;
   String? walletId;
   String? categoryId;
   String? transactionId;
 
   setUpAll(() {
     HttpOverrides.global = null;
-    dio = Dio(BaseOptions(
-      baseUrl: 'http://127.0.0.1:3000/api/v1',
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-    ));
+    dio = Dio(
+      BaseOptions(
+        baseUrl: _qaApi,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
 
     apiClient = ApiClient(dio);
     authDataSource = AuthRemoteDataSourceImpl(apiClient);
@@ -49,7 +60,8 @@ void main() {
   });
 
   group('🔐 Auth APIs Integration Test', () {
-    final testEmail = 'test_${DateTime.now().millisecondsSinceEpoch}@example.com';
+    final testEmail =
+        'test_${DateTime.now().millisecondsSinceEpoch}@example.com';
     const testPassword = 'SecurePass123!';
     const testName = 'Test User';
 
@@ -64,14 +76,11 @@ void main() {
       expect(result, isA<Map<String, dynamic>>());
       expect(result['accessToken'], isNotNull);
       expect(result['user'], isNotNull);
-      expect(result['user']['email'], testEmail);
+      expect(result['user']['displayName'], testName);
 
       authToken = result['accessToken'] as String;
-      userId = result['user']['_id'] as String;
+      expect(result['user']['_id'], isNotNull);
       apiClient.setToken(authToken!);
-
-      print('✅ Register success - Token: ${authToken!.substring(0, 20)}...');
-      print('   User ID: $userId');
     });
 
     test('2. Login existing user', () async {
@@ -83,11 +92,9 @@ void main() {
 
       expect(result, isA<Map<String, dynamic>>());
       expect(result['accessToken'], isNotNull);
-      
+
       authToken = result['accessToken'] as String;
       apiClient.setToken(authToken!);
-
-      print('✅ Login success - New Token: ${authToken!.substring(0, 20)}...');
     });
   });
 
@@ -98,21 +105,24 @@ void main() {
 
       expect(profile, isA<Map<String, dynamic>>());
       expect(profile['_id'], isNotNull);
-      expect(profile['email'], isNotNull);
+      expect(profile['displayName'], 'Test User');
 
       print('✅ Get profile success:');
       print('   ID: ${profile['_id']}');
-      print('   Email: ${profile['email']}');
+
       print('   Display Name: ${profile['displayName']}');
     });
 
     test('4. Update profile settings', () async {
       print('\n⚙️ Testing update profile...');
       final updated = await profileDataSource.updateProfile(
-        nextPayday: DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+        nextPayday: DateTime.now()
+            .add(const Duration(days: 30))
+            .toUtc()
+            .toIso8601String(),
         settings: {
           'hideAmounts': false,
-          'workIncome': 20000000,
+          'workIncome': '20000000',
           'workHours': 160,
         },
       );
@@ -134,6 +144,10 @@ void main() {
         type: 'cash',
         openingBalance: '1000000',
         currency: 'VND',
+        openingAt: DateTime.now()
+            .toUtc()
+            .subtract(const Duration(days: 1))
+            .toIso8601String(),
       );
 
       expect(wallet, isA<Map<String, dynamic>>());
@@ -168,7 +182,6 @@ void main() {
       final updated = await walletDataSource.updateWallet(
         id: walletId!,
         name: 'Tiền mặt Updated',
-        expectedVersion: 0,
       );
 
       expect(updated, isA<Map<String, dynamic>>());
@@ -186,7 +199,7 @@ void main() {
         name: 'Ăn uống Test',
         kind: 'expense',
         icon: '🍔',
-        color: '#FF5733',
+        color: '#ff5733',
       );
 
       expect(category, isA<Map<String, dynamic>>());
@@ -221,14 +234,18 @@ void main() {
       print('\n🏠 Testing get dashboard...');
       final dashboard = await dashboardDataSource.getDashboard();
 
-      expect(dashboard, isA<Map<String, dynamic>>());
+      expect(dashboard.totalBalance, 1000000);
       expect(dashboard.totalBalance, isA<double>());
       expect(dashboard.weeklyData, isA<List>());
 
       print('✅ Get dashboard success:');
-      print('   Total Balance: ${dashboard.totalBalance.toStringAsFixed(0)} VND');
+      print(
+        '   Total Balance: ${dashboard.totalBalance.toStringAsFixed(0)} VND',
+      );
       print('   Total Income: ${dashboard.totalIncome.toStringAsFixed(0)} VND');
-      print('   Total Expense: ${dashboard.totalExpense.toStringAsFixed(0)} VND');
+      print(
+        '   Total Expense: ${dashboard.totalExpense.toStringAsFixed(0)} VND',
+      );
       print('   Recent Transactions: ${dashboard.recentTransactions.length}');
     });
   });
@@ -239,7 +256,7 @@ void main() {
       final transaction = await transactionDataSource.createTransaction(
         type: 'expense',
         amount: '50000',
-        occurredAt: DateTime.now().toIso8601String(),
+        occurredAt: DateTime.now().toUtc().toIso8601String(),
         walletId: walletId!,
         categoryId: categoryId!,
         note: 'Test expense transaction',
@@ -275,14 +292,17 @@ void main() {
 
     test('13. Void transaction', () async {
       print('\n❌ Testing void transaction...');
-      await transactionDataSource.voidTransaction(transactionId!);
+      await transactionDataSource.voidTransaction(
+        transactionId!,
+        expectedVersion: 1,
+      );
 
       print('✅ Void transaction success');
     });
 
     test('14. Restore transaction', () async {
       print('\n♻️ Testing restore transaction...');
-      await transactionDataSource.restoreTransaction(transactionId!, 1);
+      await transactionDataSource.restoreTransaction(transactionId!, 2);
 
       print('✅ Restore transaction success');
     });
@@ -340,7 +360,10 @@ void main() {
       print('\n💡 Testing get recommendations...');
       final recommendations = await smartSpendingDataSource.getRecommendations(
         question: 'Nên mua điện thoại mới hay tiết kiệm?',
-        options: ['Mua ngay', 'Tiết kiệm 3 tháng', 'Chờ khuyến mãi'],
+        options: [
+          (name: 'Mua ngay', price: '500000'),
+          (name: 'Chờ khuyến mãi', price: '400000'),
+        ],
       );
 
       expect(recommendations, isA<Map<String, dynamic>>());
@@ -348,38 +371,6 @@ void main() {
       print('✅ Get recommendations success:');
       print('   Question: ${recommendations['question']}');
       print('   Recommended: ${recommendations['recommended']}');
-    });
-  });
-
-  group('📝 Summary', () {
-    test('20. Test Summary', () async {
-      print('\n${'=' * 60}');
-      print('🎉 API INTEGRATION TEST SUMMARY');
-      print('=' * 60);
-      print('✅ All critical APIs tested successfully!');
-      print('');
-      print('📊 Test Coverage:');
-      print('   ✅ Auth APIs: 2/2 (100%)');
-      print('   ✅ Profile APIs: 2/2 (100%)');
-      print('   ✅ Wallet APIs: 3/4 (75%)');
-      print('   ✅ Category APIs: 2/3 (67%)');
-      print('   ✅ Transaction APIs: 4/6 (67%)');
-      print('   ✅ Dashboard APIs: 1/1 (100%)');
-      print('   ✅ Budget/Goals/Bills: 3/18 (17% - basic check)');
-      print('   ✅ Smart Spending: 2/10 (20% - basic check)');
-      print('');
-      print('🔗 Backend Connection: ✅ Working');
-      print('🔐 Authentication: ✅ Working');
-      print('💾 Data Persistence: ✅ Working');
-      print('');
-      print('⏱️ Total Time: ${DateTime.now()}');
-      print('=' * 60);
-
-      expect(authToken, isNotNull);
-      expect(userId, isNotNull);
-      expect(walletId, isNotNull);
-      expect(categoryId, isNotNull);
-      expect(transactionId, isNotNull);
     });
   });
 }

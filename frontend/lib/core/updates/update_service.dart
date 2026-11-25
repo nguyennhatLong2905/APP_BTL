@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -114,6 +115,9 @@ class BasicUpdateService implements UpdateService {
 
   @override
   Future<UpdateCheckResult> checkForUpdates() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return UpdateCheckResult.upToDate;
+    }
     try {
       // Make sure we're initialized
       if (_packageInfo == null) {
@@ -180,6 +184,7 @@ class BasicUpdateService implements UpdateService {
 
   @override
   Future<bool> openUpdateUrl() async {
+    if (kIsWeb) return false;
     try {
       final updateInfo = await getUpdateInfo();
       if (updateInfo?.updateUrl != null) {

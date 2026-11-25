@@ -13,14 +13,10 @@ abstract class SmartSpendingRemoteDataSource {
   });
 
   /// Mô phỏng lương về muộn
-  Future<Map<String, dynamic>> simulateSalaryDelay({
-    required int delayDays,
-  });
+  Future<Map<String, dynamic>> simulateSalaryDelay({required int delayDays});
 
   /// Quy đổi giá theo giờ công
-  Future<Map<String, dynamic>> simulateWorkHours({
-    required String price,
-  });
+  Future<Map<String, dynamic>> simulateWorkHours({required String price});
 
   /// Thử giảm một thói quen chi tiêu
   Future<Map<String, dynamic>> simulateHabit({
@@ -34,7 +30,7 @@ abstract class SmartSpendingRemoteDataSource {
   /// Lấy đề xuất so sánh phương án mua hàng
   Future<Map<String, dynamic>> getRecommendations({
     required String question,
-    required List<String> options,
+    required List<({String name, String price})> options,
     String? minimumDaily,
   });
 
@@ -109,9 +105,10 @@ class SmartSpendingRemoteDataSourceImpl
   Future<Map<String, dynamic>> simulateSalaryDelay({
     required int delayDays,
   }) async {
-    final result = await _apiClient.post('/simulations/salary-delay', data: {
-      'delayDays': delayDays,
-    });
+    final result = await _apiClient.post(
+      '/simulations/salary-delay',
+      data: {'delayDays': delayDays},
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
@@ -125,9 +122,10 @@ class SmartSpendingRemoteDataSourceImpl
   Future<Map<String, dynamic>> simulateWorkHours({
     required String price,
   }) async {
-    final result = await _apiClient.post('/simulations/work-hours', data: {
-      'price': price,
-    });
+    final result = await _apiClient.post(
+      '/simulations/work-hours',
+      data: {'price': price},
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
@@ -144,12 +142,15 @@ class SmartSpendingRemoteDataSourceImpl
     required int weeks,
     required int reductionPercent,
   }) async {
-    final result = await _apiClient.post('/simulations/habit', data: {
-      'amountPerOccurrence': amountPerOccurrence,
-      'occurrencesPerWeek': occurrencesPerWeek,
-      'weeks': weeks,
-      'reductionPercent': reductionPercent,
-    });
+    final result = await _apiClient.post(
+      '/simulations/habit',
+      data: {
+        'amountPerOccurrence': amountPerOccurrence,
+        'occurrencesPerWeek': occurrencesPerWeek,
+        'weeks': weeks,
+        'reductionPercent': reductionPercent,
+      },
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
@@ -163,12 +164,15 @@ class SmartSpendingRemoteDataSourceImpl
   @override
   Future<Map<String, dynamic>> getRecommendations({
     required String question,
-    required List<String> options,
+    required List<({String name, String price})> options,
     String? minimumDaily,
   }) async {
     final data = <String, dynamic>{
       'question': question,
-      'options': options,
+      'options': [
+        for (final option in options)
+          {'name': option.name, 'price': option.price},
+      ],
     };
     if (minimumDaily != null) data['minimumDaily'] = minimumDaily;
 
@@ -204,10 +208,7 @@ class SmartSpendingRemoteDataSourceImpl
     String? categoryId,
     String? remindAt,
   }) async {
-    final data = <String, dynamic>{
-      'name': name,
-      'price': price,
-    };
+    final data = <String, dynamic>{'name': name, 'price': price};
     if (categoryId != null) data['categoryId'] = categoryId;
     if (remindAt != null) data['remindAt'] = remindAt;
 
@@ -284,13 +285,13 @@ class SmartSpendingRemoteDataSourceImpl
     required String targetAt,
     String? dailySaving,
   }) async {
-    final data = <String, dynamic>{
-      'targetAt': targetAt,
-    };
+    final data = <String, dynamic>{'targetAt': targetAt};
     if (dailySaving != null) data['dailySaving'] = dailySaving;
 
-    final result =
-        await _apiClient.post('/purchases/$purchaseId/saving-plan', data: data);
+    final result = await _apiClient.post(
+      '/purchases/$purchaseId/saving-plan',
+      data: data,
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
@@ -315,6 +316,6 @@ class SmartSpendingRemoteDataSourceImpl
 
 final smartSpendingRemoteDataSourceProvider =
     Provider<SmartSpendingRemoteDataSource>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return SmartSpendingRemoteDataSourceImpl(apiClient);
-});
+      final apiClient = ref.watch(apiClientProvider);
+      return SmartSpendingRemoteDataSourceImpl(apiClient);
+    });
