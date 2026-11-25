@@ -26,7 +26,10 @@ class CashFlowImpactCard extends StatelessWidget {
     final dailyAvgAfterK = (dailyAvgAfter / 1000).toStringAsFixed(1);
     final dailyAvgCurrentK = (dailyAvgCurrent / 1000).toStringAsFixed(0);
 
-    final flexLeft = (dailyAvgAfter / (dailyAvgCurrent > 0 ? dailyAvgCurrent : 1) * 100).toInt().clamp(1, 99);
+    final flexLeft =
+        (dailyAvgAfter / (dailyAvgCurrent > 0 ? dailyAvgCurrent : 1) * 100)
+            .toInt()
+            .clamp(1, 99);
     final flexRight = (100 - flexLeft).clamp(1, 99);
 
     return Card(
@@ -43,17 +46,11 @@ class CashFlowImpactCard extends StatelessWidget {
               children: [
                 const Text(
                   'Tác động dòng tiền',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '$daysLeft ngày kế tiếp',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -211,37 +208,50 @@ class CashFlowImpactCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.balance, size: 14, color: Colors.brown.shade700),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Cần thắt chặt hơn (~${dailyAvgAfterK}k/ngày)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown.shade800,
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        child: Icon(
+                          Icons.balance,
+                          size: 14,
+                          color: Colors.brown.shade700,
+                        ),
                       ),
-                    ),
-                  ],
+                      TextSpan(
+                        text: ' Cần thắt chặt hơn (~${dailyAvgAfterK}k/ngày)',
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.brown.shade800,
+                  ),
                 ),
-                Row(
-                  children: [
-                    Text(
-                      'Thoải mái (${dailyAvgCurrentK}k/ngày)',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F5B47),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Thoải mái (${dailyAvgCurrentK}k/ngày) '),
+                      const WidgetSpan(
+                        child: Icon(
+                          Icons.check_circle_outline,
+                          size: 14,
+                          color: Color(0xFF0F5B47),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.check_circle_outline,
-                        size: 14, color: Color(0xFF0F5B47)),
-                  ],
+                    ],
+                  ),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F5B47),
+                  ),
                 ),
               ],
             ),

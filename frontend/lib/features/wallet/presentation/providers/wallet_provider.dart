@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 import '../../data/datasources/smart_spending_remote_data_source.dart';
 
 class WalletState {
@@ -7,7 +10,7 @@ class WalletState {
   final double itemPrice;
   final String categoryTag;
   final int daysLeftInPeriod;
-  final String salaryDateText;
+  final DateTime? nextPayday;
   final double currentFreeBalance;
   final double fixedBillsAmount;
   final double emergencyFundAmount;
@@ -22,8 +25,8 @@ class WalletState {
     this.itemName = '',
     this.itemPrice = 0,
     this.categoryTag = '',
-    this.daysLeftInPeriod = 14,
-    this.salaryDateText = '--',
+    this.daysLeftInPeriod = 0,
+    this.nextPayday,
     this.currentFreeBalance = 0,
     this.fixedBillsAmount = 0,
     this.emergencyFundAmount = 0,
@@ -32,6 +35,10 @@ class WalletState {
     this.simulationResult,
     this.errorMessage,
   });
+
+  String get salaryDateText => nextPayday == null
+      ? '--'
+      : DateFormat('dd/MM').format(nextPayday!.toLocal());
 
   double get freeBalanceAfterPurchase => currentFreeBalance - itemPrice;
   double get dailyAvgCurrent =>
@@ -46,7 +53,8 @@ class WalletState {
     double? itemPrice,
     String? categoryTag,
     int? daysLeftInPeriod,
-    String? salaryDateText,
+    DateTime? nextPayday,
+    bool clearNextPayday = false,
     double? currentFreeBalance,
     double? fixedBillsAmount,
     double? emergencyFundAmount,
@@ -60,7 +68,7 @@ class WalletState {
       itemPrice: itemPrice ?? this.itemPrice,
       categoryTag: categoryTag ?? this.categoryTag,
       daysLeftInPeriod: daysLeftInPeriod ?? this.daysLeftInPeriod,
-      salaryDateText: salaryDateText ?? this.salaryDateText,
+      nextPayday: clearNextPayday ? null : nextPayday ?? this.nextPayday,
       currentFreeBalance: currentFreeBalance ?? this.currentFreeBalance,
       fixedBillsAmount: fixedBillsAmount ?? this.fixedBillsAmount,
       emergencyFundAmount: emergencyFundAmount ?? this.emergencyFundAmount,
@@ -75,40 +83,28 @@ class WalletState {
 class WalletNotifier extends Notifier<WalletState> {
   @override
   WalletState build() {
-    Future.microtask(_loadDashboardOverview);
-    return const WalletState();
-  }
-
-  Future<void> _loadDashboardOverview() async {
-    try {
-      final ds = ref.read(smartSpendingRemoteDataSourceProvider);
-      final raw = await ds.getDashboardOverview();
-      final data = (raw['overview'] as Map<String, dynamic>?) ?? raw;
-
-      final freeBalance = _toDouble(data['available'] ?? data['freeBalance'] ?? data['total'] ?? data['totalBalance'] ?? 0);
-      final fixedBills = _toDouble(data['unpaidBills'] ?? data['fixedBills'] ?? data['totalFixedExpense'] ?? 0);
-      final emergencyFund = _toDouble(data['protectedMoney'] ?? data['emergencyFund'] ?? 0);
-      final daysLeft = (data['daysRemaining'] ?? data['daysLeft'] ?? data['daysLeftInPeriod'] ?? 14) as int;
-      
-      String salaryDate = '--';
-      final nextPaydayRaw = data['nextPayday'];
-      if (nextPaydayRaw != null) {
-        final parsed = DateTime.tryParse(nextPaydayRaw.toString());
-        if (parsed != null) {
-          salaryDate = DateFormat('dd/MM').format(parsed.toLocal());
-        }
-      }
-
+    final dashboard = ref.read(homeProvider).dashboardData;
+    ref.listen(homeProvider.select((home) => home.dashboardData), (_, data) {
+      if (data == null) return;
       state = state.copyWith(
-        currentFreeBalance: freeBalance,
-        fixedBillsAmount: fixedBills,
-        emergencyFundAmount: emergencyFund,
-        daysLeftInPeriod: daysLeft < 0 ? 0 : daysLeft,
-        salaryDateText: salaryDate,
+        currentFreeBalance: data.spendable,
+        fixedBillsAmount: data.unpaidBills,
+        emergencyFundAmount: data.protectedMoney,
+        daysLeftInPeriod: math.max(0, data.daysRemaining ?? 0),
+        nextPayday: data.nextPayday,
+        clearNextPayday: data.nextPayday == null,
       );
-    } catch (_) {
-      // Nếu API lỗi, giữ default values – không hiển thị lỗi trên màn hình này
-    }
+    });
+    Future.microtask(() async {
+      if (ref.mounted) await ref.read(homeProvider.notifier).loadDashboard();
+    });
+    return WalletState(
+      currentFreeBalance: dashboard?.spendable ?? 0,
+      fixedBillsAmount: dashboard?.unpaidBills ?? 0,
+      emergencyFundAmount: dashboard?.protectedMoney ?? 0,
+      daysLeftInPeriod: math.max(0, dashboard?.daysRemaining ?? 0),
+      nextPayday: dashboard?.nextPayday,
+    );
   }
 
   void updateItemDetails({String? name, double? price, String? category}) {
@@ -127,7 +123,11 @@ class WalletNotifier extends Notifier<WalletState> {
   /// Gọi API mô phỏng mua hàng
   Future<void> simulatePurchase() async {
     if (state.itemPrice <= 0) return;
-    state = state.copyWith(isSimulating: true, errorMessage: null, simulationResult: null);
+    state = state.copyWith(
+      isSimulating: true,
+      errorMessage: null,
+      simulationResult: null,
+    );
     try {
       final ds = ref.read(smartSpendingRemoteDataSourceProvider);
       final result = await ds.simulatePurchase(
@@ -144,12 +144,6 @@ class WalletNotifier extends Notifier<WalletState> {
 
   void clearSimulation() {
     state = state.copyWith(simulationResult: null, errorMessage: null);
-  }
-
-  double _toDouble(dynamic v) {
-    if (v is String) return double.tryParse(v) ?? 0;
-    if (v is num) return v.toDouble();
-    return 0;
   }
 }
 

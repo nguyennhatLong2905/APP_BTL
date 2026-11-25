@@ -119,17 +119,6 @@ export async function buildApp(ctx, config = {}) {
         requestId: req.id,
       });
   });
-  // --- Cache tokenVersion (TTL 30s) ---
-  // Tránh query DB "users" mỗi request được xác thực.
-  // Logout-all tăng tokenVersion trong DB; cache cũ hết hạn sau ≤30s.
-  const _tvCache = new Map(); // userId_hex → { ver: number, exp: number }
-  const _TV_TTL = 30_000;
-  // Dọn cache hết hạn định kỳ (5 phút) để tránh memory leak
-  setInterval(() => {
-    const t = Date.now();
-    for (const [k, v] of _tvCache) if (t > v.exp) _tvCache.delete(k);
-  }, 300_000).unref();
-
   const convert = (s, isQuery = false) => {
     const j = z.toJSONSchema(s, { target: "draft-7", io: "input" });
     delete j.$schema;
@@ -215,25 +204,17 @@ export async function buildApp(ctx, config = {}) {
             401,
           );
           req.owner = oid(req.user.sub);
-          const sub = req.user.sub;
-          const jwtVer = Number(req.user.ver || 0);
-          const cached = _tvCache.get(sub);
-          if (cached && Date.now() < cached.exp) {
-            // Cache còn hạn — không cần query DB
-            fail(cached.ver === jwtVer, "UNAUTHORIZED", "Phiên đăng nhập đã hết hạn.", 401);
-          } else {
-            // Cache hết hạn hoặc chưa có — query DB và cập nhật cache
-            const u = await ctx.db
-              .collection("users")
-              .findOne({ _id: req.owner }, { projection: { tokenVersion: 1 } });
-            fail(
-              u && Number(u.tokenVersion || 0) === jwtVer,
-              "UNAUTHORIZED",
-              "Phiên đăng nhập đã hết hạn.",
-              401,
-            );
-            if (u) _tvCache.set(sub, { ver: Number(u.tokenVersion || 0), exp: Date.now() + _TV_TTL });
-          }
+          const version = Number(req.user.ver || 0);
+          const user = await ctx.db.collection("users").findOne(
+            { _id: req.owner },
+            { projection: { tokenVersion: 1 } },
+          );
+          fail(
+            user && Number(user.tokenVersion || 0) === version,
+            "UNAUTHORIZED",
+            "Phiên đăng nhập đã hết hạn.",
+            401,
+          );
         }
       },
       handler: async (req, reply) => {
@@ -251,9 +232,9 @@ export async function buildApp(ctx, config = {}) {
             )
           : await invoke();
         if (raw) return value;
-        // Cache-Control cho GET: private (có auth), 10s max-age, stale 30s
-        if (method === "GET" && !write)
-          reply.header("Cache-Control", "private, max-age=10, stale-while-revalidate=30");
+        // Các endpoint cần số liệu mới có thể đặt Cache-Control riêng.
+        if (method === "GET" && !write && !reply.hasHeader("Cache-Control"))
+          reply.header("Cache-Control", publicRoute ? "private, max-age=10" : "private, no-store");
         return { data: json(value) };
       },
     });

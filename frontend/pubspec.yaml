@@ -50,6 +50,7 @@ dependencies:
   table_calendar: ^3.3.0
   sticky_headers: ^0.3.0+2
   http: ^1.6.0
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

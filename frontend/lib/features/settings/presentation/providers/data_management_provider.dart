@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/data_management_remote_data_source.dart';
 
-final dataManagementProvider = AsyncNotifierProvider<DataManagementNotifier, void>(() {
-  return DataManagementNotifier();
-});
+final dataManagementProvider =
+    AsyncNotifierProvider<DataManagementNotifier, void>(() {
+      return DataManagementNotifier();
+    });
 
 class DataManagementNotifier extends AsyncNotifier<void> {
   late DataManagementRemoteDataSource _dataSource;
@@ -14,10 +14,10 @@ class DataManagementNotifier extends AsyncNotifier<void> {
     _dataSource = ref.watch(dataManagementRemoteDataSourceProvider);
   }
 
-  Future<Map<String, dynamic>> previewImport(File file) async {
+  Future<Map<String, dynamic>> previewImport(String csv) async {
     state = const AsyncValue.loading();
     try {
-      final result = await _dataSource.previewImport(file);
+      final result = await _dataSource.previewImport(csv);
       state = const AsyncValue.data(null);
       return result;
     } catch (e, st) {
@@ -26,7 +26,11 @@ class DataManagementNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<Map<String, dynamic>> commitImport(String previewId, List<int> selectedRows, bool includeSuspectedDuplicates) async {
+  Future<Map<String, dynamic>> commitImport(
+    String previewId,
+    List<int> selectedRows,
+    bool includeSuspectedDuplicates,
+  ) async {
     state = const AsyncValue.loading();
     try {
       final result = await _dataSource.commitImport(
@@ -42,10 +46,18 @@ class DataManagementNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<List<int>> exportTransactionsCsv({String? startAt, String? endAt, String? walletId}) async {
+  Future<List<int>> exportTransactionsCsv({
+    String? startAt,
+    String? endAt,
+    String? walletId,
+  }) async {
     state = const AsyncValue.loading();
     try {
-      final result = await _dataSource.exportTransactionsCsv(startAt: startAt, endAt: endAt, walletId: walletId);
+      final result = await _dataSource.exportTransactionsCsv(
+        startAt: startAt,
+        endAt: endAt,
+        walletId: walletId,
+      );
       state = const AsyncValue.data(null);
       return result;
     } catch (e, st) {
@@ -66,7 +78,9 @@ class DataManagementNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<Map<String, dynamic>> previewRestore(Map<String, dynamic> backupData) async {
+  Future<Map<String, dynamic>> previewRestore(
+    Map<String, dynamic> backupData,
+  ) async {
     state = const AsyncValue.loading();
     try {
       final result = await _dataSource.previewRestore(backupData);
@@ -78,10 +92,16 @@ class DataManagementNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<Map<String, dynamic>> restoreBackup(String previewId, String confirmation) async {
+  Future<Map<String, dynamic>> restoreBackup(
+    String previewId,
+    String confirmation,
+  ) async {
     state = const AsyncValue.loading();
     try {
-      final result = await _dataSource.restoreBackup(previewId: previewId, confirmation: confirmation);
+      final result = await _dataSource.restoreBackup(
+        previewId: previewId,
+        confirmation: confirmation,
+      );
       state = const AsyncValue.data(null);
       return result;
     } catch (e, st) {
@@ -105,7 +125,10 @@ class DataManagementNotifier extends AsyncNotifier<void> {
   Future<void> eraseData(String previewId, String confirmation) async {
     state = const AsyncValue.loading();
     try {
-      await _dataSource.eraseData(previewId: previewId, confirmation: confirmation);
+      await _dataSource.eraseData(
+        previewId: previewId,
+        confirmation: confirmation,
+      );
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

@@ -2,10 +2,9 @@
   "data": {
     "isSimulation": true,
     "before": {
-
-      "asOf": "2026-11-14T08:14:28.377Z",
+      "asOf": "2026-11-25T14:28:42.669Z",
       "nextPayday": "2026-10-15T17:00:00.000Z",
-      "daysRemaining": -29,
+      "daysRemaining": -40,
       "missingData": [
         "nextPaydayInFuture"
       ],
@@ -14,6 +13,18 @@
       "unpaidBills": "3500000",
       "protectedMoney": "2400000",
       "available": "2100000",
+      "spendableAmount": "2100000",
+      "shortfallAmount": "0",
+      "layers": {
+        "total": "8000000",
+        "protectedMoney": "2400000",
+        "unpaidBills": "3500000",
+        "obligations": "5900000",
+        "available": "2100000",
+        "walletCount": 2,
+        "unpaidBillCount": 2,
+        "protectedGoalCount": 1
+      },
       "dailyReference": null,
       "wallets": [
         {

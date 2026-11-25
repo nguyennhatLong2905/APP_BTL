@@ -198,6 +198,16 @@ const schemas = {
       unpaidBills: money,
       protectedMoney: money,
       available: maybeMoney,
+      spendableAmount: {
+        type: "string",
+        pattern: "^[0-9]+$",
+        description: "Số tiền có thể chi sau khi trừ các khoản đã dành riêng.",
+      },
+      shortfallAmount: {
+        type: "string",
+        pattern: "^[0-9]+$",
+        description: "Số tiền còn thiếu để đủ các khoản đã dành riêng.",
+      },
       dailyReference: maybeMoney,
       layers: obj(
         {
@@ -233,6 +243,8 @@ const schemas = {
       "unpaidBills",
       "protectedMoney",
       "available",
+      "spendableAmount",
+      "shortfallAmount",
       "dailyReference",
       "wallets",
       "bills",

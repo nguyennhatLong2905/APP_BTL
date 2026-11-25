@@ -113,33 +113,42 @@ class TimelineState {
 }
 
 class TimelineNotifier extends Notifier<TimelineState> {
+  int _requestId = 0;
+  (String?, String?) _requestedWeek = (null, null);
+
   @override
   TimelineState build() {
     Future.microtask(loadAll);
     return const TimelineState(isLoading: true);
   }
 
-  Future<void> loadAll({String? weekStartIso, String? weekEndIso}) async {
+  Future<void> loadAll({
+    String? weekStartIso,
+    String? weekEndIso,
+    bool resetWeek = false,
+  }) async {
+    if (resetWeek || weekStartIso != null) {
+      _requestedWeek = (weekStartIso, weekEndIso);
+    }
+    final (startAt, endAt) = _requestedWeek;
+    final request = ++_requestId;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final ds = ref.read(timelineRemoteDataSourceProvider);
-      final results = await Future.wait([
-        ds.getReviewScreen(startAt: weekStartIso, endAt: weekEndIso),
-        ds.getJournal(),
-      ]);
+      final review = await ds.getReviewScreen(startAt: startAt, endAt: endAt);
+      final journalRows =
+          (review['journal'] as List?)?.cast<Map<String, dynamic>>() ??
+          await ds.getJournal();
+      if (!ref.mounted || request != _requestId) return;
 
-      final review = results[0] as Map<String, dynamic>;
-      final journalRows = (results[1] as List).cast<Map<String, dynamic>>();
-
-      final week = WeekStats.fromJson(
-        review['week'] as Map<String, dynamic>?,
-      );
+      final week = WeekStats.fromJson(review['week'] as Map<String, dynamic>?);
       final weeksRaw = (review['weeks'] as List?) ?? const [];
       final weeks = weeksRaw
           .whereType<Map<String, dynamic>>()
           .map(ReviewWeek.fromJson)
           .toList();
       final journal = journalRows.map(JournalEntry.fromJson).toList();
+      final summary = review['journalSummary'] as Map<String, dynamic>?;
 
       state = state.copyWith(
         isLoading: false,
@@ -154,13 +163,22 @@ class TimelineNotifier extends Notifier<TimelineState> {
           review['budgetSuggestions'] as Map<String, dynamic>?,
         ),
         weeks: weeks,
-        selectedWeekStartIso: weekStartIso ?? week.startAt?.toUtc().toIso8601String(),
+        selectedWeekStartIso: week.startAt?.toUtc().toIso8601String(),
         journal: journal,
-        summary: JournalSummary.fromJson(
-          review['journalSummary'] as Map<String, dynamic>?,
-        ),
+        summary: summary == null
+            ? JournalSummary(
+                total: journal.length,
+                tracking: journal.where((entry) => entry.isTracking).length,
+                awaitingReview: journal
+                    .where((entry) => entry.isAwaitingReview)
+                    .length,
+                rated: journal.where((entry) => entry.isRated).length,
+                skipped: journal.where((entry) => entry.isSkipped).length,
+              )
+            : JournalSummary.fromJson(summary),
       );
     } catch (e) {
+      if (!ref.mounted || request != _requestId) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
@@ -173,7 +191,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
       loadAll(weekStartIso: week.isoStart, weekEndIso: week.isoEnd);
 
   /// Bỏ chọn tuần (về tuần hiện tại).
-  Future<void> clearWeekSelection() => loadAll();
+  Future<void> clearWeekSelection() => loadAll(resetWeek: true);
 
   /// Lưu đánh giá (kèm ghi chú) rồi đồng bộ lại toàn bộ dữ liệu phân tích.
   Future<String?> rateReflection(
@@ -188,7 +206,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
         rating: emotionRatingApiValue(rating),
         note: note,
       );
-      await _reloadForCurrentWeek();
+      await loadAll();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
@@ -200,20 +218,11 @@ class TimelineNotifier extends Notifier<TimelineState> {
     try {
       final ds = ref.read(timelineRemoteDataSourceProvider);
       await ds.skipReflection(entryId);
-      await _reloadForCurrentWeek();
+      await loadAll();
       return null;
     } catch (e) {
       return e.toString().replaceAll('Exception: ', '');
     }
-  }
-
-  Future<void> _reloadForCurrentWeek() async {
-    await loadAll(
-      weekStartIso: state.selectedWeekStartIso,
-      weekEndIso: state.selectedWeekStartIso == null
-          ? null
-          : state.weekEnd?.toUtc().toIso8601String(),
-    );
   }
 
   // ── Helpers ────────────────────────────────────────────────────────
@@ -237,10 +246,14 @@ final timelineProvider = NotifierProvider<TimelineNotifier, TimelineState>(
 /// Icon/màu theo tên danh mục — chỉ dùng để hiển thị, không phải dữ liệu.
 IconData billCategoryIcon(String name) {
   final n = name.toLowerCase();
-  if (n.contains('ăn') || n.contains('cà phê')) return Icons.restaurant_outlined;
+  if (n.contains('ăn') || n.contains('cà phê')) {
+    return Icons.restaurant_outlined;
+  }
   if (n.contains('học')) return Icons.school_outlined;
   if (n.contains('mua')) return Icons.shopping_bag_outlined;
-  if (n.contains('đi lại') || n.contains('xe')) return Icons.directions_car_outlined;
+  if (n.contains('đi lại') || n.contains('xe')) {
+    return Icons.directions_car_outlined;
+  }
   if (n.contains('hóa đơn')) return Icons.receipt_long_outlined;
   return Icons.category_outlined;
 }

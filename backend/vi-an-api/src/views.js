@@ -55,7 +55,8 @@ export async function overview(
   const total = wallets.reduce((s, w) => s + B(w.balance), 0n);
   const protectedMoney = allocations.reduce((s, a) => s + B(a.amount), 0n);
   const unpaid = bills.reduce((s, b) => s + B(b.amount), 0n);
-  const available = nextPayday ? total - protectedMoney - unpaid : null;
+  const netAvailable = total - protectedMoney - unpaid;
+  const available = nextPayday ? netAvailable : null;
   return {
     asOf: at,
     nextPayday: nextPayday || null,
@@ -66,6 +67,8 @@ export async function overview(
     unpaidBills: unpaid,
     protectedMoney,
     available,
+    spendableAmount: netAvailable > 0n ? netAvailable : 0n,
+    shortfallAmount: netAvailable < 0n ? -netAvailable : 0n,
     // Ba lớp tiền minh bạch — một nguồn sự thật duy nhất, không tính trùng:
     //   Lớp 1 = tổng số dư ví đang hoạt động
     //   Lớp 2 = hóa đơn chưa trả + quỹ bảo vệ

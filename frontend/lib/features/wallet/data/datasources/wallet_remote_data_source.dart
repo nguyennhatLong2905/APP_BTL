@@ -22,7 +22,6 @@ abstract class WalletRemoteDataSource {
     required String id,
     String? name,
     String? status, // 'active' | 'archived'
-    required int expectedVersion,
   });
 
   /// Đối chiếu và tạo điều chỉnh số dư
@@ -92,11 +91,8 @@ class WalletRemoteDataSourceImpl implements WalletRemoteDataSource {
     required String id,
     String? name,
     String? status,
-    required int expectedVersion,
   }) async {
-    final data = <String, dynamic>{
-      'expectedVersion': expectedVersion,
-    };
+    final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
     if (status != null) data['status'] = status;
 

@@ -5,6 +5,8 @@ import 'package:flutter_riverpod_clean_architecture/core/constants/app_constants
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/currency_text_field.dart';
+import '../../../settings/presentation/providers/budget_provider.dart';
+import '../../../transaction/presentation/providers/transaction_provider.dart';
 import '../providers/wallet_provider.dart';
 import '../widgets/buy_now_card.dart';
 import '../widgets/cash_flow_impact_card.dart';
@@ -16,17 +18,23 @@ class SmartSpendingScreen extends ConsumerWidget {
   const SmartSpendingScreen({super.key});
 
   void _showEditItemDialog(
-      BuildContext context, WidgetRef ref, WalletState state) {
+    BuildContext context,
+    WidgetRef ref,
+    WalletState state,
+  ) {
     final nameController = TextEditingController(text: state.itemName);
-    final priceController =
-        TextEditingController(text: state.itemPrice.toInt().toString());
+    final priceController = TextEditingController(
+      text: state.itemPrice.toInt().toString(),
+    );
 
-    showDialog(
+    final route = DialogRoute<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          scrollable: true,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Chỉnh Sửa Món Đồ Cân Nhắc'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -55,12 +63,13 @@ class SmartSpendingScreen extends ConsumerWidget {
                 final name = nameController.text.trim();
                 final price = CurrencyTextField.getRawAmount(priceController);
                 if (name.isNotEmpty && price > 0) {
-                  ref.read(walletProvider.notifier).updateItemDetails(
-                        name: name,
-                        price: price,
-                      );
+                  ref
+                      .read(walletProvider.notifier)
+                      .updateItemDetails(name: name, price: price);
                   AppSnackBar.showSuccess(
-                      context, 'Đã cập nhật thông tin món đồ!');
+                    context,
+                    'Đã cập nhật thông tin món đồ!',
+                  );
                 }
                 Navigator.pop(context);
               },
@@ -69,8 +78,9 @@ class SmartSpendingScreen extends ConsumerWidget {
           ],
         );
       },
-    ).whenComplete(() {
-      // Tránh rò rỉ và tránh controller bị dùng khi đã dispose
+    );
+    Navigator.of(context, rootNavigator: true).push(route);
+    route.completed.whenComplete(() {
       nameController.dispose();
       priceController.dispose();
     });
@@ -117,8 +127,10 @@ class SmartSpendingScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFC2F0E6),
                     borderRadius: BorderRadius.circular(12),
@@ -126,8 +138,11 @@ class SmartSpendingScreen extends ConsumerWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.eco_outlined,
-                          size: 14, color: Color(0xFF0F5B47)),
+                      Icon(
+                        Icons.eco_outlined,
+                        size: 14,
+                        color: Color(0xFF0F5B47),
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'Mô phỏng tài chính chánh niệm',
@@ -141,8 +156,10 @@ class SmartSpendingScreen extends ConsumerWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -215,42 +232,72 @@ class SmartSpendingScreen extends ConsumerWidget {
             // Card 4: Mua ngay hôm nay
             BuyNowCard(
               itemPrice: state.itemPrice,
-              onBuyPressed: () {
-                AppSnackBar.showSuccess(
-                  context,
-                  'Mở form giao dịch ${state.itemName} (${state.itemPrice.toInt()} ₫)!',
-                );
-              },
+              onBuyPressed: state.itemPrice <= 0
+                  ? null
+                  : () {
+                      final form = ref.read(transactionFormProvider.notifier);
+                      form.reset();
+                      form.addAmount(state.itemPrice.round());
+                      form.setNote(state.itemName);
+                      context.push(AppConstants.addTransactionRoute);
+                    },
             ),
             const SizedBox(height: 12),
 
             // Card 5: Khuyến dùng chánh niệm (Chờ & Tích lũy)
             Builder(
               builder: (context) {
-                final now = DateTime.now();
-                String reminderDate;
-                if (state.salaryDateText != '--') {
-                  final parsedPayday = DateTime.tryParse(state.salaryDateText);
-                  if (parsedPayday != null) {
-                    reminderDate = DateFormat('dd/MM/yyyy').format(parsedPayday.add(const Duration(days: 1)));
-                  } else {
-                    reminderDate = state.salaryDateText;
-                  }
-                } else {
-                  reminderDate = DateFormat('dd/MM/yyyy').format(now.add(Duration(days: state.savingDaysGoal)));
-                }
+                final payday = state.nextPayday?.toLocal();
+                final savingTarget = DateTime.now().add(
+                  Duration(days: state.savingDaysGoal),
+                );
+                final reminder =
+                    payday?.add(const Duration(days: 1)) ?? savingTarget;
 
                 return MindfulDelayCard(
                   dailySavingGoal: state.dailySavingGoal,
                   savingDays: state.savingDaysGoal,
-                  reminderDate: reminderDate,
-                  salaryDate: state.salaryDateText != '--' ? state.salaryDateText : null,
-                  onCreatePlanPressed: () {
-                    AppSnackBar.showSuccess(
-                      context,
-                      'Đã tạo lộ trình tích lũy ${state.dailySavingGoal.toInt()} ₫/ngày!',
-                    );
-                  },
+                  reminderDate: DateFormat('dd/MM/yyyy').format(reminder),
+                  salaryDate: payday == null ? null : state.salaryDateText,
+                  onCreatePlanPressed: state.itemPrice <= 0
+                      ? null
+                      : () async {
+                          final target = savingTarget;
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Tạo mục tiêu tiết kiệm'),
+                              content: Text(
+                                'Tạo mục tiêu cho "${state.itemName}" với hạn ${DateFormat('dd/MM/yyyy').format(target)}?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Hủy'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Tạo mục tiêu'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true || !context.mounted) return;
+                          final notifier = ref.read(budgetProvider.notifier);
+                          final error = await notifier.createGoal(
+                            name: state.itemName,
+                            targetAmount: state.itemPrice,
+                            targetAt: target,
+                          );
+                          if (!context.mounted) return;
+                          if (error != null) {
+                            AppSnackBar.showError(context, error);
+                            return;
+                          }
+                          notifier.setActiveTab('Mục tiêu');
+                          context.go(AppConstants.budgetPlanningRoute);
+                        },
                 );
               },
             ),

@@ -13,8 +13,8 @@ abstract class ReportRemoteDataSource {
   Future<Map<String, dynamic>> getTransactionHistory({
     String? cursor,
     int limit = 30,
-    String? startDate,
-    String? endDate,
+    DateTime? startAt,
+    DateTime? endAt,
     String? categoryId,
   });
 }
@@ -49,17 +49,20 @@ class ReportRemoteDataSourceImpl implements ReportRemoteDataSource {
   Future<Map<String, dynamic>> getTransactionHistory({
     String? cursor,
     int limit = 30,
-    String? startDate,
-    String? endDate,
+    DateTime? startAt,
+    DateTime? endAt,
     String? categoryId,
   }) async {
     final params = <String, dynamic>{'limit': limit};
     if (cursor != null) params['cursor'] = cursor;
-    if (startDate != null) params['startAt'] = '${startDate}T00:00:00.000Z';
-    if (endDate != null) params['endAt'] = '${endDate}T23:59:59.999Z';
+    if (startAt != null) params['startAt'] = startAt.toUtc().toIso8601String();
+    if (endAt != null) params['endAt'] = endAt.toUtc().toIso8601String();
     if (categoryId != null) params['categoryId'] = categoryId;
 
-    final result = await _apiClient.get('/screens/transactions', queryParameters: params);
+    final result = await _apiClient.get(
+      '/screens/transactions',
+      queryParameters: params,
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (data) {
@@ -70,8 +73,7 @@ class ReportRemoteDataSourceImpl implements ReportRemoteDataSource {
   }
 }
 
-final reportRemoteDataSourceProvider =
-    Provider<ReportRemoteDataSource>((ref) {
+final reportRemoteDataSourceProvider = Provider<ReportRemoteDataSource>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return ReportRemoteDataSourceImpl(apiClient);
 });

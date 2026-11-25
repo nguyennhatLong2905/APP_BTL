@@ -52,7 +52,8 @@ class BudgetState {
   /// Hóa đơn định kỳ
   final List<RecurringBill> bills;
   final BillsSummary billsSummary;
-  final String billFilter; // 'Tất cả' | 'Chưa trả' | 'Đến hạn' | 'Quá hạn' | 'Đã trả'
+  final String
+  billFilter; // 'Tất cả' | 'Chưa trả' | 'Đến hạn' | 'Quá hạn' | 'Đã trả'
 
   const BudgetState({
     this.totalBudget = 0,
@@ -91,7 +92,8 @@ class BudgetState {
 
   /// "Còn để chi" thực tế = available từ backend
   /// (= tổng tiền ví − tiền bảo vệ − hóa đơn chưa trả)
-  double get spendableNow => availableToSpend ?? freeRemainingBalance;
+  double get spendableNow =>
+      availableToSpend ?? (walletTotal - protectedMoney - unpaidBills);
 
   BudgetState copyWith({
     double? totalBudget,
@@ -121,6 +123,8 @@ class BudgetState {
     List<RecurringBill>? bills,
     BillsSummary? billsSummary,
     String? billFilter,
+    bool clearPlan = false,
+    bool clearAvailable = false,
   }) {
     return BudgetState(
       totalBudget: totalBudget ?? this.totalBudget,
@@ -138,14 +142,16 @@ class BudgetState {
       walletTotal: walletTotal ?? this.walletTotal,
       protectedMoney: protectedMoney ?? this.protectedMoney,
       unpaidBills: unpaidBills ?? this.unpaidBills,
-      availableToSpend: availableToSpend ?? this.availableToSpend,
+      availableToSpend: clearAvailable
+          ? null
+          : availableToSpend ?? this.availableToSpend,
       savingsGoals: savingsGoals ?? this.savingsGoals,
       walletOptions: walletOptions ?? this.walletOptions,
-      planId: planId ?? this.planId,
-      planName: planName ?? this.planName,
-      planPeriodType: planPeriodType ?? this.planPeriodType,
-      planStartAt: planStartAt ?? this.planStartAt,
-      planEndAt: planEndAt ?? this.planEndAt,
+      planId: clearPlan ? null : planId ?? this.planId,
+      planName: clearPlan ? null : planName ?? this.planName,
+      planPeriodType: clearPlan ? null : planPeriodType ?? this.planPeriodType,
+      planStartAt: clearPlan ? null : planStartAt ?? this.planStartAt,
+      planEndAt: clearPlan ? null : planEndAt ?? this.planEndAt,
       planWarningPercent: planWarningPercent ?? this.planWarningPercent,
       bills: bills ?? this.bills,
       billsSummary: billsSummary ?? this.billsSummary,
@@ -159,6 +165,11 @@ class BudgetState {
 // ════════════════════════════════════════════════════════════════════
 
 class BudgetNotifier extends Notifier<BudgetState> {
+  bool _periodInitialized = false;
+  final _categoryNames = <String, String>{};
+  int _budgetRequest = 0;
+  bool _selectingPeriod = false;
+
   @override
   BudgetState build() {
     Future.microtask(loadAll);
@@ -179,42 +190,12 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
       final plans = results[0] as Map<String, dynamic>;
       final budgets = (results[1] as List).cast<Map<String, dynamic>>();
-      // 1 kỳ ngân sách active duy nhất (backend chặn chồng lấn)
-      final activeBudgets = budgets.where((b) => b['status'] == 'active').toList();
-      final plan = activeBudgets.isNotEmpty ? activeBudgets.first : (budgets.isNotEmpty ? budgets.first : null);
-
       final goals = (results[2] as List).cast<Map<String, dynamic>>();
       final bills = (results[3] as List).cast<Map<String, dynamic>>();
       final billsScreen = results[4] as Map<String, dynamic>;
 
       // Parse overview
       final overview = plans['overview'] as Map<String, dynamic>? ?? {};
-      final daysLeft =
-          ((overview['daysRemaining'] ?? overview['daysLeft'] ?? 0) as num)
-              .toInt();
-
-      // Tính periodText từ kỳ ngân sách (plan) hoặc mặc định theo tháng
-      String periodText;
-      if (plan != null) {
-        final startAt = DateTime.tryParse(plan['startAt'] as String? ?? '');
-        final endAt = DateTime.tryParse(plan['endAt'] as String? ?? '');
-        final periodType = plan['periodType'] as String? ?? 'month';
-        if (startAt != null && endAt != null) {
-          final startLabel = '${startAt.toLocal().day.toString().padLeft(2, '0')}/${startAt.toLocal().month.toString().padLeft(2, '0')}';
-          final endLabel = '${endAt.toLocal().day.toString().padLeft(2, '0')}/${endAt.toLocal().month.toString().padLeft(2, '0')}/${endAt.toLocal().year}';
-          periodText = periodType == 'pay_cycle'
-              ? 'Chu kỳ lương: $startLabel – $endLabel'
-              : 'Tháng ${startAt.toLocal().month}/${startAt.toLocal().year}';
-        } else {
-          final now = DateTime.now();
-          periodText = 'Tháng ${now.month}/${now.year}';
-        }
-      } else {
-        // Chưa có kỳ ngân sách — hiển thị "Chưa thiết lập"
-        final now = DateTime.now();
-        periodText = 'Tháng ${now.month}/${now.year} (Chưa có ngân sách)';
-      }
-
       // Ví từ overview để map tên + tính khả dụng khi phân bổ
       final rawWallets =
           (overview['wallets'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -242,40 +223,26 @@ class BudgetNotifier extends Notifier<BudgetState> {
         );
       }).toList();
 
-      // Parse limits của kỳ ngân sách + map tên danh mục
       final categoriesApi =
           (plans['categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final nameById = {
-        for (final c in categoriesApi)
-          c['_id'] as String: (c['name'] as String? ?? 'Khác'),
-      };
+      _categoryNames.addAll({
+        for (final category in categoriesApi)
+          category['_id'] as String: category['name'] as String? ?? 'Khác',
+      });
 
-      final limits =
-          (plan?['limits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final warningPercent =
-          ((plan?['warningPercent'] as num?) ?? 80).toInt();
-      final cats = limits
-          .map((l) => _parseLimit(l, nameById, daysLeft, warningPercent))
-          .toList();
+      if (!_periodInitialized) {
+        _periodInitialized = true;
+        final active = budgets
+            .where((plan) => plan['status'] == 'active')
+            .toList();
+        if (active.isNotEmpty &&
+            active.every((plan) => plan['periodType'] == 'month')) {
+          state = state.copyWith(filterMode: 'Theo tháng');
+        }
+      }
 
-      final totalBudget = cats.fold<double>(0, (s, c) => s + c.allocatedAmount);
-      final totalSpent = cats.fold<double>(0, (s, c) => s + c.spentAmount);
-
-      final pct = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
-      final cycleStatus = pct < 0.6
-          ? 'Rất an tâm'
-          : pct < 0.8
-              ? 'Cần chú ý'
-              : 'Gần hết ngân sách';
-
-      state = state.copyWith(
+      state = _withSelectedPlan(state, budgets).copyWith(
         isLoading: false,
-        totalBudget: totalBudget,
-        totalSpent: totalSpent,
-        daysLeft: daysLeft,
-        periodText: periodText,
-        categories: cats,
-        cycleStatus: cycleStatus,
         goals: goals,
         upcomingBills: bills,
         savingsGoals: parsedGoals.where((g) => g.isActive).toList(),
@@ -286,12 +253,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
         availableToSpend: overview['available'] == null
             ? null
             : _toDouble(overview['available']),
-        planId: plan?['_id'] as String?,
-        planName: plan?['name'] as String?,
-        planPeriodType: plan?['periodType'] as String?,
-        planStartAt: DateTime.tryParse(plan?['startAt'] as String? ?? ''),
-        planEndAt: DateTime.tryParse(plan?['endAt'] as String? ?? ''),
-        planWarningPercent: warningPercent,
+        clearAvailable: overview['available'] == null,
         bills: ((billsScreen['bills'] as List?) ?? const [])
             .cast<Map<String, dynamic>>()
             .map(RecurringBill.fromJson)
@@ -308,57 +270,125 @@ class BudgetNotifier extends Notifier<BudgetState> {
     }
   }
 
-  /// Chỉ tải lại ngân sách & số đã chi — không reload mục tiêu hay hóa đơn
+  /// Chỉ tải lại ngân sách & số đã chi.
   Future<void> loadBudgetsOnly() async {
+    final request = ++_budgetRequest;
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
-      final budgets = await ds.getBudgets();
-      final activeBudgets = budgets.where((b) => b['status'] == 'active').toList();
-      final plan = activeBudgets.isNotEmpty ? activeBudgets.first : (budgets.isNotEmpty ? budgets.first : null);
-      if (plan == null) {
-        state = state.copyWith(
-          categories: const [],
-          totalBudget: 0,
-          totalSpent: 0,
-          cycleStatus: '--',
-          planId: null,
-        );
+      final results = await Future.wait([ds.getBudgets(), ds.getPlansScreen()]);
+      if (!ref.mounted || request != _budgetRequest) return;
+      final budgets = results[0] as List<Map<String, dynamic>>;
+      final plans = results[1] as Map<String, dynamic>;
+      final overview = plans['overview'] as Map<String, dynamic>? ?? {};
+      final categories =
+          (plans['categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      _categoryNames.addAll({
+        for (final category in categories)
+          category['_id'] as String: category['name'] as String? ?? 'Khác',
+      });
+      final updated = _withSelectedPlan(state, budgets).copyWith(
+        walletTotal: _toDouble(overview['total']),
+        protectedMoney: _toDouble(overview['protectedMoney']),
+        unpaidBills: _toDouble(overview['unpaidBills']),
+        availableToSpend: overview['available'] == null
+            ? null
+            : _toDouble(overview['available']),
+        clearAvailable: overview['available'] == null,
+      );
+      state = updated.copyWith(isLoading: _selectingPeriod ? false : null);
+      _selectingPeriod = false;
+    } catch (error) {
+      if (!ref.mounted || request != _budgetRequest || !_selectingPeriod) {
         return;
       }
-      final limits =
-          (plan['limits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      final nameById = {
-        for (final c in state.categories) c.id: c.name,
-      };
-      final warningPercent =
-          ((plan['warningPercent'] as num?) ?? state.planWarningPercent).toInt();
-      final cats = limits
-          .map((l) => _parseLimit(l, nameById, state.daysLeft, warningPercent))
-          .toList();
-
-      final totalBudget = cats.fold<double>(0, (s, c) => s + c.allocatedAmount);
-      final totalSpent = cats.fold<double>(0, (s, c) => s + c.spentAmount);
-
-      final pct = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
-      final cycleStatus = pct < 0.6
-          ? 'Rất an tâm'
-          : pct < 0.8
-              ? 'Cần chú ý'
-              : 'Gần hết ngân sách';
-
+      _selectingPeriod = false;
       state = state.copyWith(
-        categories: cats,
-        totalBudget: totalBudget,
-        totalSpent: totalSpent,
-        cycleStatus: cycleStatus,
-        planId: plan['_id'] as String?,
-        planName: plan['name'] as String?,
-        planPeriodType: plan['periodType'] as String?,
-        planStartAt: DateTime.tryParse(plan['startAt'] as String? ?? ''),
-        planEndAt: DateTime.tryParse(plan['endAt'] as String? ?? ''),
-        planWarningPercent: warningPercent,
+        isLoading: false,
+        errorMessage: error.toString().replaceFirst('Exception: ', ''),
       );
-    } catch (_) {}
+    }
+  }
+
+  BudgetState _withSelectedPlan(
+    BudgetState current,
+    List<Map<String, dynamic>> budgets,
+  ) {
+    final type = current.filterMode == 'Chu kỳ lương' ? 'pay_cycle' : 'month';
+    final matches = budgets.where((plan) => plan['periodType'] == type).toList()
+      ..sort(
+        (a, b) => (b['startAt']?.toString() ?? '').compareTo(
+          a['startAt']?.toString() ?? '',
+        ),
+      );
+    final plan =
+        matches.where((plan) => plan['status'] == 'active').firstOrNull ??
+        matches.firstOrNull;
+    if (plan == null) {
+      return current.copyWith(
+        clearPlan: true,
+        categories: const [],
+        totalBudget: 0,
+        totalSpent: 0,
+        daysLeft: 0,
+        periodText: 'Chưa có kỳ ngân sách',
+        cycleStatus: '--',
+        planWarningPercent: 80,
+      );
+    }
+
+    final start = DateTime.tryParse(
+      plan['startAt']?.toString() ?? '',
+    )?.toLocal();
+    final end = DateTime.tryParse(plan['endAt']?.toString() ?? '')?.toLocal();
+    DateTime calendarDay(DateTime date) =>
+        DateTime.utc(date.year, date.month, date.day);
+    final now = DateTime.now();
+    final firstRemainingDay = start != null && start.isAfter(now) ? start : now;
+    final daysLeft = end == null
+        ? 0
+        : calendarDay(end)
+              .difference(calendarDay(firstRemainingDay))
+              .inDays
+              .clamp(0, 36600)
+              .toInt();
+    final warningPercent = ((plan['warningPercent'] as num?) ?? 80).toInt();
+    final limits =
+        (plan['limits'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final categories = limits
+        .map(
+          (limit) =>
+              _parseLimit(limit, _categoryNames, daysLeft, warningPercent),
+        )
+        .toList();
+    final totalBudget = categories.fold<double>(
+      0,
+      (sum, category) => sum + category.allocatedAmount,
+    );
+    final totalSpent = categories.fold<double>(
+      0,
+      (sum, category) => sum + category.spentAmount,
+    );
+    final ratio = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
+    return current.copyWith(
+      categories: categories,
+      totalBudget: totalBudget,
+      totalSpent: totalSpent,
+      daysLeft: daysLeft,
+      periodText: start == null || end == null
+          ? 'Chưa có khoảng ngày'
+          : '${DateFormat(start.year == end.year ? 'dd/MM' : 'dd/MM/yyyy').format(start)} – ${DateFormat('dd/MM/yyyy').format(end)}',
+      cycleStatus: ratio < .6
+          ? 'Rất an tâm'
+          : ratio < .8
+          ? 'Cần chú ý'
+          : 'Gần hết ngân sách',
+      planId: plan['_id'] as String?,
+      planName: plan['name'] as String?,
+      planPeriodType: type,
+      planStartAt: start,
+      planEndAt: end,
+      planWarningPercent: warningPercent,
+    );
   }
 
   /// Chỉ tải lại mục tiêu tiết kiệm — không reload ngân sách hay hóa đơn
@@ -366,9 +396,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
       final goals = await ds.getGoals();
-      final walletNames = {
-        for (final w in state.walletOptions) w.id: w.name,
-      };
+      final walletNames = {for (final w in state.walletOptions) w.id: w.name};
       final parsedGoals = goals.map((g) => _parseGoal(g, walletNames)).toList();
       final activeGoals = parsedGoals.where((g) => g.isActive).toList();
 
@@ -408,10 +436,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
   Future<void> loadBillsOnly() async {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
-      final results = await Future.wait([
-        ds.getBills(),
-        ds.getBillsScreen(),
-      ]);
+      final results = await Future.wait([ds.getBills(), ds.getBillsScreen()]);
       final upcomingBills = (results[0] as List).cast<Map<String, dynamic>>();
       final billsScreen = results[1] as Map<String, dynamic>;
 
@@ -442,7 +467,16 @@ class BudgetNotifier extends Notifier<BudgetState> {
   }
 
   void setActiveTab(String tab) => state = state.copyWith(activeTab: tab);
-  void setFilterMode(String mode) => state = state.copyWith(filterMode: mode);
+  Future<void> setFilterMode(String mode) async {
+    if (mode == state.filterMode || state.isLoading) return;
+    _periodInitialized = true;
+    _selectingPeriod = true;
+    state = _withSelectedPlan(
+      state.copyWith(filterMode: mode),
+      const [],
+    ).copyWith(isLoading: true);
+    await loadBudgetsOnly();
+  }
 
   /// Ngưỡng cảnh báo của kỳ ngân sách (%), lưu ngay lên backend.
   Future<String?> setWarningPercent(int percent) async {
@@ -454,8 +488,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
   /// Xóa một dòng ngân sách danh mục (đặt hạn mức về 0).
   Future<String?> removeCategory(String id) async {
-    final updated =
-        state.categories.where((c) => c.id != id).toList(growable: false);
+    final updated = state.categories
+        .where((c) => c.id != id)
+        .toList(growable: false);
     if (updated.isEmpty) {
       // Không còn danh mục nào: xóa hẳn kỳ ngân sách.
       return deleteBudget();
@@ -528,6 +563,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
         final created = await ds.createCategory(name: name, kind: 'expense');
         categoryId = created['_id'] as String;
       }
+
+      _categoryNames[categoryId] = name;
 
       // 3. Thêm limit vào kỳ ngân sách và lưu
       final updated = [
@@ -663,7 +700,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
       final goal = state.savingsGoals.firstWhere(
         (g) => g.id == goalId,
         orElse: () => SavingsGoal(
-            id: '', name: '', targetAmount: 0, allocations: const []),
+          id: '',
+          name: '',
+          targetAmount: 0,
+          allocations: const [],
+        ),
       );
       // Phần ví này đã bị mục tiêu này giữ (được phép sửa)
       final own = goal.allocationIn(w.id) ?? 0;
@@ -680,7 +721,8 @@ class BudgetNotifier extends Notifier<BudgetState> {
 
   // ── Hóa đơn định kỳ ────────────────────────────────────────────────
 
-  void setBillFilter(String filter) => state = state.copyWith(billFilter: filter);
+  void setBillFilter(String filter) =>
+      state = state.copyWith(billFilter: filter);
 
   /// Danh sách hóa đơn theo bộ lọc trạng thái đang chọn.
   List<RecurringBill> get filteredBills {
@@ -690,7 +732,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
       case 'Đến hạn':
         return state.bills.where((b) => b.status == BillStatus.due).toList();
       case 'Quá hạn':
-        return state.bills.where((b) => b.status == BillStatus.overdue).toList();
+        return state.bills
+            .where((b) => b.status == BillStatus.overdue)
+            .toList();
       case 'Đã trả':
         return state.bills.where((b) => b.status == BillStatus.paid).toList();
       default:
@@ -890,7 +934,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
   }) async {
     try {
       final ds = ref.read(budgetRemoteDataSourceProvider);
-      await ds.linkBill(billId: billId, transactionId: transactionId, expectedVersion: expectedVersion);
+      await ds.linkBill(
+        billId: billId,
+        transactionId: transactionId,
+        expectedVersion: expectedVersion,
+      );
       await loadBillsOnly();
       return null;
     } catch (e) {
@@ -914,10 +962,12 @@ class BudgetNotifier extends Notifier<BudgetState> {
     try {
       final limits = cats
           .where((c) => c.allocatedAmount > 0 && _looksLikeObjectId(c.id))
-          .map((c) => {
-                'categoryId': c.id,
-                'limit': c.allocatedAmount.toInt().toString(),
-              })
+          .map(
+            (c) => {
+              'categoryId': c.id,
+              'limit': c.allocatedAmount.toInt().toString(),
+            },
+          )
           .toList();
 
       if (limits.isEmpty) {
@@ -927,8 +977,11 @@ class BudgetNotifier extends Notifier<BudgetState> {
       if (state.planId == null) {
         final range = _currentMonthRange(state.filterMode);
         await ds.createBudget(
-          name: 'Ngân sách tháng ${DateFormat('MM/yyyy').format(DateTime.now())}',
-          periodType: state.filterMode == 'Chu kỳ lương' ? 'pay_cycle' : 'month',
+          name:
+              'Ngân sách tháng ${DateFormat('MM/yyyy').format(DateTime.now())}',
+          periodType: state.filterMode == 'Chu kỳ lương'
+              ? 'pay_cycle'
+              : 'month',
           startAt: range.$1,
           endAt: range.$2,
           limits: limits,
@@ -936,12 +989,15 @@ class BudgetNotifier extends Notifier<BudgetState> {
         );
       } else {
         final start =
-            state.planStartAt ?? DateTime.parse(_currentMonthRange('Theo tháng').$1);
+            state.planStartAt ??
+            DateTime.parse(_currentMonthRange('Theo tháng').$1);
         final end =
-            state.planEndAt ?? DateTime.parse(_currentMonthRange('Theo tháng').$2);
+            state.planEndAt ??
+            DateTime.parse(_currentMonthRange('Theo tháng').$2);
         await ds.updateBudget(
           id: state.planId!,
-          name: state.planName ??
+          name:
+              state.planName ??
               'Ngân sách tháng ${DateFormat('MM/yyyy').format(DateTime.now())}',
           periodType: state.planPeriodType ?? 'month',
           startAt: _iso(start),
@@ -1000,12 +1056,13 @@ class BudgetNotifier extends Notifier<BudgetState> {
       protect: raw['protect'] as bool? ?? false,
       status: raw['status'] as String? ?? 'active',
       allocations: allocations
-          .map((a) => GoalAllocation(
-                walletId: a['walletId'] as String? ?? '',
-                walletName:
-                    walletNames[a['walletId'] as String? ?? ''] ?? 'Ví',
-                amount: _toDouble(a['amount']),
-              ))
+          .map(
+            (a) => GoalAllocation(
+              walletId: a['walletId'] as String? ?? '',
+              walletName: walletNames[a['walletId'] as String? ?? ''] ?? 'Ví',
+              amount: _toDouble(a['amount']),
+            ),
+          )
           .toList(),
     );
   }
@@ -1034,9 +1091,7 @@ class BudgetNotifier extends Notifier<BudgetState> {
     final percentRaw = raw['percent'];
     final percent = percentRaw is num
         ? percentRaw.round()
-        : (limitAmount > 0
-            ? ((spentAmount / limitAmount) * 100).round()
-            : 0);
+        : (limitAmount > 0 ? ((spentAmount / limitAmount) * 100).round() : 0);
     final locked = raw['locked'] as bool? ?? spentAmount >= limitAmount;
     final remaining = limitAmount - spentAmount;
 
@@ -1068,11 +1123,17 @@ class BudgetNotifier extends Notifier<BudgetState> {
   IconData _iconForCategory(String name) {
     final n = name.toLowerCase();
     if (n.contains('ăn') || n.contains('food')) return Icons.restaurant;
-    if (n.contains('đi') || n.contains('transport')) return Icons.directions_car;
-    if (n.contains('mua') || n.contains('shop')) return Icons.shopping_bag_outlined;
+    if (n.contains('đi') || n.contains('transport')) {
+      return Icons.directions_car;
+    }
+    if (n.contains('mua') || n.contains('shop')) {
+      return Icons.shopping_bag_outlined;
+    }
     if (n.contains('học') || n.contains('edu')) return Icons.school_outlined;
     if (n.contains('giải') || n.contains('enter')) return Icons.movie_outlined;
-    if (n.contains('sức') || n.contains('health')) return Icons.favorite_outline;
+    if (n.contains('sức') || n.contains('health')) {
+      return Icons.favorite_outline;
+    }
     return Icons.tune;
   }
 
@@ -1080,7 +1141,9 @@ class BudgetNotifier extends Notifier<BudgetState> {
     final n = name.toLowerCase();
     if (n.contains('ăn') || n.contains('food')) return const Color(0xFFE2F6F0);
     if (n.contains('mua') || n.contains('shop')) return const Color(0xFFFFEAD5);
-    if (n.contains('giải') || n.contains('enter')) return const Color(0xFFEAE5FF);
+    if (n.contains('giải') || n.contains('enter')) {
+      return const Color(0xFFEAE5FF);
+    }
     return const Color(0xFFE2F6F0);
   }
 

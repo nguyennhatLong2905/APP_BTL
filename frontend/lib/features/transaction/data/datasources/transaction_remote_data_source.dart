@@ -16,7 +16,7 @@ abstract class TransactionRemoteDataSource {
   /// Tạo giao dịch mới
   Future<Map<String, dynamic>> createTransaction({
     required String type, // 'income' | 'expense' | 'transfer'
-    required String amount,  // VND as string (backend requires string)
+    required String amount, // VND as string (backend requires string)
     required String occurredAt, // ISO8601
     String? categoryId,
     String? walletId,
@@ -24,6 +24,7 @@ abstract class TransactionRemoteDataSource {
     String? toWalletId,
     String? memo,
     String? note,
+    List<String>? attachmentIds,
   });
 
   /// Sửa giao dịch
@@ -65,7 +66,10 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
     if (walletId != null) params['walletId'] = walletId;
     if (categoryId != null) params['categoryId'] = categoryId;
 
-    final result = await _apiClient.get('/transactions', queryParameters: params);
+    final result = await _apiClient.get(
+      '/transactions',
+      queryParameters: params,
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (data) {
@@ -78,7 +82,7 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
   @override
   Future<Map<String, dynamic>> createTransaction({
     required String type,
-    required String amount,  // Changed from int to String
+    required String amount, // Changed from int to String
     required String occurredAt,
     String? categoryId,
     String? walletId,
@@ -86,10 +90,11 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
     String? toWalletId,
     String? memo,
     String? note,
+    List<String>? attachmentIds,
   }) async {
     final data = <String, dynamic>{
       'type': type,
-      'amount': amount,  // Now string, no conversion needed
+      'amount': amount, // Now string, no conversion needed
       'occurredAt': occurredAt,
     };
     if (categoryId != null) data['categoryId'] = categoryId;
@@ -98,6 +103,9 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
     if (toWalletId != null) data['toWalletId'] = toWalletId;
     if (memo != null && memo.isNotEmpty) data['memo'] = memo;
     if (note != null && note.isNotEmpty) data['note'] = note;
+    if (attachmentIds != null && attachmentIds.isNotEmpty) {
+      data['attachmentIds'] = attachmentIds;
+    }
 
     final result = await _apiClient.post('/transactions', data: data);
     return result.fold(
@@ -137,9 +145,10 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
 
   @override
   Future<void> restoreTransaction(String id, int expectedVersion) async {
-    final result = await _apiClient.post('/transactions/$id/restore', data: {
-      'expectedVersion': expectedVersion,
-    });
+    final result = await _apiClient.post(
+      '/transactions/$id/restore',
+      data: {'expectedVersion': expectedVersion},
+    );
     result.fold(
       (failure) => throw ServerException(message: failure.message),
       (_) => null,
@@ -198,6 +207,6 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
 
 final transactionRemoteDataSourceProvider =
     Provider<TransactionRemoteDataSource>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return TransactionRemoteDataSourceImpl(apiClient);
-});
+      final apiClient = ref.watch(apiClientProvider);
+      return TransactionRemoteDataSourceImpl(apiClient);
+    });

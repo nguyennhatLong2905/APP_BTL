@@ -50,7 +50,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     ));
 
     // Đảm bảo reportProvider được khởi tạo ngay khi vào trang
-    final reportState = ref.watch(reportProvider);
+    ref.watch(reportProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -183,35 +183,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          // Mẫu trống button
-          GestureDetector(
-            onTap: () {
-              // TODO: Show mẫu trống
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFD1EDE7)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.visibility_outlined, size: 14, color: _teal),
-                  SizedBox(width: 4),
-                  Text(
-                    'Mẫu trống',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _teal,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

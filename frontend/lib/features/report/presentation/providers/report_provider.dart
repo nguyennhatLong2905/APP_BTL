@@ -10,6 +10,7 @@ import '../../domain/models/report_data.dart';
 
 class ReportState {
   final PeriodFilter selectedPeriod;
+  final DateTime? selectedMonth;
   final String selectedWallet;
   final String searchQuery;
   final bool isLoading;
@@ -19,12 +20,13 @@ class ReportState {
   final List<ReportTransaction> allTransactions;
   final double totalIncome;
   final double totalExpense;
-  
+
   // Cache timestamp để tránh load lại liên tục
   final DateTime? lastLoadedAt;
 
   const ReportState({
     this.selectedPeriod = PeriodFilter.month,
+    this.selectedMonth,
     this.selectedWallet = 'Tất cả ví',
     this.searchQuery = '',
     this.isLoading = false,
@@ -37,6 +39,7 @@ class ReportState {
 
   ReportState copyWith({
     PeriodFilter? selectedPeriod,
+    DateTime? selectedMonth,
     String? selectedWallet,
     String? searchQuery,
     bool? isLoading,
@@ -48,6 +51,7 @@ class ReportState {
   }) {
     return ReportState(
       selectedPeriod: selectedPeriod ?? this.selectedPeriod,
+      selectedMonth: selectedMonth ?? this.selectedMonth,
       selectedWallet: selectedWallet ?? this.selectedWallet,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
@@ -65,6 +69,8 @@ class ReportState {
 // ════════════════════════════════════════════════════════════════════
 
 class ReportNotifier extends Notifier<ReportState> {
+  int _loadRequestId = 0;
+
   @override
   ReportState build() {
     // Load ngay khi provider được tạo
@@ -80,39 +86,41 @@ class ReportNotifier extends Notifier<ReportState> {
         return; // Dùng cache
       }
     }
-    
+
+    final requestId = ++_loadRequestId;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final ds = ref.read(reportRemoteDataSourceProvider);
       final now = DateTime.now();
-
-      // Xác định startDate và endDate theo period
-      String startDate, endDate;
-      switch (state.selectedPeriod) {
-        case PeriodFilter.today:
-          startDate = _isoDate(now);
-          endDate = _isoDate(now);
-          break;
-        case PeriodFilter.week:
-          final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          startDate = _isoDate(weekStart);
-          endDate = _isoDate(now);
-          break;
-        case PeriodFilter.month:
-          startDate = _isoDate(DateTime(now.year, now.month, 1));
-          endDate = _isoDate(now);
-          break;
-      }
+      final month = state.selectedMonth ?? now;
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      final (startAt, endAt) = switch (state.selectedPeriod) {
+        PeriodFilter.today => (
+          DateTime(now.year, now.month, now.day),
+          tomorrow,
+        ),
+        PeriodFilter.week => (
+          DateTime(now.year, now.month, now.day - now.weekday + 1),
+          tomorrow,
+        ),
+        PeriodFilter.month => (
+          DateTime(month.year, month.month),
+          DateTime(month.year, month.month + 1),
+        ),
+      };
 
       final result = await ds.getTransactionHistory(
-        startDate: startDate,
-        endDate: endDate,
+        startAt: startAt,
+        endAt: endAt,
         limit: 100,
       );
+      if (!ref.mounted || requestId != _loadRequestId) return;
 
       // Parse items từ backend
       final raw = result['items'] as List<dynamic>? ?? [];
-      final txs = raw.map((e) => _parseTransaction(e as Map<String, dynamic>)).toList();
+      final txs = raw
+          .map((e) => _parseTransaction(e as Map<String, dynamic>))
+          .toList();
 
       // Tính tổng
       double income = 0, expense = 0;
@@ -129,6 +137,7 @@ class ReportNotifier extends Notifier<ReportState> {
         lastLoadedAt: DateTime.now(),
       );
     } catch (e) {
+      if (!ref.mounted || requestId != _loadRequestId) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
@@ -137,8 +146,25 @@ class ReportNotifier extends Notifier<ReportState> {
   }
 
   void setPeriod(PeriodFilter period) {
-    state = state.copyWith(selectedPeriod: period);
-    loadTransactions(force: true); // Force reload khi đổi period
+    _selectPeriod(period);
+  }
+
+  void setMonth(DateTime month) {
+    _selectPeriod(PeriodFilter.month, month: DateTime(month.year, month.month));
+  }
+
+  void _selectPeriod(PeriodFilter period, {DateTime? month}) {
+    final changed =
+        period != state.selectedPeriod ||
+        (month != null && month != state.selectedMonth);
+    state = state.copyWith(
+      selectedPeriod: period,
+      selectedMonth: month,
+      allTransactions: changed ? const [] : null,
+      totalIncome: changed ? 0 : null,
+      totalExpense: changed ? 0 : null,
+    );
+    loadTransactions(force: true);
   }
 
   void setWallet(String wallet) {
@@ -204,9 +230,6 @@ class ReportNotifier extends Notifier<ReportState> {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────
-
-  String _isoDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   ReportTransaction _parseTransaction(Map<String, dynamic> raw) {
     final amountVnd = (raw['amountVnd'] ?? raw['amount'] ?? 0);
