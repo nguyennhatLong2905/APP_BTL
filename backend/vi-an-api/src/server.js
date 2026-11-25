@@ -33,7 +33,16 @@ const app = await buildApp(ctx, {
   jwtSecret: secret,
   allowDemo,
   origins: (process.env.CORS_ORIGINS || "http://localhost:5173").split(","),
-  logger: { redact: ["req.headers.authorization", "req.body.password"] },
+  logger: {
+    redact: [
+      "req.headers.authorization",
+      "req.body.password",
+      "req.body.currentPassword",
+      "req.body.newPassword",
+      "req.body.otp",
+      "req.body.resetToken",
+    ],
+  },
 });
 ctx.log = app.log;
 await app.listen({ host, port: Number(process.env.PORT || 3000) });

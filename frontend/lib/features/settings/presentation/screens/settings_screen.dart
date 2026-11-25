@@ -55,6 +55,11 @@ class SettingsScreen extends ConsumerWidget {
         backgroundColor: Colors.white,
         foregroundColor: _textPrimary,
         elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          tooltip: 'Quay lại trang chính',
+          onPressed: () => context.go(AppConstants.homeRoute),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -141,6 +146,42 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Đổi mật khẩu ──────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE3EFEC)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push(AppConstants.changePasswordRoute),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_reset_rounded, size: 20, color: _teal),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Đổi mật khẩu',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w500,
+                          color: _textPrimary,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        size: 20, color: Colors.grey),
                   ],
                 ),
               ),

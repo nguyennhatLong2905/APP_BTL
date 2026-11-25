@@ -202,6 +202,31 @@ class AuthNotifier extends Notifier<AuthState> {
       },
     );
   }
+
+  // Đổi mật khẩu
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final changePasswordUseCase = ref.read(changePasswordUseCaseProvider);
+    final result = await changePasswordUseCase.execute(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        return false;
+      },
+      (_) {
+        state = state.copyWith(isLoading: false, errorMessage: null);
+        return true;
+      },
+    );
+  }
 }
 
 // Auth provider

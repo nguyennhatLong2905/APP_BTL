@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod_clean_architecture/core/error/failures.dart';
+import 'package:flutter_riverpod_clean_architecture/features/auth/domain/entities/password_reset_otp_info.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/domain/entities/user_entity.dart';
 
 abstract class AuthRepository {
@@ -30,4 +31,28 @@ abstract class AuthRepository {
 
   /// Update the current user's profile information
   Future<Either<Failure, UserEntity>> updateProfile(UserEntity user);
+
+  /// Đổi mật khẩu — trả về accessToken mới
+  Future<Either<Failure, String>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Gửi mã OTP đặt lại mật khẩu qua email
+  Future<Either<Failure, PasswordResetOtpInfo>> requestPasswordResetOtp({
+    required String email,
+  });
+
+  /// Xác minh mã OTP — trả về resetToken dùng để đổi mật khẩu
+  Future<Either<Failure, String>> verifyResetOtp({
+    required String email,
+    required String otp,
+  });
+
+  /// Đặt lại mật khẩu sau khi xác minh OTP
+  Future<Either<Failure, void>> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  });
 }
