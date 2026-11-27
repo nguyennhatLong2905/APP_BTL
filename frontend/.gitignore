@@ -14,3 +14,5 @@ build/
 docs/_site/
 # Generated files
 # Flutter/Dart/Pub related
+.vercel
+.env*

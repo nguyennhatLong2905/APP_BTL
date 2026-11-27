@@ -91,8 +91,8 @@ class BillsTabView extends ConsumerWidget {
       final key = bill.templateId != null && bill.templateId!.isNotEmpty
           ? 'template:${bill.templateId}'
           : bill.frequency != 'once'
-              ? 'recurring:${bill.name.trim().toLowerCase()}|${bill.amount}|${bill.frequency}'
-              : 'single:${bill.id}';
+          ? 'recurring:${bill.name.trim().toLowerCase()}|${bill.amount}|${bill.frequency}'
+          : 'single:${bill.id}';
       groups.putIfAbsent(key, () => <RecurringBill>[]).add(bill);
     }
     for (final group in groups.values) {
@@ -121,7 +121,8 @@ class BillsTabView extends ConsumerWidget {
   }) async {
     await showDialog<void>(
       context: context,
-      builder: (_) => _BillFormDialog(existing: existing),
+      builder: (_) =>
+          _BillFormDialog(existing: existing, editId: existing?.templateId),
     );
   }
 
@@ -873,8 +874,9 @@ class _BillDetailDialog extends ConsumerWidget {
 
 class _BillFormDialog extends ConsumerStatefulWidget {
   final RecurringBill? existing;
+  final String? editId;
 
-  const _BillFormDialog({this.existing});
+  const _BillFormDialog({this.existing, this.editId});
 
   @override
   ConsumerState<_BillFormDialog> createState() => _BillFormDialogState();
@@ -957,7 +959,10 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
     final notifier = ref.read(budgetProvider.notifier);
     final err = _isEdit
         ? await notifier.updateBill(
-            id: widget.existing!.id,
+            // The screen lists bill occurrences, but the edit endpoint owns
+            // the recurring bill template. Use templateId instead of the
+            // occurrence id; otherwise the API correctly returns not found.
+            id: widget.editId ?? widget.existing!.id,
             name: name,
             amount: amount,
             dueDate: _dueDate,
