@@ -94,7 +94,6 @@ export async function generateBills(db, userId, session, at = new Date()) {
   return { created };
 }
 export async function runJobs(ctx) {
-  if (!ctx.transactionCapable) return;
   for await (const user of ctx.db.collection("users").find({})) {
     try {
       const key =
