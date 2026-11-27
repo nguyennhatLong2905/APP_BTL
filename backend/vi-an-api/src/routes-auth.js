@@ -41,6 +41,115 @@ export function authRoutes(app, ctx, config, r) {
       { sub: user._id.toHexString(), ver: Number(user.tokenVersion || 0) },
       { expiresIn: "1d" },
     );
+
+  const createLocalUser = async (b, email, opts = {}) => {
+    const user = {
+      _id: new ObjectId(),
+      authSubject: "local:" + email,
+      displayName: b.displayName,
+      timezone: "Asia/Ho_Chi_Minh",
+      currency: "VND",
+      nextPayday: b.nextPayday ? new Date(b.nextPayday) : null,
+      settings: { hideAmounts: false, reviewDelayDays: I(7) },
+      tokenVersion: I(0),
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    await db.collection("users").insertOne(user, opts);
+    await db.collection("auth_accounts").insertOne(
+      { ...base(user._id), email, passwordHash: passwordHash(b.password) },
+      opts,
+    );
+    for (const [name, kind] of [
+      ["Ăn uống", "expense"], ["Đi lại", "expense"], ["Mua sắm", "expense"],
+      ["Hóa đơn", "expense"], ["Học tập", "expense"], ["Khác", "expense"],
+      ["Thu nhập", "income"],
+    ]) {
+      await db.collection("categories").insertOne(
+        { ...base(user._id), name, kind, status: "active" }, opts,
+      );
+    }
+    return user;
+  };
+
+  r("POST", "/auth/register/request-otp", {
+    publicRoute: true, body: S.registerOtp, tag: "Auth",
+    summary: "Gửi OTP xác minh Gmail để đăng ký",
+  }, async (req) => {
+    const b = req.input;
+    const email = b.email.trim().toLowerCase();
+    const existing = await db.collection("auth_accounts").findOne({ email });
+    fail(!existing, "EMAIL_EXISTS", "Email này đã được đăng ký.", 409);
+    const current = now();
+    const recent = await db.collection("password_reset_otps").findOne(
+      { email, purpose: "register", usedAt: null, createdAt: { $gt: new Date(current - otpCooldownMs) } },
+      { sort: { createdAt: -1 } },
+    );
+    fail(!recent, "OTP_COOLDOWN", "Vui lòng đợi trước khi gửi lại mã OTP.", 429);
+    const otp = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString("hex");
+    const expiresAt = new Date(current.getTime() + otpTtlMs);
+    await db.collection("password_reset_otps").deleteMany({ email, purpose: "register" });
+    const doc = {
+      _id: new ObjectId(), email, purpose: "register", salt,
+      otpHash: hashOtp(email, salt, otp), attempts: I(0),
+      otpExpiresAt: expiresAt, expiresAt, usedAt: null,
+      passwordHash: passwordHash(b.password), displayName: b.displayName,
+      nextPayday: b.nextPayday ? new Date(b.nextPayday) : null,
+      createdAt: current, updatedAt: current,
+    };
+    await db.collection("password_reset_otps").insertOne(doc);
+    try {
+      const delivery = await sendOtp({ to: email, otp, displayName: b.displayName,
+        expiresMinutes: 10, logger: app.log, purpose: "register" });
+      return { sent: true, email, expiresInSeconds: 600,
+        resendAfterSeconds: 60, deliveryChannel: delivery?.delivered || "smtp" };
+    } catch (err) {
+      await db.collection("password_reset_otps").deleteOne({ _id: doc._id });
+      throw err;
+    }
+  });
+
+  r("POST", "/auth/register/verify-otp", {
+    publicRoute: true, body: S.verifyRegisterOtp, tag: "Auth",
+    summary: "Xác minh Gmail và hoàn tất đăng ký",
+  }, async (req) => {
+    const email = req.input.email.trim().toLowerCase();
+    const record = await db.collection("password_reset_otps").findOne(
+      { email, purpose: "register", usedAt: null }, { sort: { createdAt: -1 } },
+    );
+    const current = now();
+    fail(record && record.otpExpiresAt > current, "OTP_EXPIRED", "Mã OTP không hợp lệ hoặc đã hết hạn.", 400);
+    const attempts = Number(record.attempts || 0);
+    fail(attempts < maxOtpAttempts, "OTP_TOO_MANY_ATTEMPTS", "Bạn đã nhập sai OTP quá 5 lần.", 429);
+    if (!safeHexEqual(hashOtp(email, record.salt, req.input.otp), record.otpHash)) {
+      await db.collection("password_reset_otps").updateOne(
+        { _id: record._id }, { $inc: { attempts: I(1) }, $set: { updatedAt: current } },
+      );
+      fail(false, attempts + 1 >= maxOtpAttempts ? "OTP_TOO_MANY_ATTEMPTS" : "INVALID_OTP",
+        "Mã OTP không chính xác.", attempts + 1 >= maxOtpAttempts ? 429 : 400);
+    }
+    const existing = await db.collection("auth_accounts").findOne({ email });
+    fail(!existing, "EMAIL_EXISTS", "Email này đã được đăng ký.", 409);
+    const b = { password: record.passwordHash, displayName: record.displayName, nextPayday: record.nextPayday };
+    // createLocalUser expects a raw password; preserve the pre-hashed pending secret.
+    b.password = undefined;
+    const user = { _id: new ObjectId(), authSubject: "local:" + email, displayName: record.displayName,
+      timezone: "Asia/Ho_Chi_Minh", currency: "VND", nextPayday: record.nextPayday,
+      settings: { hideAmounts: false, reviewDelayDays: I(7) }, tokenVersion: I(0), createdAt: current, updatedAt: current };
+    const session = ctx.transactionCapable ? ctx.client.startSession() : null;
+    const insert = async (opts = {}) => {
+      await db.collection("users").insertOne(user, opts);
+      await db.collection("auth_accounts").insertOne({ ...base(user._id), email, passwordHash: record.passwordHash }, opts);
+      for (const [name, kind] of [["Ăn uống", "expense"], ["Đi lại", "expense"], ["Mua sắm", "expense"], ["Hóa đơn", "expense"], ["Học tập", "expense"], ["Khác", "expense"], ["Thu nhập", "income"]])
+        await db.collection("categories").insertOne({ ...base(user._id), name, kind, status: "active" }, opts);
+      await db.collection("password_reset_otps").updateOne({ _id: record._id }, { $set: { usedAt: current, updatedAt: current } }, opts);
+    };
+    try {
+      if (session) await session.withTransaction(() => insert({ session })); else await insert();
+    } finally { await session?.endSession(); }
+    return { accessToken: token(user), user };
+  });
   r(
     "POST",
     "/auth/register",
@@ -51,6 +160,8 @@ export function authRoutes(app, ctx, config, r) {
       summary: "Đăng ký tài khoản",
     },
     async (req) => {
+      if (config.requireEmailVerification === true)
+        fail(false, "EMAIL_VERIFICATION_REQUIRED", "Vui lòng xác minh Gmail bằng OTP trước khi đăng ký.", 428);
       const b = req.input,
         email = b.email.toLowerCase(),
         encoded = passwordHash(b.password);
@@ -325,7 +436,7 @@ export function authRoutes(app, ctx, config, r) {
       const currentTime = now();
       const cooldownCutoff = new Date(currentTime.getTime() - otpCooldownMs);
       const recent = await db.collection("password_reset_otps").findOne(
-        { email, usedAt: null, createdAt: { $gt: cooldownCutoff } },
+        { email, purpose: "reset", usedAt: null, createdAt: { $gt: cooldownCutoff } },
         { sort: { createdAt: -1 } },
       );
       if (recent) {
@@ -351,11 +462,12 @@ export function authRoutes(app, ctx, config, r) {
 
       await db
         .collection("password_reset_otps")
-        .deleteMany({ email, usedAt: null });
+        .deleteMany({ email, purpose: "reset", usedAt: null });
 
       const otpDoc = {
         _id: new ObjectId(),
         email,
+        purpose: "reset",
         userId: user._id,
         salt,
         otpHash,
@@ -412,7 +524,7 @@ export function authRoutes(app, ctx, config, r) {
 
       const record = await db
         .collection("password_reset_otps")
-        .findOne({ email, usedAt: null }, { sort: { createdAt: -1 } });
+        .findOne({ email, purpose: "reset", usedAt: null }, { sort: { createdAt: -1 } });
 
       fail(
         record && record.otpExpiresAt > currentTime,
@@ -495,6 +607,7 @@ export function authRoutes(app, ctx, config, r) {
       const record = await db.collection("password_reset_otps").findOne(
         {
           email,
+          purpose: "reset",
           resetTokenHash,
           usedAt: null,
         },
@@ -535,7 +648,7 @@ export function authRoutes(app, ctx, config, r) {
       );
 
       await db.collection("password_reset_otps").updateMany(
-        { email, usedAt: null },
+        { email, purpose: "reset", usedAt: null },
         {
           $set: {
             usedAt: currentTime,

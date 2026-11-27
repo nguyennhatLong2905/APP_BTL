@@ -40,18 +40,21 @@ export async function sendPasswordResetOtpEmail({
   displayName,
   expiresMinutes = 10,
   logger,
+  purpose = "reset",
 }) {
   if (!isSmtpConfigured()) {
-    if (process.env.NODE_ENV === "production") {
+    if (purpose === "register" || process.env.NODE_ENV === "production") {
       throw new ApiError(
         503,
         "EMAIL_NOT_CONFIGURED",
-        "Hệ thống chưa cấu hình máy chủ gửi email.",
+        purpose === "register"
+          ? "Chưa cấu hình máy chủ gửi email đăng ký. Không thể xác minh Gmail."
+          : "Hệ thống chưa cấu hình máy chủ gửi email.",
       );
     }
     const banner = [
       "",
-      "================ [Ví An - DEV OTP FALLBACK] ================",
+      `================ [Ví An - DEV OTP ${purpose.toUpperCase()} FALLBACK] ================`,
       `Email nhận   : ${to}`,
       `Mã OTP       : ${otp}`,
       `Hiệu lực     : ${expiresMinutes} phút`,
@@ -84,7 +87,9 @@ export async function sendPasswordResetOtpEmail({
   const text = [
     `Xin chào ${displayName || "bạn"},`,
     "",
-    `Mã OTP đặt lại mật khẩu Ví An của bạn là: ${otp}`,
+    purpose === "register"
+      ? `Mã OTP xác minh đăng ký Ví An của bạn là: ${otp}`
+      : `Mã OTP đặt lại mật khẩu Ví An của bạn là: ${otp}`,
     `Mã có hiệu lực trong ${expiresMinutes} phút.`,
     "",
     "Vui lòng không chia sẻ mã này cho bất kỳ ai. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.",
@@ -93,12 +98,12 @@ export async function sendPasswordResetOtpEmail({
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background: #f5faf9; border-radius: 16px;">
       <div style="background: #ffffff; border-radius: 12px; padding: 28px; border: 1px solid #e3efec;">
-        <h2 style="margin: 0 0 12px; color: #0f5b47; font-size: 20px;">Đặt lại mật khẩu Ví An</h2>
+          <h2 style="margin: 0 0 12px; color: #0f5b47; font-size: 20px;">${purpose === "register" ? "Xác minh đăng ký Ví An" : "Đặt lại mật khẩu Ví An"}</h2>
         <p style="margin: 0 0 16px; color: #333333; font-size: 14px; line-height: 1.6;">
           Xin chào <strong>${safeName}</strong>,
         </p>
         <p style="margin: 0 0 16px; color: #333333; font-size: 14px; line-height: 1.6;">
-          Đây là mã xác minh (OTP) để đặt lại mật khẩu tài khoản Ví An của bạn:
+          ${purpose === "register" ? "Đây là mã xác minh (OTP) để hoàn tất đăng ký tài khoản Ví An của bạn:" : "Đây là mã xác minh (OTP) để đặt lại mật khẩu tài khoản Ví An của bạn:"}
         </p>
         <div style="margin: 20px 0; padding: 16px; background: #eaf8f5; border: 1px dashed #2c7873; border-radius: 10px; text-align: center;">
           <span style="font-size: 30px; font-weight: 800; letter-spacing: 8px; color: #0f5b47;">${safeOtp}</span>
@@ -114,13 +119,19 @@ export async function sendPasswordResetOtpEmail({
   `;
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: cfg.from,
       to,
-      subject: `[Ví An] Mã xác minh đặt lại mật khẩu: ${otp}`,
+      subject: `[Ví An] ${purpose === "register" ? "Mã xác minh đăng ký" : "Mã xác minh đặt lại mật khẩu"}: ${otp}`,
       text,
       html,
     });
+    logger?.info({
+      to,
+      messageId: info.messageId,
+      response: info.response,
+      purpose,
+    }, "OTP email delivered to SMTP");
     return { delivered: "smtp" };
   } catch (err) {
     logger?.error({ err, to }, "Failed to send password reset OTP email");
