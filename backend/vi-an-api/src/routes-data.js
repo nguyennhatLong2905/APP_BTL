@@ -352,51 +352,51 @@ export function dataRoutes(app, ctx, r) {
       summary: "Tạo bản sao dữ liệu có chữ ký; không chứa thông tin đăng nhập",
     },
     async (req) => {
-      fail(
-        ctx.transactionCapable,
-        "REPLICA_SET_REQUIRED",
-        "Cần replica set để sao lưu snapshot nhất quán.",
-        503,
-      );
       const session = ctx.client.startSession();
+      const readBackup = async () => {
+        const collections = {};
+        let count = 0;
+        for (const name of financialCollections) {
+          collections[name] = await db
+            .collection(name)
+            .find({ userId: req.owner }, { session })
+            .limit(10001)
+            .toArray();
+          count += collections[name].length;
+          fail(
+            count <= 10000,
+            "BACKUP_TOO_LARGE",
+            "Bản sao trong app tối đa 10.000 bản ghi.",
+            422,
+          );
+        }
+        const user = await db
+          .collection("users")
+          .findOne({ _id: req.owner }, { session });
+        return EJSON.stringify(
+          {
+            formatVersion: 1,
+            userId: req.owner,
+            createdAt: now(),
+            profile: {
+              displayName: user.displayName,
+              nextPayday: user.nextPayday,
+              settings: user.settings,
+              paydayDay: user.paydayDay,
+            },
+            collections,
+          },
+          { relaxed: false },
+        );
+      };
       let payload;
       try {
-        payload = await (async () => {
-          const collections = {};
-          let count = 0;
-          for (const name of financialCollections) {
-            collections[name] = await db
-                .collection(name)
-                .find({ userId: req.owner }, { session })
-                .limit(10001)
-                .toArray();
-              count += collections[name].length;
-              fail(
-                count <= 10000,
-                "BACKUP_TOO_LARGE",
-                "Bản sao trong app tối đa 10.000 bản ghi.",
-                422,
-              );
-            }
-            const user = await db
-              .collection("users")
-              .findOne({ _id: req.owner }, { session });
-            return EJSON.stringify(
-              {
-                formatVersion: 1,
-                userId: req.owner,
-                createdAt: now(),
-                profile: {
-                  displayName: user.displayName,
-                  nextPayday: user.nextPayday,
-                  settings: user.settings,
-                  paydayDay: user.paydayDay,
-                },
-                collections,
-              },
-              { relaxed: false },
-            );
-        })();
+        payload = ctx.transactionCapable
+          ? await session.withTransaction(readBackup, {
+              readConcern: { level: "snapshot" },
+              writeConcern: { w: "majority" },
+            })
+          : await readBackup();
       } finally {
         await session.endSession();
       }

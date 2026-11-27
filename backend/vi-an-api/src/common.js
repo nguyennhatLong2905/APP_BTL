@@ -104,44 +104,47 @@ export async function owned(db, col, userId, idValue, session) {
   return v;
 }
 export async function atomic(ctx, userId, key, scope, body, action) {
-  fail(ctx.transactionCapable, "REPLICA_SET_REQUIRED", "Cần MongoDB replica set để lưu an toàn.", 503);
   const digest = hash({ scope, body });
   const session = ctx.client.startSession();
-  try {
-    return await session.withTransaction(async () => {
-      const locked = await ctx.db
-        .collection("users")
-        .updateOne(
-          { _id: userId },
-          { $inc: { apiRevision: I(1) } },
-          { session },
-        );
-      fail(
-        locked.matchedCount === 1,
-        "USER_NOT_FOUND",
-        "Người dùng không tồn tại.",
-        401,
+  const run = async () => {
+    const locked = await ctx.db
+      .collection("users")
+      .updateOne(
+        { _id: userId },
+        { $inc: { apiRevision: I(1) } },
+        { session },
       );
-      const previous = await ctx.db
-        .collection("api_requests")
-        .findOne({ userId, key }, { session });
-      if (previous) {
-        fail(
-          previous.digest === digest,
-          "IDEMPOTENCY_CONFLICT",
-          "Khóa này đã được dùng với yêu cầu khác.",
-        );
-        return previous.result;
-      }
-      const result = json(await action(session));
-      await ctx.db
-        .collection("api_requests")
-        .insertOne(
-          { ...base(userId), key, digest, scope, result },
-          { session },
-        );
-      return result;
-    });
+    fail(
+      locked.matchedCount === 1,
+      "USER_NOT_FOUND",
+      "Người dùng không tồn tại.",
+      401,
+    );
+    const previous = await ctx.db
+      .collection("api_requests")
+      .findOne({ userId, key }, { session });
+    if (previous) {
+      fail(
+        previous.digest === digest,
+        "IDEMPOTENCY_CONFLICT",
+        "Khóa này đã được dùng với yêu cầu khác.",
+      );
+      return previous.result;
+    }
+    const result = json(await action(session));
+    await ctx.db
+      .collection("api_requests")
+      .insertOne(
+        { ...base(userId), key, digest, scope, result },
+        { session },
+      );
+    return result;
+  };
+  try {
+    // Dùng transaction khi MongoDB hỗ trợ replica set/mongos; fallback trực tiếp khi dev local standalone.
+    return ctx.transactionCapable
+      ? await session.withTransaction(run)
+      : await run();
   } finally {
     await session.endSession();
   }
