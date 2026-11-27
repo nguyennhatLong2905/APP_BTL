@@ -13,7 +13,7 @@ function define(name,required,properties,extra={}) {
  else d.createCollection(name,options);
 }
 // users are the only documents without userId; auth credentials stay with auth provider.
-const us={bsonType:'object',required:['_id','authSubject','displayName','timezone','currency','nextPayday','createdAt','updatedAt'],properties:{_id:id,authSubject:str,displayName:str,timezone:str,currency:{enum:['VND']},nextPayday:date,paydayDay:{bsonType:'int',minimum:1,maximum:31},settings:{bsonType:'object',properties:{hideAmounts:{bsonType:'bool'},defaultWalletId:id,reviewDelayDays:{bsonType:'int',minimum:0},workIncome:money,workHours:{bsonType:'int',minimum:1}}},createdAt:date,updatedAt:date}};
+const us={bsonType:'object',required:['_id','authSubject','displayName','timezone','currency','createdAt','updatedAt'],properties:{_id:id,authSubject:str,displayName:str,timezone:str,currency:{enum:['VND']},nextPayday:{bsonType:['date','null']},paydayDay:{bsonType:'int',minimum:1,maximum:31},settings:{bsonType:'object',properties:{hideAmounts:{bsonType:'bool'},defaultWalletId:id,reviewDelayDays:{bsonType:'int',minimum:0},workIncome:money,workHours:{bsonType:'int',minimum:1}}},createdAt:date,updatedAt:date}};
 if(d.getCollectionNames().includes('users')) d.runCommand({collMod:'users',validator:{$jsonSchema:us},validationLevel:'strict',validationAction:'error'});
 else d.createCollection('users',{validator:{$jsonSchema:us},validationLevel:'strict',validationAction:'error'});
 define('wallets',['name','type','currency','openingBalance','openingAt','balance','status','version'],{

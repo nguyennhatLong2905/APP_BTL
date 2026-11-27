@@ -65,19 +65,64 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
-    await ref.read(authProvider.notifier).register(
-      name: _nameController.text.trim(),
-      email: _usernameController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
+    final email = _usernameController.text.trim().toLowerCase();
+    final sent = await ref
+        .read(authProvider.notifier)
+        .requestRegisterOtp(
+          name: _nameController.text.trim(),
+          email: email,
+          password: _passwordController.text.trim(),
+        );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
+    if (sent && mounted) await _showOtpDialog(email);
+    if (!mounted) return;
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
       _showError(error);
     }
+  }
+
+  Future<void> _showOtpDialog(String email) async {
+    final controller = TextEditingController();
+    final otp = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác minh Gmail'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Mã OTP đã được gửi tới $email.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: 'Mã OTP 6 số'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Xác minh'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (otp == null || otp.length != 6 || !mounted) return;
+    await ref
+        .read(authProvider.notifier)
+        .verifyRegisterOtp(email: email, otp: otp);
   }
 
   void _showError(String msg) {
@@ -178,6 +223,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             if (!AppUtils.isValidEmail(email)) {
                               return 'Email không hợp lệ (vd: ten@gmail.com)';
                             }
+                            if (!RegExp(
+                              r'^[^@\s]+@gmail\.com$',
+                              caseSensitive: false,
+                            ).hasMatch(email)) {
+                              return 'Chỉ đăng ký bằng Gmail thật (@gmail.com)';
+                            }
                             return null;
                           },
                         ),
@@ -188,8 +239,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           label: 'Mật khẩu',
                           hint: 'Tối thiểu 10 ký tự',
                           obscure: _obscurePassword,
-                          onToggle: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
+                          onToggle: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Vui lòng nhập mật khẩu';
@@ -210,8 +262,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           label: 'Xác nhận mật khẩu',
                           hint: 'Nhập lại mật khẩu',
                           obscure: _obscureConfirm,
-                          onToggle: () =>
-                              setState(() => _obscureConfirm = !_obscureConfirm),
+                          onToggle: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
                           validator: (v) {
                             if (v != _passwordController.text) {
                               return 'Mật khẩu xác nhận không khớp';
@@ -262,8 +315,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 16, color: _primaryColor),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 16,
+              color: _primaryColor,
+            ),
           ),
         ),
         const SizedBox(width: 14),
@@ -358,7 +414,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             prefixIcon: Icons.lock_outline_rounded,
             suffix: IconButton(
               icon: Icon(
-                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: Colors.grey.shade500,
                 size: 20,
               ),
@@ -418,7 +476,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             value: _agreedToTerms,
             activeColor: _primaryColor,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(5)),
+              borderRadius: BorderRadius.circular(5),
+            ),
             side: BorderSide(color: Colors.grey.shade400),
             onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
           ),
@@ -428,7 +487,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
           child: RichText(
             text: TextSpan(
               style: TextStyle(
-                  fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+                fontSize: 13,
+                color: Colors.grey.shade700,
+                height: 1.4,
+              ),
               children: const [
                 TextSpan(text: 'Tôi đồng ý với '),
                 TextSpan(

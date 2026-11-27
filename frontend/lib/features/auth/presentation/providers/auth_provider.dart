@@ -149,6 +149,49 @@ class AuthNotifier extends Notifier<AuthState> {
     );
   }
 
+  Future<bool> requestRegisterOtp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    final result = await ref
+        .read(authRepositoryProvider)
+        .requestRegisterOtp(name: name, email: email, password: password);
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        return false;
+      },
+      (_) {
+        state = state.copyWith(isLoading: false, errorMessage: null);
+        return true;
+      },
+    );
+  }
+
+  Future<void> verifyRegisterOtp({
+    required String email,
+    required String otp,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    final result = await ref
+        .read(authRepositoryProvider)
+        .verifyRegisterOtp(email: email, otp: otp);
+    result.fold(
+      (failure) => state = state.copyWith(
+        isLoading: false,
+        errorMessage: failure.message,
+      ),
+      (user) => state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        user: user,
+        errorMessage: null,
+      ),
+    );
+  }
+
   // Logout
   Future<void> logout() async {
     state = state.copyWith(isLoading: true, errorMessage: null);

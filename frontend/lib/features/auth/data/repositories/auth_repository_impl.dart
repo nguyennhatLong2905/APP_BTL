@@ -21,9 +21,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required AuthRemoteDataSource remoteDataSource,
     required LocalStorageService localStorageService,
     required SecureStorageService secureStorageService,
-  })  : _remoteDataSource = remoteDataSource,
-        _localStorageService = localStorageService,
-        _secureStorageService = secureStorageService;
+  }) : _remoteDataSource = remoteDataSource,
+       _localStorageService = localStorageService,
+       _secureStorageService = secureStorageService;
 
   @override
   Future<Either<Failure, UserEntity>> login({
@@ -168,6 +168,61 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> requestRegisterOtp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _remoteDataSource.requestRegisterOtp(
+        name: name,
+        email: email,
+        password: password,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, UserEntity>> verifyRegisterOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await _remoteDataSource.verifyRegisterOtp(
+        email: email,
+        otp: otp,
+      );
+      final accessToken = response['accessToken'] as String;
+      final data = response['user'] as Map<String, dynamic>;
+      await _secureStorageService.write(
+        key: AppConstants.tokenKey,
+        value: accessToken,
+      );
+      final user = UserModel(
+        id: data['_id'] as String,
+        name: data['displayName'] as String? ?? '',
+        email: email,
+        createdAt: DateTime.tryParse(data['createdAt'].toString()),
+        updatedAt: DateTime.tryParse(data['updatedAt'].toString()),
+      );
+      await _localStorageService.setObject(
+        AppConstants.userDataKey,
+        user.toJson(),
+      );
+      return Right(user.toEntity());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } on Exception {
+      return const Left(ServerFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> logout() async {
     // Đăng xuất phải luôn thành công ở phía client.
     // Xoá local data là đủ để coi như đã đăng xuất; nếu secure storage lỗi
@@ -275,7 +330,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(
         PasswordResetOtpInfo(
           email: (response['email'] as String?) ?? email.trim().toLowerCase(),
-          expiresInSeconds: (response['expiresInSeconds'] as num?)?.toInt() ?? 600,
+          expiresInSeconds:
+              (response['expiresInSeconds'] as num?)?.toInt() ?? 600,
           resendAfterSeconds:
               (response['resendAfterSeconds'] as num?)?.toInt() ?? 60,
           deliveryChannel: (response['deliveryChannel'] as String?) ?? 'smtp',
@@ -303,7 +359,9 @@ class AuthRepositoryImpl implements AuthRepository {
       final resetToken = response['resetToken'] as String? ?? '';
       if (resetToken.isEmpty) {
         return const Left(
-          ServerFailure(message: 'Không nhận được mã xác thực đặt lại mật khẩu.'),
+          ServerFailure(
+            message: 'Không nhận được mã xác thực đặt lại mật khẩu.',
+          ),
         );
       }
       return Right(resetToken);

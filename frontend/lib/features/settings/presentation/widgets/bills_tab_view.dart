@@ -42,10 +42,7 @@ class BillsTabView extends ConsumerWidget {
           walletTotal: state.walletTotal,
         ),
         const SizedBox(height: 14),
-        _FilterRow(
-          active: state.billFilter,
-          onChanged: notifier.setBillFilter,
-        ),
+        _FilterRow(active: state.billFilter, onChanged: notifier.setBillFilter),
         const SizedBox(height: 12),
         if (state.isLoading && state.bills.isEmpty)
           const Padding(
@@ -55,12 +52,13 @@ class BillsTabView extends ConsumerWidget {
         else if (bills.isEmpty)
           _EmptyBills(filter: state.billFilter)
         else
-          for (final bill in bills)
-            _BillCard(
-              bill: bill,
-              onTap: () => _showBillDetail(context, ref, bill),
-              onPay: () => _startPayment(context, ref, bill),
-              onEdit: () => _showCreateOrEditBill(context, ref, existing: bill),
+          for (final group in _groupBills(bills))
+            _BillGroupCard(
+              bills: group,
+              onDetail: (bill) => _showBillDetail(context, ref, bill),
+              onPay: (bill) => _startPayment(context, ref, bill),
+              onEdit: (bill) =>
+                  _showCreateOrEditBill(context, ref, existing: bill),
             ),
         const SizedBox(height: 8),
         SizedBox(
@@ -85,6 +83,22 @@ class BillsTabView extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  List<List<RecurringBill>> _groupBills(List<RecurringBill> bills) {
+    final groups = <String, List<RecurringBill>>{};
+    for (final bill in bills) {
+      final key = bill.templateId != null && bill.templateId!.isNotEmpty
+          ? 'template:${bill.templateId}'
+          : bill.frequency != 'once'
+              ? 'recurring:${bill.name.trim().toLowerCase()}|${bill.amount}|${bill.frequency}'
+              : 'single:${bill.id}';
+      groups.putIfAbsent(key, () => <RecurringBill>[]).add(bill);
+    }
+    for (final group in groups.values) {
+      group.sort((a, b) => a.dueAt.compareTo(b.dueAt));
+    }
+    return groups.values.toList();
   }
 
   // ── Chi tiết hóa đơn ───────────────────────────────────────────────
@@ -124,6 +138,100 @@ class BillsTabView extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (_) => _PayBillDialog(bill: bill),
+    );
+  }
+}
+
+class _BillGroupCard extends StatefulWidget {
+  final List<RecurringBill> bills;
+  final ValueChanged<RecurringBill> onDetail;
+  final ValueChanged<RecurringBill> onPay;
+  final ValueChanged<RecurringBill> onEdit;
+
+  const _BillGroupCard({
+    required this.bills,
+    required this.onDetail,
+    required this.onPay,
+    required this.onEdit,
+  });
+
+  @override
+  State<_BillGroupCard> createState() => _BillGroupCardState();
+}
+
+class _BillGroupCardState extends State<_BillGroupCard> {
+  bool expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bill = widget.bills.first;
+    final isGroup = widget.bills.length > 1 || bill.templateId != null;
+    final unpaid = widget.bills.where((b) => b.status.isUnpaid).length;
+    return Column(
+      children: [
+        Stack(
+          children: [
+            _BillCard(
+              bill: bill,
+              onTap: isGroup
+                  ? () => setState(() => expanded = !expanded)
+                  : () => widget.onDetail(bill),
+              onPay: () => widget.onPay(bill),
+              onEdit: () => widget.onEdit(bill),
+            ),
+            if (isGroup)
+              Positioned(
+                right: 18,
+                top: 12,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: _tealSoft,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        '${widget.bills.length} kỳ · $unpaid chưa trả',
+                        style: const TextStyle(
+                          color: _teal,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (expanded)
+          Container(
+            margin: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5FBF9),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(16),
+              ),
+              border: Border.all(color: const Color(0xFFD8EEE8)),
+            ),
+            child: Column(
+              children: [
+                for (final occurrence in widget.bills.skip(1))
+                  _BillCard(
+                    bill: occurrence,
+                    onTap: () => widget.onDetail(occurrence),
+                    onPay: () => widget.onPay(occurrence),
+                    onEdit: () => widget.onEdit(occurrence),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -329,8 +437,10 @@ class _FilterRow extends StatelessWidget {
               onTap: () => onChanged(f),
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: active == f ? _teal : Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -371,8 +481,11 @@ class _EmptyBills extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.receipt_long_outlined,
-              size: 40, color: Color(0xFFBDBDBD)),
+          const Icon(
+            Icons.receipt_long_outlined,
+            size: 40,
+            color: Color(0xFFBDBDBD),
+          ),
           const SizedBox(height: 10),
           Text(
             filter == 'Tất cả'
@@ -452,8 +565,8 @@ class _BillCard extends StatelessWidget {
                       status == BillStatus.paid
                           ? Icons.check_circle_outline
                           : status == BillStatus.overdue
-                              ? Icons.error_outline
-                              : Icons.receipt_long,
+                          ? Icons.error_outline
+                          : Icons.receipt_long,
                       size: 18,
                       color: status.fg,
                     ),
@@ -507,8 +620,10 @@ class _BillCard extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit_outlined, size: 15),
-                        label: const Text('Sửa',
-                            style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Sửa',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: _teal,
                           side: const BorderSide(color: Color(0xFFB7E4D8)),
@@ -524,8 +639,10 @@ class _BillCard extends StatelessWidget {
                       child: ElevatedButton.icon(
                         onPressed: onPay,
                         icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Đánh dấu đã trả',
-                            style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Đánh dấu đã trả',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _teal,
                           foregroundColor: Colors.white,
@@ -611,8 +728,8 @@ class _BillDetailDialog extends ConsumerWidget {
               bill.paymentMethod == 'linked_transaction'
                   ? 'Liên kết giao dịch có sẵn'
                   : bill.paymentMethod == 'new_transaction'
-                      ? 'Tạo giao dịch chi mới'
-                      : 'Chưa thanh toán',
+                  ? 'Tạo giao dịch chi mới'
+                  : 'Chưa thanh toán',
             ),
             if (bill.transactionId != null)
               _row('Mã giao dịch', bill.transactionId!.substring(0, 8)),
@@ -628,7 +745,10 @@ class _BillDetailDialog extends ConsumerWidget {
               Navigator.pop(context);
               await _confirmDelete(context, ref);
             },
-            child: const Text('Xóa', style: TextStyle(color: Color(0xFFB91C1C))),
+            child: const Text(
+              'Xóa',
+              style: TextStyle(color: Color(0xFFB91C1C)),
+            ),
           ),
         if (bill.status.isUnpaid &&
             bill.frequencyEnum.isRecurring &&
@@ -780,8 +900,9 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
     _nameController = TextEditingController(text: b?.name ?? '');
     final amount = b == null ? '' : b.amount.toInt().toString();
     _amountController = TextEditingController(text: amount);
-    _amountController.selection =
-        TextSelection.collapsed(offset: amount.length);
+    _amountController.selection = TextSelection.collapsed(
+      offset: amount.length,
+    );
     _noteController = TextEditingController(text: b?.note ?? '');
     _dueDate = b?.dueAt ?? DateTime.now().add(const Duration(days: 7));
     _frequency = b?.frequencyEnum ?? BillFrequency.monthly;
@@ -826,7 +947,9 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
     }
     if (_endAt != null && _endAt!.isBefore(_startAt ?? _dueDate)) {
       AppSnackBar.showError(
-          context, 'Ngày kết thúc phải sau ngày bắt đầu / đến hạn');
+        context,
+        'Ngày kết thúc phải sau ngày bắt đầu / đến hạn',
+      );
       return;
     }
 
@@ -899,10 +1022,8 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
             _dateField(
               label: 'Ngày đến hạn',
               value: _fmtDate(_dueDate),
-              onTap: () => _pickDate(
-                initial: _dueDate,
-                onPicked: (d) => _dueDate = d,
-              ),
+              onTap: () =>
+                  _pickDate(initial: _dueDate, onPicked: (d) => _dueDate = d),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<BillFrequency>(
@@ -914,10 +1035,15 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
                 ),
               ),
               items: BillFrequency.values
-                  .map((f) => DropdownMenuItem(
-                        value: f,
-                        child: Text(f.label, style: const TextStyle(fontSize: 13)),
-                      ))
+                  .map(
+                    (f) => DropdownMenuItem(
+                      value: f,
+                      child: Text(
+                        f.label,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _frequency = v);
@@ -944,7 +1070,8 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
                     label: 'Kết thúc',
                     value: _endAt == null ? 'Không đặt' : _fmtDate(_endAt!),
                     onTap: () => _pickDate(
-                      initial: _endAt ?? _dueDate.add(const Duration(days: 365)),
+                      initial:
+                          _endAt ?? _dueDate.add(const Duration(days: 365)),
                       onPicked: (d) => _endAt = d,
                     ),
                     onClear: _endAt == null
@@ -964,13 +1091,15 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
                 ),
               ),
               items: const [0, 1, 2, 3, 5, 7, 10, 14]
-                  .map((d) => DropdownMenuItem(
-                        value: d,
-                        child: Text(
-                          d == 0 ? 'Không nhắc' : '$d ngày',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ))
+                  .map(
+                    (d) => DropdownMenuItem(
+                      value: d,
+                      child: Text(
+                        d == 0 ? 'Không nhắc' : '$d ngày',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _reminderDays = v);
@@ -1006,7 +1135,9 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : Text(_isEdit ? 'Lưu' : 'Thêm hóa đơn'),
         ),
@@ -1026,9 +1157,7 @@ class _BillFormDialogState extends ConsumerState<_BillFormDialog> {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           suffixIcon: onClear != null
               ? IconButton(
                   icon: const Icon(Icons.close, size: 16),
@@ -1074,8 +1203,9 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
     super.initState();
     final amount = widget.bill.amount.toInt().toString();
     _amountController = TextEditingController(text: amount);
-    _amountController.selection =
-        TextSelection.collapsed(offset: amount.length);
+    _amountController.selection = TextSelection.collapsed(
+      offset: amount.length,
+    );
     _searchController = TextEditingController();
     _searchController.addListener(_filterCandidates);
     _loadPreview();
@@ -1114,8 +1244,9 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
   Future<void> _loadCandidates() async {
     setState(() => _loadingCandidates = true);
     try {
-      final rows =
-          await ref.read(budgetProvider.notifier).billCandidates(widget.bill.id);
+      final rows = await ref
+          .read(budgetProvider.notifier)
+          .billCandidates(widget.bill.id);
       if (!mounted) return;
       setState(() {
         _candidates = rows;
@@ -1135,9 +1266,11 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
     final q = _searchController.text.trim().toLowerCase();
     if (q.isEmpty) return _candidates;
     return _candidates
-        .where((c) =>
-            (c.note ?? '').toLowerCase().contains(q) ||
-            c.amount.toString().contains(q))
+        .where(
+          (c) =>
+              (c.note ?? '').toLowerCase().contains(q) ||
+              c.amount.toString().contains(q),
+        )
         .toList();
   }
 
@@ -1162,7 +1295,10 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
         return;
       }
       Navigator.pop(context);
-      AppSnackBar.showSuccess(context, 'Đã liên kết giao dịch và đánh dấu đã trả');
+      AppSnackBar.showSuccess(
+        context,
+        'Đã liên kết giao dịch và đánh dấu đã trả',
+      );
       return;
     }
 
@@ -1186,8 +1322,7 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
 
     setState(() => _submitting = true);
     final now = DateTime.now();
-    final occurredAt =
-        '${now.toUtc().toIso8601String().split('.').first}.000Z';
+    final occurredAt = '${now.toUtc().toIso8601String().split('.').first}.000Z';
     final err = await notifier.settleBill(
       billId: widget.bill.id,
       walletId: walletId,
@@ -1292,13 +1427,15 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
                   ),
                 ),
                 items: wallets
-                    .map((w) => DropdownMenuItem(
-                          value: w.id,
-                          child: Text(
-                            '${w.name} (${_fmt(w.balance)})',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ))
+                    .map(
+                      (w) => DropdownMenuItem(
+                        value: w.id,
+                        child: Text(
+                          '${w.name} (${_fmt(w.balance)})',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _walletId = v),
               ),
@@ -1353,7 +1490,9 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                             color: _selectedTxn?.id == c.id
                                 ? _tealSoft
                                 : Colors.transparent,
@@ -1383,8 +1522,9 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
                                       Text(
                                         '${_fmt(c.amount)} • ${_fmtDate(c.occurredAt)}',
                                         style: const TextStyle(
-                                            fontSize: 11,
-                                            color: _textSecondary),
+                                          fontSize: 11,
+                                          color: _textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1419,7 +1559,9 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Xác nhận đã trả'),
         ),
@@ -1491,11 +1633,23 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
           ),
           const SizedBox(height: 8),
           _previewRow('Tổng tiền hiện có', p.beforeTotal, p.afterTotal),
-          _previewRow('Hóa đơn chưa trả', p.beforeUnpaidBills, p.afterUnpaidBills),
-          _previewRow('Quỹ bảo vệ', p.beforeProtected, p.afterProtected,
-              unchanged: true),
-          _previewRow('Còn để chi', p.beforeAvailable, p.afterAvailable,
-              highlight: true),
+          _previewRow(
+            'Hóa đơn chưa trả',
+            p.beforeUnpaidBills,
+            p.afterUnpaidBills,
+          ),
+          _previewRow(
+            'Quỹ bảo vệ',
+            p.beforeProtected,
+            p.afterProtected,
+            unchanged: true,
+          ),
+          _previewRow(
+            'Còn để chi',
+            p.beforeAvailable,
+            p.afterAvailable,
+            highlight: true,
+          ),
           if (p.warnings.isNotEmpty) ...[
             const SizedBox(height: 8),
             for (final w in p.warnings)
@@ -1504,8 +1658,11 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.warning_amber_outlined,
-                        size: 12, color: Color(0xFFB45309)),
+                    const Icon(
+                      Icons.warning_amber_outlined,
+                      size: 12,
+                      color: Color(0xFFB45309),
+                    ),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
@@ -1563,8 +1720,8 @@ class _PayBillDialogState extends ConsumerState<_PayBillDialog> {
               color: unchanged
                   ? _textSecondary
                   : (after < before
-                      ? const Color(0xFFB91C1C)
-                      : const Color(0xFF15803D)),
+                        ? const Color(0xFFB91C1C)
+                        : const Color(0xFF15803D)),
             ),
           ),
         ],

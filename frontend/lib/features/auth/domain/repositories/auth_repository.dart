@@ -17,6 +17,17 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<Either<Failure, void>> requestRegisterOtp({
+    required String name,
+    required String email,
+    required String password,
+  });
+
+  Future<Either<Failure, UserEntity>> verifyRegisterOtp({
+    required String email,
+    required String otp,
+  });
+
   /// Demo login qua POST /auth/demo (chỉ bật trên localhost dev)
   Future<Either<Failure, UserEntity>> demoLogin();
 

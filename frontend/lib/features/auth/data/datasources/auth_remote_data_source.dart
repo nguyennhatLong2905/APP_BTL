@@ -20,6 +20,17 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
+  Future<Map<String, dynamic>> requestRegisterOtp({
+    required String name,
+    required String email,
+    required String password,
+  });
+
+  Future<Map<String, dynamic>> verifyRegisterOtp({
+    required String email,
+    required String otp,
+  });
+
   /// Đổi mật khẩu — trả về {accessToken}
   Future<Map<String, dynamic>> changePassword({
     required String currentPassword,
@@ -27,9 +38,7 @@ abstract class AuthRemoteDataSource {
   });
 
   /// Gửi mã OTP đặt lại mật khẩu qua email
-  Future<Map<String, dynamic>> requestPasswordResetOtp({
-    required String email,
-  });
+  Future<Map<String, dynamic>> requestPasswordResetOtp({required String email});
 
   /// Xác minh mã OTP — trả về {verified, resetToken, expiresInSeconds}
   Future<Map<String, dynamic>> verifyResetOtp({
@@ -89,11 +98,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }) async {
     final result = await _apiClient.post(
       '/auth/register',
-      data: {
-        'displayName': name,
-        'email': email,
-        'password': password,
-      },
+      data: {'displayName': name, 'email': email, 'password': password},
     );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
@@ -105,16 +110,44 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> requestRegisterOtp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/register/request-otp',
+      data: {'displayName': name, 'email': email, 'password': password},
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) => (data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> verifyRegisterOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final result = await _apiClient.post(
+      '/auth/register/verify-otp',
+      data: {'email': email, 'otp': otp},
+    );
+    return result.fold(
+      (failure) => throw ServerException(message: failure.message),
+      (data) => (data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
     final result = await _apiClient.post(
       '/auth/change-password',
-      data: {
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      },
+      data: {'currentPassword': currentPassword, 'newPassword': newPassword},
     );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),

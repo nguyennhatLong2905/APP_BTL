@@ -105,6 +105,22 @@ export const signup = obj({
   displayName: text,
   nextPayday: timestamp.optional(),
 });
+export const registerOtp = obj({
+  email: z.email().max(254).refine(
+    (value) => /@gmail\.com$/i.test(value.trim()),
+    "Chỉ chấp nhận địa chỉ Gmail (@gmail.com).",
+  ),
+  password: z.string().min(10).max(128),
+  displayName: text,
+  nextPayday: timestamp.optional(),
+});
+export const verifyRegisterOtp = obj({
+  email: z.email().max(254).refine(
+    (value) => /@gmail\.com$/i.test(value.trim()),
+    "Chỉ chấp nhận địa chỉ Gmail (@gmail.com).",
+  ),
+  otp: z.string().regex(/^\d{6}$/),
+});
 export const login = obj({
   email: z.email().max(254),
   password: z.string().min(1).max(128),

@@ -32,6 +32,7 @@ const ctx = {
 const app = await buildApp(ctx, {
   jwtSecret: secret,
   allowDemo,
+  requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION !== "false",
   origins: (process.env.CORS_ORIGINS || "http://localhost:5173").split(","),
   logger: {
     redact: [
