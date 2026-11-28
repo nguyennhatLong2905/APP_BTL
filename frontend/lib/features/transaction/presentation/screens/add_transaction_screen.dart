@@ -14,6 +14,13 @@ import '../../domain/models/transaction_category.dart';
 import '../../providers/transaction_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/transaction_keypad.dart';
+import '../widgets/receipt_scan_widgets.dart';
+import '../../data/receipt_mvp/du_lieu/bo_chon_anh.dart';
+import '../../data/receipt_mvp/mo_hinh/hoa_don.dart';
+import '../../data/receipt_mvp/nen_tang/chon_anh.dart';
+import '../../data/receipt_mvp/ocr/bo_nhan_dang.dart';
+import '../../data/receipt_scanner.dart';
+import '../../domain/models/receipt.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
   const AddTransactionScreen({super.key});
@@ -29,6 +36,14 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   bool _noteExpanded = false;
   bool _pickingPhoto = false;
   bool _openingWalletPicker = false;
+  final _receiptNoteController = TextEditingController();
+  bool _ocrTab = false;
+  bool _pickingReceipt = false;
+  bool _readingReceipt = false;
+  String? _receiptError;
+  ScannedReceipt? _receipt;
+
+  bool get _scanBusy => _pickingReceipt || _readingReceipt;
 
   static const _tabs = [
     (TransactionType.expense, 'Chi tiêu', Icons.arrow_downward_rounded),
@@ -59,6 +74,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     _noteFocus.removeListener(_updateNoteFocus);
     _noteFocus.dispose();
     _noteController.dispose();
+    _receiptNoteController.dispose();
     super.dispose();
   }
 
@@ -67,6 +83,16 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     final state = ref.watch(transactionFormProvider);
     final notifier = ref.read(transactionFormProvider.notifier);
     final categories = ref.watch(currentCategoriesProvider);
+    final receiptForm = ref.watch(receiptTransactionFormProvider);
+    final receiptNotifier = ref.read(receiptTransactionFormProvider.notifier);
+    final showOcr = state.type == TransactionType.expense && _ocrTab;
+    ref.listen(receiptTransactionFormProvider, (previous, next) {
+      if (!next.isSuccess || (previous?.isSuccess ?? false)) return;
+      receiptNotifier.reset();
+      _receiptNoteController.clear();
+      setState(() => _receipt = null);
+      _showSaved();
+    });
     final editingNote =
         _noteFocus.hasFocus && MediaQuery.viewInsetsOf(context).bottom > 0;
     final busy = state.isLoading || _pickingPhoto;
@@ -83,13 +109,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _noteFocus.unfocus();
       setState(() => _noteExpanded = false);
       notifier.reset();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã lưu giao dịch thành công!'),
-          backgroundColor: transactionPrimary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSaved();
     });
 
     return Scaffold(
@@ -97,47 +117,67 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
-            Expanded(
+            _buildHeader(
+              context,
+              saving: state.isLoading || receiptForm.isLoading,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: AbsorbPointer(
-                absorbing: busy,
-                child: ListView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                absorbing: busy || _scanBusy || receiptForm.isLoading,
+                child: Column(
                   children: [
                     _buildTabs(state, notifier),
-                    const SizedBox(height: 12),
-                    _buildAmount(state.amount),
-                    const SizedBox(height: 12),
-                    _buildQuickAmounts(notifier),
-                    const SizedBox(height: 10),
-                    _buildDateAndWallet(state, notifier),
-                    const SizedBox(height: 12),
-                    if (state.isTransfer)
-                      _buildDestination(state)
-                    else
-                      _buildCategories(state, notifier, categories),
-                    const SizedBox(height: 12),
-                    _buildNotes(state, notifier),
-                    if (state.error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Semantics(
-                          liveRegion: true,
-                          child: Text(
-                            state.error!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
-                        ),
-                      ),
+                    if (state.type == TransactionType.expense)
+                      _buildEntryTabs(),
                   ],
                 ),
               ),
             ),
-            if (!editingNote)
+            if (showOcr)
+              Expanded(
+                child: _buildReceipt(receiptForm, receiptNotifier, categories),
+              )
+            else
+              Expanded(
+                child: AbsorbPointer(
+                  absorbing: busy,
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    children: [
+                      const SizedBox(height: 8),
+                      _buildAmount(state.amount),
+                      const SizedBox(height: 12),
+                      _buildQuickAmounts(notifier),
+                      const SizedBox(height: 10),
+                      _buildDateAndWallet(state, notifier),
+                      const SizedBox(height: 12),
+                      if (state.isTransfer)
+                        _buildDestination(state)
+                      else
+                        _buildCategories(state, notifier, categories),
+                      const SizedBox(height: 12),
+                      _buildNotes(state, notifier),
+                      if (state.error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              state.error!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!showOcr && !editingNote)
               DecoratedBox(
                 decoration: const BoxDecoration(
                   color: Colors.white,
@@ -185,19 +225,321 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildEntryTabs() {
+    return Row(
+      children: [
+        for (final (isOcr, label) in [(false, 'Nhập tay'), (true, 'Quét OCR')])
+          Expanded(
+            child: Semantics(
+              selected: _ocrTab == isOcr,
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _ocrTab == isOcr
+                          ? transactionPrimary
+                          : transactionBorder,
+                      width: _ocrTab == isOcr ? 2 : 1,
+                    ),
+                  ),
+                ),
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: _ocrTab == isOcr
+                        ? transactionPrimary
+                        : transactionMuted,
+                    textStyle: TextStyle(
+                      fontWeight: _ocrTab == isOcr
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _ocrTab = isOcr);
+                  },
+                  child: Text(label),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _scan(NguonAnh source) async {
+    if (_scanBusy) return;
+    setState(() => _pickingReceipt = true);
+    try {
+      final photo = await ref.read(receiptImagePickerProvider).chon(source);
+      if (photo == null || !mounted) return;
+      setState(() {
+        _readingReceipt = true;
+        _receiptError = null;
+      });
+      final result = await scanReceipt(
+        photo,
+        ref.read(receiptRecognitionProvider)(),
+      );
+      if (!mounted) return;
+      if (result == null) {
+        setState(
+          () => _receiptError =
+              'Không tìm thấy chữ. Thử chụp rõ hơn hoặc chọn ảnh khác.',
+        );
+        return;
+      }
+      ref
+          .read(receiptTransactionFormProvider.notifier)
+          .loadReceipt(result.draft, result.attachment);
+      _receiptNoteController.clear();
+      setState(() => _receipt = result);
+    } on LoiChonAnh catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _receiptError = switch (error.loai) {
+          LoaiLoiChonAnh.khongCoQuyen =>
+            'Hãy cho phép truy cập trong cài đặt thiết bị rồi thử lại.',
+          LoaiLoiChonAnh.khongCoCamera =>
+            'Không mở được camera. Bạn có thể chọn ảnh có sẵn.',
+          LoaiLoiChonAnh.khac =>
+            'Không thể mở camera hoặc thư viện. Hãy thử lại.',
+        },
+      );
+    } on LoiNhanDang catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _receiptError = switch (error.loai) {
+          LoaiLoiNhanDang.khongDocDuocAnh =>
+            'Không đọc được tệp ảnh. Hãy chụp lại hoặc chọn ảnh khác.',
+          LoaiLoiNhanDang.khongHoTro => 'Thiết bị này không hỗ trợ quét OCR.',
+          LoaiLoiNhanDang.thatBai =>
+            'Không đọc được hóa đơn. Hãy chụp lại hoặc chọn ảnh khác.',
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _receiptError =
+            'Không đọc được hóa đơn. Hãy chụp lại hoặc chọn ảnh khác.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pickingReceipt = false;
+          _readingReceipt = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildReceipt(
+    TransactionFormState state,
+    TransactionFormNotifier notifier,
+    List<TransactionCategory> categories,
+  ) {
+    final result = _receipt;
+    if (result == null) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+        children: [
+          ReceiptScanPrompt(
+            supported: coOcrThietBi,
+            busy: _scanBusy,
+            reading: _readingReceipt,
+            error: _receiptError,
+            onCamera: () => _scan(NguonAnh.mayAnh),
+            onGallery: () => _scan(NguonAnh.thuVien),
+            onManual: () => setState(() => _ocrTab = false),
+          ),
+        ],
+      );
+    }
+    final activeIds = ref
+        .watch(transactionProvider.select((data) => data.categories))
+        .where((category) => category.isActive && category.type == 'expense')
+        .map((category) => category.id)
+        .toSet();
+    final activeCategories = categories
+        .where((item) => activeIds.contains(item.id))
+        .toList();
+    final blockReason = state.error ?? state.saveBlockReason;
+    return AbsorbPointer(
+      absorbing: state.isLoading,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          const Text(
+            'Kết quả quét',
+            style: TextStyle(
+              color: transactionInk,
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ReceiptPhotoPreview(bytes: result.original),
+          const SizedBox(height: 10),
+          _buildAmount(
+            state.amount,
+            onEdit: () async {
+              final edited = await editReceiptField(
+                context,
+                field: ReceiptEdit.total,
+                initial: state.amount == 0
+                    ? null
+                    : ReceiptLine('', state.amount),
+              );
+              if (mounted && edited != null) {
+                notifier.setReceiptAmount(edited.amount);
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _buildDateAndWallet(state, notifier, receipt: true),
+          const SizedBox(height: 10),
+          _FormFieldTile(
+            label: 'Tên cửa hàng',
+            value: state.merchant.isEmpty
+                ? 'Nhập tên cửa hàng'
+                : state.merchant,
+            icon: Icons.storefront_outlined,
+            trailing: const Icon(
+              Icons.edit_outlined,
+              color: transactionPrimary,
+              size: 19,
+            ),
+            onTap: () async {
+              final edited = await editReceiptField(
+                context,
+                field: ReceiptEdit.merchant,
+                initial: ReceiptLine(state.merchant, 0),
+              );
+              if (mounted && edited != null) notifier.setMerchant(edited.name);
+            },
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Chi tiết hóa đơn',
+            style: TextStyle(
+              color: transactionInk,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final (index, line) in state.receiptLines.indexed)
+            ReceiptLineTile(
+              line: line,
+              onEdit: () =>
+                  _editReceiptLine(notifier, state.receiptLines, index),
+              onDelete: () => notifier.setReceiptLines(
+                [...state.receiptLines]..removeAt(index),
+              ),
+            ),
+          FilledButton.tonalIcon(
+            onPressed: state.receiptLines.length >= ReceiptLine.maxCount
+                ? null
+                : () => _editReceiptLine(notifier, state.receiptLines),
+            style: FilledButton.styleFrom(
+              backgroundColor: transactionMint,
+              foregroundColor: transactionPrimary,
+            ),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Thêm dòng'),
+          ),
+          const SizedBox(height: 10),
+          _buildCategories(state, notifier, activeCategories, receipt: true),
+          if (activeCategories.isEmpty)
+            TextButton(
+              onPressed: ref.read(transactionProvider.notifier).loadCategories,
+              child: const Text('Tải lại danh mục chi tiêu'),
+            ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _receiptNoteController,
+            readOnly: state.isLoading,
+            onChanged: notifier.setNote,
+            maxLength: 2000,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'Ghi chú',
+              prefixIcon: Icon(
+                Icons.note_alt_outlined,
+                color: transactionPrimary,
+              ),
+              counterText: '',
+            ),
+          ),
+          if (blockReason != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  blockReason,
+                  style: TextStyle(
+                    color: state.error == null
+                        ? transactionMuted
+                        : Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          _buildSave(state, notifier, state.isLoading),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editReceiptLine(
+    TransactionFormNotifier notifier,
+    List<ReceiptLine> lines, [
+    int? index,
+  ]) async {
+    final edited = await editReceiptField(
+      context,
+      field: ReceiptEdit.line,
+      initial: index == null ? null : lines[index],
+    );
+    if (!mounted || edited == null) return;
+    final updated = [...lines];
+    if (index == null) {
+      updated.add(edited);
+    } else {
+      updated[index] = edited;
+    }
+    notifier.setReceiptLines(updated);
+  }
+
+  void _showSaved() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã lưu giao dịch thành công!'),
+        backgroundColor: transactionPrimary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, {required bool saving}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Row(
         children: [
           IconButton(
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go(AppConstants.homeRoute);
-              }
-            },
+            onPressed: saving
+                ? null
+                : () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go(AppConstants.homeRoute);
+                    }
+                  },
             tooltip: 'Quay lại',
             color: transactionPrimary,
             icon: const Icon(Icons.arrow_back_rounded),
@@ -213,13 +555,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             ),
           ),
           IconButton(
-            onPressed: () => context.go(AppConstants.notificationsRoute),
+            onPressed: saving
+                ? null
+                : () => context.go(AppConstants.notificationsRoute),
             tooltip: 'Thông báo',
             color: transactionPrimary,
             icon: const Icon(Icons.notifications_none_rounded),
           ),
           IconButton(
-            onPressed: () => context.go(AppConstants.settingsRoute),
+            onPressed: saving
+                ? null
+                : () => context.go(AppConstants.settingsRoute),
             tooltip: 'Tài khoản',
             style: IconButton.styleFrom(
               backgroundColor: transactionPrimary,
@@ -289,8 +635,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     );
   }
 
-  Widget _buildAmount(int amount) {
-    return Semantics(
+  Widget _buildAmount(int amount, {VoidCallback? onEdit}) {
+    final card = Semantics(
       liveRegion: true,
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -334,6 +680,32 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         ),
       ),
     );
+    if (onEdit == null) return card;
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: transactionMint,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        Row(
+          children: [
+            const SizedBox(width: 48),
+            Expanded(child: card),
+            IconButton(
+              tooltip: 'Sửa số tiền',
+              onPressed: onEdit,
+              color: transactionPrimary,
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildQuickAmounts(TransactionFormNotifier notifier) {
@@ -365,8 +737,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
   Widget _buildDateAndWallet(
     TransactionFormState state,
-    TransactionFormNotifier notifier,
-  ) {
+    TransactionFormNotifier notifier, {
+    bool receipt = false,
+  }) {
     final walletLabel = switch (state.type) {
       TransactionType.expense => 'Ví chi tiền',
       TransactionType.income => 'Ví nhận tiền',
@@ -381,7 +754,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               label: 'Ngày ghi nhận',
               value: DateFormat('HH:mm, dd/MM').format(state.selectedDate),
               icon: Icons.calendar_today_outlined,
-              onTap: () => _pickDate(state.selectedDate, notifier),
+              onTap: () =>
+                  _pickDate(state.selectedDate, notifier, withTime: receipt),
             ),
           ),
           const SizedBox(width: 8),
@@ -391,7 +765,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               value: state.wallet?.name ?? 'Chọn ví',
               icon: Icons.account_balance_wallet_outlined,
               dropdown: true,
-              onTap: () => _showWalletPicker(destination: false),
+              onTap: () =>
+                  _showWalletPicker(destination: false, receipt: receipt),
             ),
           ),
         ],
@@ -427,10 +802,11 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   Widget _buildCategories(
     TransactionFormState state,
     TransactionFormNotifier notifier,
-    List<TransactionCategory> categories,
-  ) {
-    const heading = Text(
-      'Danh mục phổ biến',
+    List<TransactionCategory> categories, {
+    bool receipt = false,
+  }) {
+    final heading = Text(
+      receipt ? 'Danh mục chi tiêu' : 'Danh mục phổ biến',
       style: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w700,
@@ -445,7 +821,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         if (categories.length > 5)
           Row(
             children: [
-              const Expanded(child: heading),
+              Expanded(child: heading),
               TextButton(
                 onPressed: () => _showCategoryPicker(
                   categories,
@@ -583,7 +959,12 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   ) {
     return FilledButton.icon(
       onPressed: state.isValid && !state.isSuccess && !busy
-          ? notifier.saveTransaction
+          ? () {
+              if (_ocrTab && state.type == TransactionType.expense) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              }
+              notifier.saveTransaction();
+            }
           : null,
       style: FilledButton.styleFrom(
         backgroundColor: transactionPrimary,
@@ -614,8 +995,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
   Future<void> _pickDate(
     DateTime current,
-    TransactionFormNotifier notifier,
-  ) async {
+    TransactionFormNotifier notifier, {
+    bool withTime = false,
+  }) async {
     final now = DateTime.now();
     final today = DateUtils.dateOnly(now);
     final picked = await showDatePicker(
@@ -627,20 +1009,51 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       helpText: 'Chọn ngày ghi nhận',
     );
     if (picked == null || !mounted) return;
-    final time = DateTime.now();
-    notifier.setDate(
-      DateTime(
-        picked.year,
-        picked.month,
-        picked.day,
-        time.hour,
-        time.minute,
-        time.second,
-      ),
+    if (!withTime) {
+      final time = DateTime.now();
+      notifier.setDate(
+        DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          time.hour,
+          time.minute,
+          time.second,
+        ),
+      );
+      return;
+    }
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+      helpText: 'Chọn giờ ghi nhận',
     );
+    if (time == null || !mounted) return;
+    final date = DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+      time.hour,
+      time.minute,
+    );
+    if (date.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ngày giờ ghi nhận không được ở tương lai.'),
+        ),
+      );
+      return;
+    }
+    notifier.setDate(date);
   }
 
-  Future<void> _showWalletPicker({required bool destination}) async {
+  Future<void> _showWalletPicker({
+    required bool destination,
+    bool receipt = false,
+  }) async {
+    final provider = receipt
+        ? receiptTransactionFormProvider
+        : transactionFormProvider;
     if (_openingWalletPicker) return;
     _noteFocus.unfocus();
     _openingWalletPicker = true;
@@ -651,7 +1064,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       }
       if (!mounted) return;
 
-      final state = ref.read(transactionFormProvider);
+      final state = ref.read(provider);
       final selectedId = destination ? state.toWallet?.id : state.wallet?.id;
       final blockedId = state.isTransfer
           ? (destination ? state.wallet?.id : state.toWallet?.id)
@@ -707,7 +1120,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       );
       if (mounted && picked != null) {
         ref
-            .read(transactionFormProvider.notifier)
+            .read(provider.notifier)
             .selectWallet(picked, destination: destination);
       }
     } finally {
@@ -782,6 +1195,7 @@ class _FormFieldTile extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.dropdown = false,
+    this.trailing,
     this.expanded = false,
     this.valueWeight,
   });
@@ -792,6 +1206,7 @@ class _FormFieldTile extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool dropdown;
+  final Widget? trailing;
   final bool expanded;
 
   @override
@@ -836,6 +1251,7 @@ class _FormFieldTile extends StatelessWidget {
                 ],
               ),
             ),
+            ?trailing,
             if (dropdown)
               Icon(
                 expanded

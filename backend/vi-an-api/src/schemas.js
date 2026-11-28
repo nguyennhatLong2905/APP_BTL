@@ -20,6 +20,7 @@ export const entry = obj({
   adjustmentDirection: z.enum(["increase", "decrease"]).optional(),
   note: note.optional(),
   merchant: text.optional(),
+  receiptLines: z.array(obj({ name: text, amount: money })).max(100).optional(),
   trackReview: z.boolean().optional(),
   attachmentIds: z.array(id).max(10).optional(),
 });

@@ -179,7 +179,7 @@ Các lỗi cần hiển thị: `VERSION_CONFLICT` → tải lại trước khi s
 
 Migration giữ 14 collection nghiệp vụ gốc, thêm `auth_accounts`, `api_requests`, `audit_events`, `import_jobs`, `backup_previews`, `attachments`. Cho phép `nextPayday: null` để hỗ trợ bỏ qua onboarding. Không tự tái tính số dư từ seed vì seed chứa số dư mở kỳ và lịch sử phục vụ demo. Nếu từng thêm giao dịch bằng Compass mà chưa cập nhật ví, dùng API reconcile để đối chiếu số dư thực tế.
 
-Ảnh hóa đơn PNG/JPEG/WebP: tối đa 2 MB/ảnh, 10 ảnh/giao dịch; upload base64 JSON; lưu Binary trong MongoDB. Chưa có OCR. Tải ảnh cần token; frontend dùng Blob URL, không gắn URL cần Authorization trực tiếp vào `<img src>`.
+Ảnh hóa đơn PNG/JPEG/WebP: tối đa 2 MB/ảnh, 10 ảnh/giao dịch; upload base64 JSON; lưu Binary trong MongoDB. Ứng dụng Flutter nhận dạng chữ trên thiết bị và gửi tên cửa hàng cùng `receiptLines` khi người dùng lưu khoản chi. Tải ảnh cần token; frontend dùng Blob URL, không gắn URL cần Authorization trực tiếp vào `<img src>`.
 
 CSV: tối đa 500 dòng/lần nhập, 10.000 dòng/lần xuất. Preview đánh dấu nghi trùng, commit do người dùng chọn; toàn bộ batch cùng thành công hoặc rollback. CSV yêu cầu ID ví/danh mục và số tiền nguyên, không tự đoán tên ví, ngày tháng hoặc số tiền định dạng `50.000đ`.
 

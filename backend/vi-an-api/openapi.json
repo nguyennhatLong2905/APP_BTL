@@ -206,6 +206,21 @@
           "merchant": {
             "type": "string"
           },
+          "receiptLines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "amount": {
+                  "$ref": "#/components/schemas/Money"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
           "attachments": {
             "type": "array",
             "items": {
@@ -2764,6 +2779,29 @@
                     "minLength": 1,
                     "maxLength": 160
                   },
+                  "receiptLines": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "amount": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9]\\d{0,15})$"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "amount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "trackReview": {
                     "type": "boolean"
                   },
@@ -2977,6 +3015,29 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 160
+                  },
+                  "receiptLines": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "amount": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9]\\d{0,15})$"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "amount"
+                      ],
+                      "additionalProperties": false
+                    }
                   },
                   "trackReview": {
                     "type": "boolean"

@@ -41,10 +41,57 @@ Future<void> showTransactionActions(
     }
   } else if (action == 'attachment') {
     await _showAttachment(context, ref, tx.attachmentIds.first);
+  } else if (action == 'receipt') {
+    await _showReceiptDetails(context, ref, tx);
   } else if (action == 'review') {
     context.push(AppConstants.timelineRoute);
   }
 }
+
+Future<void> _showReceiptDetails(
+  BuildContext context,
+  WidgetRef ref,
+  ReportTransaction tx,
+) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) => AlertDialog(
+    title: Text(tx.merchant.isEmpty ? 'Chi tiết hóa đơn' : tx.merchant),
+    scrollable: true,
+    content: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in tx.receiptLines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(child: Text(line.name)),
+                const SizedBox(width: 8),
+                Text('${CurrencyTextField.formatAmount(line.amount)} đ'),
+              ],
+            ),
+          ),
+        const Divider(),
+        Text(
+          'Số tiền giao dịch: ${CurrencyTextField.formatAmount(tx.amount.abs())} đ',
+        ),
+        if (tx.note.isNotEmpty) Text(tx.note),
+      ],
+    ),
+    actions: [
+      if (tx.attachmentIds.isNotEmpty)
+        TextButton(
+          onPressed: () =>
+              _showAttachment(dialogContext, ref, tx.attachmentIds.first),
+          child: const Text('Xem ảnh gốc'),
+        ),
+      TextButton(
+        onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('Đóng'),
+      ),
+    ],
+  ),
+);
 
 Future<void> _showAttachment(
   BuildContext context,
@@ -91,91 +138,106 @@ class _TransactionActionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final amount = _moneyFormat.format(tx.amount.abs().toInt());
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Material(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tx.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$amount đ • ${tx.walletLabel}',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E0E0),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tx.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$amount đ • ${tx.walletLabel}',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: _teal),
+                  title: const Text('Sửa giao dịch'),
+                  onTap: () => Navigator.of(context).pop('edit'),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.receipt_long_outlined,
+                    color: _teal,
+                  ),
+                  title: const Text('Xem ảnh hóa đơn'),
+                  onTap: tx.attachmentIds.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pop('attachment'),
+                ),
+                if (tx.merchant.isNotEmpty || tx.receiptLines.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.list_alt_outlined, color: _teal),
+                    title: const Text('Chi tiết hóa đơn'),
+                    onTap: () => Navigator.of(context).pop('receipt'),
+                  ),
+                if (tx.type == TransactionType.expense && !tx.isVoided)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.rate_review_outlined,
+                      color: _teal,
+                    ),
+                    title: const Text('Đánh giá giao dịch'),
+                    onTap: () => Navigator.of(context).pop('review'),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: _danger),
+                  title: const Text(
+                    'Hủy giao dịch',
+                    style: TextStyle(color: _danger),
+                  ),
+                  onTap: () => Navigator.of(context).pop('delete'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                  title: const Text('Đóng'),
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined, color: _teal),
-              title: const Text('Sửa giao dịch'),
-              onTap: () => Navigator.of(context).pop('edit'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long_outlined, color: _teal),
-              title: const Text('Xem ảnh hóa đơn'),
-              onTap: tx.attachmentIds.isEmpty
-                  ? null
-                  : () => Navigator.of(context).pop('attachment'),
-            ),
-            if (tx.type == TransactionType.expense && !tx.isVoided)
-              ListTile(
-                leading: const Icon(Icons.rate_review_outlined, color: _teal),
-                title: const Text('Đánh giá giao dịch'),
-                onTap: () => Navigator.of(context).pop('review'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: _danger),
-              title: const Text(
-                'Hủy giao dịch',
-                style: TextStyle(color: _danger),
-              ),
-              onTap: () => Navigator.of(context).pop('delete'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.close, color: Color(0xFF6B7280)),
-              title: const Text('Đóng'),
-              onTap: () => Navigator.of(context).pop(),
-            ),
-          ],
+          ),
         ),
       ),
     );

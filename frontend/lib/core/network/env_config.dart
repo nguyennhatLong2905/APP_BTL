@@ -9,12 +9,12 @@ class EnvConfig {
   static String? realDeviceIp;
 
   static String get baseUrl {
+    const configuredUrl = String.fromEnvironment('VIAN_DEV_API_URL');
+    if (configuredUrl.isNotEmpty) return configuredUrl;
+
     if (currentEnvironment == Environment.prod) {
       return AppConstants.prodBaseUrl;
     }
-
-    const configuredUrl = String.fromEnvironment('VIAN_DEV_API_URL');
-    if (configuredUrl.isNotEmpty) return configuredUrl;
 
     if (realDeviceIp != null && realDeviceIp!.isNotEmpty) {
       return 'http://$realDeviceIp:3000/api/v1';

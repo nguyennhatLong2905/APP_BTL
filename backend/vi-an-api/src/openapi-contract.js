@@ -69,6 +69,7 @@ const schemas = {
       adjustmentDirection: str,
       note: str,
       merchant: str,
+      receiptLines: array(obj({ name: str, amount: money })),
       attachments: array(obj({ storageKey: id, mimeType: str })),
       category: {
         oneOf: [

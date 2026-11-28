@@ -1,3 +1,4 @@
+import '../../../transaction/domain/models/receipt.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/refresh_financial_data.dart';
 import '../../../transaction/data/datasources/transaction_remote_data_source.dart';
@@ -271,7 +272,11 @@ class ReportNotifier extends Notifier<ReportState> {
 
     return ReportTransaction(
       id: raw['_id'] as String? ?? raw['id'] as String? ?? '',
-      title: raw['memo'] as String? ?? raw['description'] as String? ?? catName,
+      title:
+          raw['merchant'] as String? ??
+          raw['memo'] as String? ??
+          raw['description'] as String? ??
+          catName,
       category: catName,
       categoryIcon: catIcon,
       amount: signedAmount,
@@ -284,15 +289,18 @@ class ReportNotifier extends Notifier<ReportState> {
       note: raw['note'] as String? ?? raw['memo'] as String? ?? '',
       version: (raw['version'] as num?)?.toInt() ?? 0,
       isVoided: (raw['status'] as String?) == 'voided',
+      merchant: raw['merchant'] as String? ?? '',
+      receiptLines: ReceiptLine.readList(raw['receiptLines']),
       attachmentIds:
           ((raw['attachmentIds'] as List?) ??
                   (raw['attachments'] as List?) ??
                   const [])
               .map(
                 (id) => id is Map
-                    ? (id['_id'] ?? id['id']).toString()
-                    : id.toString(),
+                    ? (id['storageKey'] ?? id['_id'] ?? id['id'])?.toString()
+                    : id?.toString(),
               )
+              .whereType<String>()
               .toList(),
     );
   }

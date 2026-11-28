@@ -1,3 +1,5 @@
+import '../../../transaction/domain/models/receipt.dart';
+
 // ════════════════════════════════════════════════════════════════════
 // Domain Models – Lịch Sử Giao Dịch & Báo Cáo
 // ════════════════════════════════════════════════════════════════════
@@ -26,6 +28,8 @@ class ReportTransaction {
   final int version;
   final bool isVoided;
   final List<String> attachmentIds;
+  final String merchant;
+  final List<ReceiptLine> receiptLines;
 
   const ReportTransaction({
     required this.id,
@@ -43,6 +47,8 @@ class ReportTransaction {
     this.version = 0,
     this.isVoided = false,
     this.attachmentIds = const [],
+    this.merchant = '',
+    this.receiptLines = const [],
   });
 
   /// Có thể sửa/hủy khi là giao dịch thủ công chưa bị hủy
@@ -69,6 +75,8 @@ class ReportTransaction {
       version: version,
       isVoided: isVoided,
       attachmentIds: attachmentIds,
+      merchant: merchant,
+      receiptLines: receiptLines,
     );
   }
 }

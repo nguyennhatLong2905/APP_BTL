@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/utils/refresh_financial_data.dart';
 import '../../../../core/widgets/currency_text_field.dart';
@@ -9,6 +10,8 @@ import '../../../settings/data/datasources/category_remote_data_source.dart';
 import '../../data/datasources/attachment_remote_data_source.dart';
 import '../../data/datasources/transaction_remote_data_source.dart';
 import '../../domain/models/transaction.dart';
+import '../../domain/models/receipt.dart';
+import '../../data/receipt_parser.dart';
 import '../../domain/models/transaction_category.dart';
 import '../../providers/transaction_provider.dart';
 
@@ -21,6 +24,8 @@ class TransactionFormState {
   final DateTime selectedDate;
   final String note;
   final XFile? photo;
+  final String merchant;
+  final List<ReceiptLine> receiptLines;
   final bool isLoading;
   final String? error;
   final bool isSuccess;
@@ -34,6 +39,8 @@ class TransactionFormState {
     DateTime? selectedDate,
     this.note = '',
     this.photo,
+    this.merchant = '',
+    this.receiptLines = const [],
     this.isLoading = false,
     this.error,
     this.isSuccess = false,
@@ -74,6 +81,8 @@ class TransactionFormState {
     DateTime? selectedDate,
     String? note,
     XFile? photo,
+    String? merchant,
+    List<ReceiptLine>? receiptLines,
     bool? isLoading,
     String? error,
     bool? isSuccess,
@@ -90,6 +99,8 @@ class TransactionFormState {
     selectedDate: selectedDate ?? this.selectedDate,
     note: note ?? this.note,
     photo: clearPhoto ? null : photo ?? this.photo,
+    merchant: merchant ?? this.merchant,
+    receiptLines: receiptLines ?? this.receiptLines,
     isLoading: isLoading ?? this.isLoading,
     error: error,
     isSuccess: isSuccess ?? this.isSuccess,
@@ -100,6 +111,8 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   // Khoảng số nguyên chính xác trên Flutter Web.
   static const _maxAmount = 9007199254740991;
   String? _uploadedPhotoId;
+  String? _receiptKey;
+  TransactionFormState? _sentReceipt;
 
   @override
   TransactionFormState build() => TransactionFormState();
@@ -144,10 +157,44 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     state = state.copyWith(photo: photo, clearPhoto: photo == null);
   }
 
+  void loadReceipt(ParsedReceipt receipt, XFile photo) {
+    _uploadedPhotoId = null;
+    // A retry keeps the same key even if the first response never arrived.
+    _receiptKey = const Uuid().v4();
+    _sentReceipt = null;
+    state = TransactionFormState(
+      amount: receipt.total ?? 0,
+      selectedDate: receipt.date,
+      merchant: receipt.merchant,
+      receiptLines: List.unmodifiable(receipt.lines),
+      photo: photo,
+    );
+  }
+
+  void setReceiptAmount(int amount) => state = state.copyWith(amount: amount);
+  void setMerchant(String merchant) =>
+      state = state.copyWith(merchant: merchant);
+
+  void setReceiptLines(List<ReceiptLine> lines) =>
+      state = state.copyWith(receiptLines: List.unmodifiable(lines));
+
+  bool _matchesSentReceipt(TransactionFormState draft) {
+    final sent = _sentReceipt;
+    return sent != null &&
+        sent.amount == draft.amount &&
+        sent.selectedDate == draft.selectedDate &&
+        sent.wallet?.id == draft.wallet?.id &&
+        sent.selectedCategory?.id == draft.selectedCategory?.id &&
+        sent.note.trim() == draft.note.trim() &&
+        sent.merchant == draft.merchant &&
+        identical(sent.receiptLines, draft.receiptLines);
+  }
+
   Future<void> saveTransaction() async {
     if (state.isLoading || state.isSuccess || !state.isValid) return;
 
     final draft = state;
+    final keepAlive = ref.keepAlive();
     state = draft.copyWith(isLoading: true);
     try {
       final from = draft.wallet!;
@@ -166,7 +213,9 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       final categoryId = draft.isTransfer
           ? null
           : await _resolveCategory(draft);
-      if (draft.type == TransactionType.expense) {
+      // A replay may already have reduced the remaining budget.
+      if (draft.type == TransactionType.expense &&
+          !_matchesSentReceipt(draft)) {
         await _assertBudgetAllowance(
           categoryId: categoryId!,
           amount: draft.amount,
@@ -181,6 +230,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
             .uploadAttachment(photo);
       }
       final attachmentId = _uploadedPhotoId;
+      if (_receiptKey != null) _sentReceipt = draft;
       await ds.createTransaction(
         type: draft.type.name,
         amount: draft.amount.toString(),
@@ -191,6 +241,9 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
         categoryId: categoryId,
         note: draft.note.trim(),
         attachmentIds: attachmentId == null ? null : [attachmentId],
+        merchant: draft.merchant.trim(),
+        receiptLines: draft.receiptLines,
+        idempotencyKey: _receiptKey,
       );
     } catch (e) {
       state = draft.copyWith(
@@ -199,6 +252,8 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
             'Không thể lưu giao dịch. ${e.toString().replaceFirst('Exception: ', '')}',
       );
       return;
+    } finally {
+      keepAlive.close();
     }
 
     state = draft.copyWith(isLoading: false, isSuccess: true);
@@ -285,12 +340,19 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
   void reset() {
     _uploadedPhotoId = null;
+    _receiptKey = null;
+    _sentReceipt = null;
     state = TransactionFormState();
   }
 }
 
 final transactionFormProvider =
     NotifierProvider<TransactionFormNotifier, TransactionFormState>(
+      TransactionFormNotifier.new,
+    );
+
+final receiptTransactionFormProvider =
+    NotifierProvider.autoDispose<TransactionFormNotifier, TransactionFormState>(
       TransactionFormNotifier.new,
     );
 

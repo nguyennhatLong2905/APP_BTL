@@ -102,6 +102,18 @@ export async function validateEntry(db, userId, input, session) {
     }
     delete t.attachmentIds;
   }
+  if (input.receiptLines !== undefined) {
+    fail(
+      t.type === "expense",
+      "INVALID_RECEIPT",
+      "Chỉ khoản chi có chi tiết hóa đơn.",
+      422,
+    );
+    t.receiptLines = input.receiptLines.map(({ name, amount }) => ({
+      name,
+      amount: L(amount),
+    }));
+  }
   delete t.expectedVersion;
   delete t.trackReview;
   return t;
@@ -484,6 +496,12 @@ export async function changeEntry(db, userId, id, input, mode, session) {
       purchaseIntentId: old.purchaseIntentId?.toHexString(),
     };
     if (input.attachmentIds === undefined) clean.attachments = old.attachments;
+    if (input.merchant === undefined) clean.merchant = old.merchant;
+    if (input.receiptLines === undefined && input.type === "expense")
+      clean.receiptLines = old.receiptLines?.map(({ name, amount }) => ({
+        name,
+        amount: B(amount).toString(),
+      }));
     t = {
       ...base(userId),
       ...(await validateEntry(db, userId, clean, session)),

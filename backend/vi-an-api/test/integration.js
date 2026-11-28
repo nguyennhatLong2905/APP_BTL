@@ -21,7 +21,7 @@ test(
         downloadDir:
           process.env.MONGOMS_DOWNLOAD_DIR || "/tmp/vi-an-mongodb-binaries",
       },
-      replSet: { count: 1 },
+      replSet: { count: 1, configSettings: { heartbeatIntervalMillis: 200 } },
     });
     const client = new MongoClient(repl.getUri(), { promoteLongs: false });
     await client.connect();
@@ -387,13 +387,42 @@ test(
         });
         assert.equal(media.statusCode, 200);
         assert.equal(media.rawPayload.toString("base64"), base64);
-        const tx = await call("POST", "/transactions", {
+        const before = await call("GET", "/wallets");
+        const balance = (wallets) =>
+          BigInt(wallets.find((wallet) => wallet._id === BANK).balance);
+        const key = randomUUID();
+        const receipt = {
           ...entry,
           walletId: BANK,
           amount: "10",
+          merchant: "Cửa hàng kiểm thử",
+          receiptLines: [
+            { name: "Món đã sửa", amount: "15" },
+            { name: "Món bổ sung", amount: "5" },
+          ],
           attachmentIds: [a._id],
+        };
+        const tx = await call("POST", "/transactions", receipt, key);
+        const replay = await call("POST", "/transactions", receipt, key);
+        assert.equal(replay._id, tx._id);
+        const saved = await call("GET", "/transactions/" + tx._id);
+        assert.equal(saved.amount, "10");
+        assert.equal(saved.note, receipt.note);
+        assert.equal(saved.merchant, receipt.merchant);
+        assert.deepEqual(saved.receiptLines, receipt.receiptLines);
+        assert.equal(saved.attachments[0].storageKey, a._id);
+        assert.equal(balance(await call("GET", "/wallets")), balance(before) - 10n);
+        const updated = await call("PUT", "/transactions/" + tx._id, {
+          ...entry,
+          walletId: BANK,
+          amount: "10",
+          note: "Ghi chú sau khi sửa giao dịch",
+          expectedVersion: saved.version,
         });
-        assert.equal(tx.attachments[0].storageKey, a._id);
+        assert.equal(updated.merchant, receipt.merchant);
+        assert.deepEqual(updated.receiptLines, receipt.receiptLines);
+        assert.equal(updated.attachments[0].storageKey, a._id);
+        assert.equal(balance(await call("GET", "/wallets")), balance(before) - 10n);
         await call(
           "POST",
           "/attachments",

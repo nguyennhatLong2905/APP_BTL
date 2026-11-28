@@ -1,4 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/data/datasources/attachment_remote_data_source.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/data/receipt_mvp/du_lieu/bo_chon_anh.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/data/receipt_mvp/mo_hinh/hoa_don.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/data/receipt_mvp/ocr/bo_nhan_dang.dart';
+import 'package:flutter_riverpod_clean_architecture/features/transaction/data/receipt_scanner.dart';
+
+import 'package:flutter_riverpod_clean_architecture/features/transaction/domain/models/receipt.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -60,6 +71,9 @@ class _TransactionSource implements TransactionRemoteDataSource {
     String? memo,
     String? note,
     List<String>? attachmentIds,
+    String? merchant,
+    List<ReceiptLine>? receiptLines,
+    String? idempotencyKey,
   }) {
     requests.add({
       'type': type,
@@ -70,6 +84,10 @@ class _TransactionSource implements TransactionRemoteDataSource {
       'from': fromWalletId,
       'to': toWalletId,
       'note': note,
+      'merchant': merchant,
+      'receiptLines': receiptLines?.map((item) => item.toJson()).toList(),
+      'attachmentIds': attachmentIds,
+      'key': idempotencyKey,
     });
     return pending.future;
   }
@@ -78,16 +96,66 @@ class _TransactionSource implements TransactionRemoteDataSource {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ReceiptPicker implements BoChonAnh {
+  AnhHoaDon? next;
+
+  @override
+  Future<AnhHoaDon?> chon(NguonAnh nguon) async => next;
+
+  @override
+  Future<AnhHoaDon?> layAnhBiGianDoan() async => null;
+}
+
+class _ReceiptRecognition implements BoNhanDang {
+  @override
+  bool get laDemo => false;
+
+  @override
+  Future<void> dong() async {}
+
+  @override
+  Future<KetQuaNhanDang> nhanDang(AnhHoaDon anh) async => const KetQuaNhanDang(
+    vanBan: 'Cửa hàng thử\nCà phê   35.000 đ\nTạm tính 35.000 đ',
+    soDong: 3,
+    thoiGian: Duration.zero,
+  );
+}
+
+class _ReceiptAttachments implements AttachmentRemoteDataSource {
+  int uploads = 0;
+
+  @override
+  Future<String> uploadAttachment(XFile file) async {
+    uploads++;
+    return 'receipt-photo';
+  }
+
+  @override
+  Future<List<int>> downloadAttachment(String id) async => [];
+}
+
 Future<(_TransactionSource, ProviderContainer)> _open(
   WidgetTester tester,
   Size size, {
   double scale = 1,
+  _ReceiptPicker? receiptPicker,
+  _ReceiptAttachments? receiptAttachments,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final source = _TransactionSource();
   final container = ProviderContainer(
-    overrides: [transactionRemoteDataSourceProvider.overrideWithValue(source)],
+    overrides: [
+      transactionRemoteDataSourceProvider.overrideWithValue(source),
+      if (receiptPicker != null) ...[
+        receiptImagePickerProvider.overrideWithValue(receiptPicker),
+        receiptRecognitionProvider.overrideWithValue(_ReceiptRecognition.new),
+      ],
+      if (receiptAttachments != null)
+        attachmentRemoteDataSourceProvider.overrideWithValue(
+          receiptAttachments,
+        ),
+    ],
   );
   addTearDown(container.dispose);
 
@@ -111,6 +179,8 @@ Future<(_TransactionSource, ProviderContainer)> _open(
 }
 
 Future<void> _tap(WidgetTester tester, String text) async {
+  await tester.ensureVisible(find.text(text).first);
+  await tester.pumpAndSettle();
   await tester.tap(find.text(text));
   await tester.pumpAndSettle();
 }
@@ -125,6 +195,92 @@ bool _saveEnabled(WidgetTester tester) => tester
     .enabled;
 
 void main() {
+  testWidgets('OCR chỉ ở khoản chi, giữ chỉnh sửa và gửi một giao dịch', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('vian-receipt-test');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final photo = File('${dir.path}/receipt.png')
+      ..writeAsBytesSync(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jHZkAAAAASUVORK5CYII=',
+        ),
+      );
+    final picker = _ReceiptPicker();
+    final attachments = _ReceiptAttachments();
+    final (source, container) = await _open(
+      tester,
+      const Size(390, 750),
+      receiptPicker: picker,
+      receiptAttachments: attachments,
+    );
+    await _tap(tester, 'Thu nhập');
+    expect(find.text('Quét OCR'), findsNothing);
+    await _tap(tester, 'Chuyển ví');
+    expect(find.text('Quét OCR'), findsNothing);
+    await _tap(tester, 'Chi tiêu');
+    expect(find.byType(TransactionKeypad), findsOneWidget);
+    await _tap(tester, 'Quét OCR');
+    await _tap(tester, 'Chọn ảnh có sẵn');
+    expect(find.text('Quét hóa đơn'), findsOneWidget);
+    expect(find.text('Đang đọc hóa đơn…'), findsNothing);
+
+    picker.next = AnhHoaDon.tep(photo.path);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Chọn ảnh có sẵn'));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Kết quả quét'), findsOneWidget);
+    expect(find.text('0 đ'), findsOneWidget);
+    await tester.tap(find.byTooltip('Sửa số tiền'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '65000');
+    await _tap(tester, 'Xác nhận');
+    await _tap(tester, 'Xem ảnh gốc');
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await _tap(tester, 'Đóng ảnh');
+    expect(find.text('65.000 đ'), findsOneWidget);
+
+    await _tap(tester, 'Thêm dòng');
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Bánh');
+    await tester.enterText(fields.at(1), '10000');
+    await _tap(tester, 'Xác nhận');
+    expect(container.read(receiptTransactionFormProvider).amount, 65000);
+    await _tap(tester, 'Ví chi tiền');
+    await _tap(tester, 'Tiền mặt');
+    await _tap(tester, 'Ăn uống');
+
+    final note = find.byType(TextField);
+    await tester.ensureVisible(note);
+    await tester.enterText(note, 'Ghi chú OCR');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(FilledButton, 'Lưu giao dịch');
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    await tester.tap(save);
+    await tester.pump();
+    expect(source.requests, hasLength(1));
+    expect(attachments.uploads, 1);
+    expect(source.requests.single, containsPair('amount', '65000'));
+    expect(source.requests.single, containsPair('merchant', 'Cửa hàng thử'));
+    expect(source.requests.single, containsPair('wallet', 'cash'));
+    expect(source.requests.single, containsPair('category', 'food-id'));
+    expect(source.requests.single, containsPair('note', 'Ghi chú OCR'));
+    expect(source.requests.single['key'], isNotEmpty);
+    expect(source.requests.single['attachmentIds'], ['receipt-photo']);
+    expect(source.requests.single['receiptLines'], [
+      {'name': 'Cà phê', 'amount': '35000'},
+      {'name': 'Bánh', 'amount': '10000'},
+    ]);
+    source.pending.complete({});
+    await tester.pumpAndSettle();
+    expect(find.text('Quét hóa đơn'), findsOneWidget);
+  });
+
   testWidgets(
     '360 px: bàn phím ghim đáy, đúng vị trí và nhập không cần focus',
     (tester) async {
@@ -169,7 +325,11 @@ void main() {
       expect(find.text('0 đ'), findsOneWidget);
 
       final keyPosition = tester.getCenter(_key('1'));
-      await tester.drag(find.byType(ListView), const Offset(0, -460));
+      await tester.scrollUntilVisible(
+        find.text('Ghi chú & ảnh hóa đơn'),
+        60,
+        scrollable: find.byType(Scrollable),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Ghi chú & ảnh hóa đơn').hitTestable(), findsOneWidget);
       expect(tester.getCenter(_key('1')), keyPosition);

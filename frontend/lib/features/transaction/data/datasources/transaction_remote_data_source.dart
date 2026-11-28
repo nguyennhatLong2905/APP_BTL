@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/models/receipt.dart';
 import 'package:flutter_riverpod_clean_architecture/core/error/exceptions.dart';
 import 'package:flutter_riverpod_clean_architecture/core/network/api_client.dart';
 import 'package:flutter_riverpod_clean_architecture/features/auth/data/datasources/auth_remote_data_source.dart';
@@ -25,6 +27,9 @@ abstract class TransactionRemoteDataSource {
     String? memo,
     String? note,
     List<String>? attachmentIds,
+    String? merchant,
+    List<ReceiptLine>? receiptLines,
+    String? idempotencyKey,
   });
 
   /// Sửa giao dịch
@@ -91,6 +96,9 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
     String? memo,
     String? note,
     List<String>? attachmentIds,
+    String? merchant,
+    List<ReceiptLine>? receiptLines,
+    String? idempotencyKey,
   }) async {
     final data = <String, dynamic>{
       'type': type,
@@ -107,7 +115,15 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
       data['attachmentIds'] = attachmentIds;
     }
 
-    final result = await _apiClient.post('/transactions', data: data);
+    if (merchant != null && merchant.isNotEmpty) data['merchant'] = merchant;
+    if (receiptLines != null && receiptLines.isNotEmpty) {
+      data['receiptLines'] = receiptLines.map((line) => line.toJson()).toList();
+    }
+    final result = await _apiClient.post(
+      '/transactions',
+      data: data,
+      idempotencyKey: idempotencyKey,
+    );
     return result.fold(
       (failure) => throw ServerException(message: failure.message),
       (body) {
