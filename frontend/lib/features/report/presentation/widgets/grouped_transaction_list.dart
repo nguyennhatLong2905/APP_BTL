@@ -211,7 +211,7 @@ class WalletFilterWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(reportProvider);
     final notifier = ref.read(reportProvider.notifier);
-    
+
     // Lấy danh sách ví từ API
     final walletDataSource = ref.watch(walletRemoteDataSourceProvider);
 
@@ -220,7 +220,7 @@ class WalletFilterWidget extends ConsumerWidget {
       builder: (context, snapshot) {
         // Nếu đang loading hoặc lỗi, hiển thị "Tất cả ví"
         final walletNames = <String>['Tất cả ví'];
-        
+
         if (snapshot.hasData && snapshot.data != null) {
           // Thêm tên các ví từ API
           for (final w in snapshot.data!) {
@@ -235,17 +235,21 @@ class WalletFilterWidget extends ConsumerWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: walletNames
-                .map((w) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _WalletChip(
-                        label: w,
-                        isActive: state.selectedWallet == w,
-                        activeColor: _teal,
-                        inactiveColor: _bg,
-                        textColor: state.selectedWallet == w ? Colors.white : _textDark,
-                        onTap: () => notifier.setWallet(w),
-                      ),
-                    ))
+                .map(
+                  (w) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _WalletChip(
+                      label: w,
+                      isActive: state.selectedWallet == w,
+                      activeColor: _teal,
+                      inactiveColor: _bg,
+                      textColor: state.selectedWallet == w
+                          ? Colors.white
+                          : _textDark,
+                      onTap: () => notifier.setWallet(w),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         );
@@ -322,9 +326,7 @@ class GroupedTransactionList extends ConsumerWidget {
     if (state.isLoading && groups.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 48),
-        child: Center(
-          child: CircularProgressIndicator(color: _teal),
-        ),
+        child: Center(child: CircularProgressIndicator(color: _teal)),
       );
     }
 
@@ -348,7 +350,11 @@ class GroupedTransactionList extends ConsumerWidget {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.receipt_long_outlined, size: 48, color: Color(0xFFBDBDBD)),
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 48,
+              color: Color(0xFFBDBDBD),
+            ),
             SizedBox(height: 12),
             Text(
               'Không có giao dịch nào',
@@ -370,17 +376,16 @@ class GroupedTransactionList extends ConsumerWidget {
     final summaryLabel = hasIncome && !hasExpense
         ? 'Dòng tiền:'
         : hasExpense && !hasIncome
-            ? 'Tổng chi:'
-            : 'Dòng tiền:';
+        ? 'Tổng chi:'
+        : 'Dòng tiền:';
     final summaryAmount = hasIncome && !hasExpense
         ? '+${formatter.format(group.totalIncome.toInt())} đ'
         : hasExpense && !hasIncome
-            ? '-${formatter.format(group.totalExpense.toInt())} đ'
-            : group.netFlow >= 0
-                ? '+${formatter.format(group.netFlow.toInt())} đ'
-                : '-${formatter.format(group.netFlow.abs().toInt())} đ';
-    final summaryColor =
-        group.netFlow >= 0 ? _income : _expense;
+        ? '-${formatter.format(group.totalExpense.toInt())} đ'
+        : group.netFlow >= 0
+        ? '+${formatter.format(group.netFlow.toInt())} đ'
+        : '-${formatter.format(group.netFlow.abs().toInt())} đ';
+    final summaryColor = group.netFlow >= 0 ? _income : _expense;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -398,7 +403,7 @@ class GroupedTransactionList extends ConsumerWidget {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: _teal,
+                          color: Color(0xFF1A6B5A),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -480,7 +485,8 @@ class GroupedTransactionList extends ConsumerWidget {
     final yesterday = today.subtract(const Duration(days: 1));
     final d = DateTime(date.year, date.month, date.day);
 
-    final dateFormatted = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    final dateFormatted =
+        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     if (d == today) {
       return 'Hôm nay - $dateFormatted';
     } else if (d == yesterday) {
@@ -587,14 +593,14 @@ class _TransactionItem extends ConsumerWidget {
     final amountStr = isIncome
         ? '+${formatter.format(transaction.amount.toInt())} đ'
         : isTransfer
-            ? '↔ ${formatter.format(transaction.amount.abs().toInt())} đ'
-            : '-${formatter.format(transaction.amount.abs().toInt())} đ';
+        ? '↔ ${formatter.format(transaction.amount.abs().toInt())} đ'
+        : '-${formatter.format(transaction.amount.abs().toInt())} đ';
 
     final amountColor = isIncome
         ? _income
         : isTransfer
-            ? _transferColor
-            : _expense;
+        ? _transferColor
+        : _expense;
 
     // Badge
     Color badgeBg;
@@ -614,105 +620,108 @@ class _TransactionItem extends ConsumerWidget {
     final walletShort = isTransfer ? 'Điều chuyển' : transaction.walletLabel;
 
     return InkWell(
-      onTap: transaction.canModify
-          ? () => showTransactionActions(context, ref, transaction)
-          : null,
+      onTap: () => showTransactionActions(context, ref, transaction),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
-        children: [
-          // ── Icon ──────────────────────────────────────────────────
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                transaction.categoryIcon,
-                style: const TextStyle(fontSize: 20),
+          children: [
+            // ── Icon ──────────────────────────────────────────────────
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  transaction.categoryIcon,
+                  style: const TextStyle(fontSize: 20),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // ── Title + time + badge ───────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        transaction.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _textPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    // Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        transaction.typeLabel,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: badgeText,
+            // ── Title + time + badge ───────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          transaction.title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${_formatTime(transaction.dateTime)} • ${transaction.walletLabel}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _textSecondary,
+                      if (transaction.attachmentIds.isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 5),
+                          child: Icon(
+                            Icons.attach_file_rounded,
+                            size: 15,
+                            color: Color(0xFF1A6B5A),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      // Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          transaction.typeLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: badgeText,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 3),
+                  Text(
+                    '${_formatTime(transaction.dateTime)} • ${transaction.walletLabel}',
+                    style: const TextStyle(fontSize: 12, color: _textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // ── Amount ────────────────────────────────────────────────
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  amountStr,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: amountColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  walletShort,
+                  style: const TextStyle(fontSize: 11, color: _textSecondary),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-
-          // ── Amount ────────────────────────────────────────────────
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amountStr,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: amountColor,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                walletShort,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: _textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
         ),
       ),
     );

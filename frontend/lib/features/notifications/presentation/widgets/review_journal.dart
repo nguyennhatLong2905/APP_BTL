@@ -37,12 +37,14 @@ class _ReviewJournalState extends State<ReviewJournal> {
   bool _submitting = false;
 
   static String _id(JournalEntry entry) =>
-      entry.transactionId.isEmpty ? entry.id : entry.transactionId;
+      entry.id.isNotEmpty ? entry.id : entry.transactionId;
 
   @override
   void initState() {
     super.initState();
-    final first = widget.state.awaitingReview.firstOrNull;
+    final first =
+        widget.state.awaitingReview.firstOrNull ??
+        widget.state.tracking.firstOrNull;
     if (first != null) _expandedId = _id(first);
   }
 
@@ -148,6 +150,15 @@ class _ReviewJournalState extends State<ReviewJournal> {
                             entry.dateText,
                             style: FinanceScreenStyle.detail,
                           ),
+                        if (entry.isAwaitingReview)
+                          const Text(
+                            'Bấm để đánh giá giao dịch',
+                            style: TextStyle(
+                              color: FinanceScreenStyle.green,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -177,7 +188,7 @@ class _ReviewJournalState extends State<ReviewJournal> {
         if (expanded)
           Padding(
             padding: const EdgeInsets.only(bottom: 11),
-            child: entry.isAwaitingReview
+            child: entry.isAwaitingReview || entry.isTracking
                 ? _editor(entry)
                 : Text(entry.countdownLabel, style: FinanceScreenStyle.detail),
           ),

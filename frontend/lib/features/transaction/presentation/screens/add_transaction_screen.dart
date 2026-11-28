@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -544,6 +546,12 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 photo.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (_) => Dialog(
+                  child: InteractiveViewer(child: Image.file(File(photo.path))),
+                ),
               ),
               trailing: IconButton(
                 onPressed: () => notifier.setPhoto(null),

@@ -202,6 +202,8 @@ class TimelineNotifier extends Notifier<TimelineState> {
     try {
       final ds = ref.read(timelineRemoteDataSourceProvider);
       await ds.rateReflection(
+        // API chấp nhận reflection id hoặc transaction id. Dữ liệu cũ có thể
+        // trả về transaction id làm `_id`; caller truyền đúng id đó.
         id: entryId,
         rating: emotionRatingApiValue(rating),
         note: note,

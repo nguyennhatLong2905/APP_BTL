@@ -190,9 +190,11 @@ class ReportNotifier extends Notifier<ReportState> {
     if (state.searchQuery.isNotEmpty) {
       final q = state.searchQuery.toLowerCase();
       list = list
-          .where((t) =>
-              t.title.toLowerCase().contains(q) ||
-              t.category.toLowerCase().contains(q))
+          .where(
+            (t) =>
+                t.title.toLowerCase().contains(q) ||
+                t.category.toLowerCase().contains(q),
+          )
           .toList();
     }
 
@@ -206,14 +208,15 @@ class ReportNotifier extends Notifier<ReportState> {
     final Map<String, List<ReportTransaction>> grouped = {};
 
     for (final tx in txList) {
-      final key =
-          '${tx.dateTime.year}-${tx.dateTime.month}-${tx.dateTime.day}';
+      final key = '${tx.dateTime.year}-${tx.dateTime.month}-${tx.dateTime.day}';
       grouped.putIfAbsent(key, () => []).add(tx);
     }
 
     final groups = grouped.entries
-        .map((e) =>
-            DailyGroup(date: e.value.first.dateTime, transactions: e.value))
+        .map(
+          (e) =>
+              DailyGroup(date: e.value.first.dateTime, transactions: e.value),
+        )
         .toList();
 
     groups.sort((a, b) => b.date.compareTo(a.date));
@@ -240,12 +243,13 @@ class ReportNotifier extends Notifier<ReportState> {
     final txType = typeStr == 'income'
         ? TransactionType.income
         : typeStr == 'transfer'
-            ? TransactionType.transfer
-            : TransactionType.expense;
+        ? TransactionType.transfer
+        : TransactionType.expense;
 
     // Sign convention: expense = negative
-    final signedAmount =
-        txType == TransactionType.expense ? -amount.abs() : amount.abs();
+    final signedAmount = txType == TransactionType.expense
+        ? -amount.abs()
+        : amount.abs();
 
     final occurredAt = raw['occurredAt'] as String?;
     final dateTime = occurredAt != null
@@ -262,8 +266,8 @@ class ReportNotifier extends Notifier<ReportState> {
     final typeLabel = txType == TransactionType.income
         ? 'Thu nhập'
         : txType == TransactionType.transfer
-            ? 'Chuyển tiền'
-            : 'Chi tiêu';
+        ? 'Chuyển tiền'
+        : 'Chi tiêu';
 
     return ReportTransaction(
       id: raw['_id'] as String? ?? raw['id'] as String? ?? '',
@@ -276,11 +280,20 @@ class ReportNotifier extends Notifier<ReportState> {
       walletLabel: walletName,
       typeLabel: typeLabel,
       walletId: raw['walletId'] as String? ?? wallet?['_id'] as String? ?? '',
-      categoryId:
-          raw['categoryId'] as String? ?? cat?['_id'] as String? ?? '',
+      categoryId: raw['categoryId'] as String? ?? cat?['_id'] as String? ?? '',
       note: raw['note'] as String? ?? raw['memo'] as String? ?? '',
       version: (raw['version'] as num?)?.toInt() ?? 0,
       isVoided: (raw['status'] as String?) == 'voided',
+      attachmentIds:
+          ((raw['attachmentIds'] as List?) ??
+                  (raw['attachments'] as List?) ??
+                  const [])
+              .map(
+                (id) => id is Map
+                    ? (id['_id'] ?? id['id']).toString()
+                    : id.toString(),
+              )
+              .toList(),
     );
   }
 
@@ -298,7 +311,9 @@ class ReportNotifier extends Notifier<ReportState> {
       'occurredAt': _isoTimestamp(occurredAt),
       'expectedVersion': tx.version,
     };
-    if (tx.type == TransactionType.transfer) return 'Chưa hỗ trợ sửa giao dịch chuyển ví';
+    if (tx.type == TransactionType.transfer) {
+      return 'Chưa hỗ trợ sửa giao dịch chuyển ví';
+    }
     data['walletId'] = tx.walletId;
     data['categoryId'] = tx.categoryId;
     if (note != null && note.trim().isNotEmpty) data['note'] = note.trim();

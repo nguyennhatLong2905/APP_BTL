@@ -25,6 +25,7 @@ class ReportTransaction {
   final String note;
   final int version;
   final bool isVoided;
+  final List<String> attachmentIds;
 
   const ReportTransaction({
     required this.id,
@@ -41,6 +42,7 @@ class ReportTransaction {
     this.note = '',
     this.version = 0,
     this.isVoided = false,
+    this.attachmentIds = const [],
   });
 
   /// Có thể sửa/hủy khi là giao dịch thủ công chưa bị hủy
@@ -66,6 +68,7 @@ class ReportTransaction {
       note: note,
       version: version,
       isVoided: isVoided,
+      attachmentIds: attachmentIds,
     );
   }
 }

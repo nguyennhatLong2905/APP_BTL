@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import 'dart:typed_data';
 
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/currency_text_field.dart';
 import '../../domain/models/report_data.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../transaction/data/datasources/attachment_remote_data_source.dart';
 import '../providers/report_provider.dart';
 
 const _teal = Color(0xFF1A6B5A);
@@ -35,7 +39,48 @@ Future<void> showTransactionActions(
     if (ok && context.mounted) {
       AppSnackBar.showSuccess(context, 'Đã hủy giao dịch');
     }
+  } else if (action == 'attachment') {
+    await _showAttachment(context, ref, tx.attachmentIds.first);
+  } else if (action == 'review') {
+    context.push(AppConstants.timelineRoute);
   }
+}
+
+Future<void> _showAttachment(
+  BuildContext context,
+  WidgetRef ref,
+  String id,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (_) => Dialog(
+      child: FutureBuilder<List<int>>(
+        future: ref
+            .read(attachmentRemoteDataSourceProvider)
+            .downloadAttachment(id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const SizedBox(
+              height: 220,
+              child: Center(child: CircularProgressIndicator(color: _teal)),
+            );
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('Không thể tải ảnh hóa đơn.'),
+            );
+          }
+          return InteractiveViewer(
+            child: Image.memory(
+              Uint8List.fromList(snapshot.data!),
+              fit: BoxFit.contain,
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _TransactionActionSheet extends StatelessWidget {
@@ -105,6 +150,19 @@ class _TransactionActionSheet extends StatelessWidget {
               onTap: () => Navigator.of(context).pop('edit'),
             ),
             ListTile(
+              leading: const Icon(Icons.receipt_long_outlined, color: _teal),
+              title: const Text('Xem ảnh hóa đơn'),
+              onTap: tx.attachmentIds.isEmpty
+                  ? null
+                  : () => Navigator.of(context).pop('attachment'),
+            ),
+            if (tx.type == TransactionType.expense && !tx.isVoided)
+              ListTile(
+                leading: const Icon(Icons.rate_review_outlined, color: _teal),
+                title: const Text('Đánh giá giao dịch'),
+                onTap: () => Navigator.of(context).pop('review'),
+              ),
+            ListTile(
               leading: const Icon(Icons.delete_outline, color: _danger),
               title: const Text(
                 'Hủy giao dịch',
@@ -157,8 +215,7 @@ Future<bool> _confirmDelete(
   );
   if (confirm != true) return false;
 
-  final error =
-      await ref.read(reportProvider.notifier).voidTransaction(tx);
+  final error = await ref.read(reportProvider.notifier).voidTransaction(tx);
   if (error != null) {
     if (context.mounted) AppSnackBar.showError(context, error);
     return false;
@@ -233,7 +290,9 @@ class _EditTransactionDialogState
     }
 
     setState(() => _saving = true);
-    final error = await ref.read(reportProvider.notifier).editTransaction(
+    final error = await ref
+        .read(reportProvider.notifier)
+        .editTransaction(
           tx: widget.tx,
           amount: amount,
           occurredAt: _date,
